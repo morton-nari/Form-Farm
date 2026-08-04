@@ -32,6 +32,8 @@ describe('DynamicQuestion', () => {
 
     expect(input.type).toBe('email');
     expect(input.autocomplete).toBe('email');
+    expect(input.required).toBe(true);
+    expect(input.getAttribute('aria-required')).toBe('true');
     expect(label.htmlFor).toBe(input.id);
 
     control.markAsTouched();
@@ -41,6 +43,23 @@ describe('DynamicQuestion', () => {
     expect(error.textContent).toContain('Email Address is required.');
     expect(input.getAttribute('aria-describedby')).toBe(error.id);
     expect(input.getAttribute('aria-invalid')).toBe('true');
+  });
+
+  it('provides telephone keyboard and autofill hints for the API phone field', () => {
+    const fixture = renderQuestion(
+      {
+        id: 'phone',
+        label: 'Phone Number',
+        type: 'text',
+        required: true,
+      },
+      new FormControl<string | number | null>(null),
+    );
+
+    const input = fixture.nativeElement.querySelector('input') as HTMLInputElement;
+
+    expect(input.autocomplete).toBe('tel');
+    expect(input.inputMode).toBe('tel');
   });
 
   it('renders API-provided select options', () => {
@@ -81,6 +100,8 @@ describe('DynamicQuestion', () => {
     const legend = fixture.nativeElement.querySelector('legend') as HTMLElement;
 
     expect(radios).toHaveLength(2);
+    expect(radios[0]?.required).toBe(true);
+    expect(radios[0]?.getAttribute('aria-required')).toBe('true');
     expect(legend.textContent).toContain('Have you smoked in the last 12 months?');
 
     radios[0]?.click();

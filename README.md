@@ -25,8 +25,8 @@ Exact dependency versions are recorded in `package-lock.json` for reproducible i
 
 - **Standalone Angular:** the application is bootstrapped with `bootstrapApplication`; there are no NgModules.
 - **Zoneless:** Angular 22 applications are zoneless by default. This project does not install `zone.js` or configure a zone-based change-detection provider.
-- **Signals:** signals will hold synchronous UI and journey state.
-- **Reactive Forms:** Angular Reactive Forms will provide typed form models and validation.
+- **Signals:** signals hold synchronous UI and journey state, including loading, navigation, submission, and quote results.
+- **Reactive Forms:** Angular Reactive Forms provide typed, API-driven form models and validation.
 - **Single-page journey:** signal-based section state drives the assessment flow, so no unused URL router is bundled.
 - **Bootstrap CSS only:** Bootstrap supplies styling and layout utilities. Its JavaScript bundle is intentionally excluded so Angular remains responsible for interactive behaviour and DOM state.
 - **SCSS:** application-specific styles use SCSS.
@@ -115,13 +115,17 @@ The quote endpoint requires answers to be sent inside an `answers` property. No 
 
 The Angular development proxy is only active with `npm start`. A production deployment will require its hosting platform to forward `/api` to the supplied API or provide an equivalent same-origin backend route.
 
-## Planned finalisation
+## Quality and verification
 
-The final implementation phase will cover:
+The implementation is verified with:
 
-- visual polish against the supplied wireframe;
-- a final keyboard, screen-reader semantics, and responsive-layout audit;
-- final documentation, limitations, and time-spent updates.
+- unit tests covering API adaptation, state transitions, form rendering, validation, navigation, follow-up questions, retry paths, and quote completion;
+- strict Angular production compilation with `npm run build`;
+- desktop and mobile browser walkthroughs against the live API;
+- browser console and network inspection;
+- Lighthouse accessibility auditing and keyboard-focused form semantics.
+
+The UI includes native labelled controls, required/error announcements, visible keyboard focus, a skip link, responsive navigation, and loading/error states. API question IDs drive the data model while labels, input types, required rules, and options remain server-driven.
 
 ## Assumptions
 
@@ -138,8 +142,8 @@ The final implementation phase will cover:
 
 ## Time spent
 
-Approximately 30 minutes on repository review, Angular scaffolding, dependency configuration, baseline verification, and documentation. This will be updated as the assessment progresses.
+Approximately four hours across repository setup, API investigation, architecture, implementation, automated tests, browser verification, accessibility review, and documentation.
 
 ## AI assistance
 
-OpenAI Codex was used to review the assessment requirements, scaffold the Angular baseline, configure dependencies, prepare documentation, and run verification commands. All generated changes are reviewed and remain subject to the same build, test, and code-quality checks as manually authored code.
+OpenAI Codex was used to review the assessment requirements, scaffold the Angular baseline, investigate the supplied API, support implementation, prepare documentation, and run automated and browser-based verification. All generated changes were reviewed and subjected to the same build, test, and quality checks as manually authored code.
