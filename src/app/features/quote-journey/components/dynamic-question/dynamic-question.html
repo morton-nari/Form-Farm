@@ -1,0 +1,88 @@
+@let currentQuestion = question();
+@let currentControl = control();
+
+<div class="mb-4">
+  @switch (currentQuestion.type) {
+    @case ('select') {
+      <label class="form-label" [for]="controlId()">
+        {{ currentQuestion.label }}
+        @if (currentQuestion.required) {
+          <span class="required-indicator" aria-hidden="true">*</span>
+        }
+      </label>
+      <select
+        class="form-select"
+        [class.is-invalid]="showError()"
+        [id]="controlId()"
+        [formControl]="currentControl"
+        [attr.aria-describedby]="showError() ? errorId() : null"
+        [attr.aria-invalid]="showError()"
+      >
+        <option [ngValue]="null" disabled>Select an option</option>
+        @for (option of currentQuestion.options ?? []; track option) {
+          <option [value]="option">{{ option }}</option>
+        }
+      </select>
+    }
+
+    @case ('radio') {
+      <fieldset>
+        <legend class="form-label">
+          {{ currentQuestion.label }}
+          @if (currentQuestion.required) {
+            <span class="required-indicator" aria-hidden="true">*</span>
+          }
+        </legend>
+        @for (option of currentQuestion.options ?? []; track option; let optionIndex = $index) {
+          <div class="form-check">
+            <input
+              class="form-check-input"
+              type="radio"
+              [id]="controlId() + '-' + optionIndex"
+              [formControl]="currentControl"
+              [value]="option"
+              [attr.aria-describedby]="showError() ? errorId() : null"
+              [attr.aria-invalid]="showError()"
+            />
+            <label class="form-check-label" [for]="controlId() + '-' + optionIndex">
+              {{ option }}
+            </label>
+          </div>
+        }
+      </fieldset>
+    }
+
+    @default {
+      <label class="form-label" [for]="controlId()">
+        {{ currentQuestion.label }}
+        @if (currentQuestion.required) {
+          <span class="required-indicator" aria-hidden="true">*</span>
+        }
+      </label>
+      <input
+        class="form-control"
+        [class.is-invalid]="showError()"
+        [id]="controlId()"
+        [type]="currentQuestion.type"
+        [formControl]="currentControl"
+        [attr.min]="currentQuestion.type === 'number' ? 0 : null"
+        [attr.step]="currentQuestion.type === 'number' ? 1 : null"
+        [attr.autocomplete]="currentQuestion.type === 'email' ? 'email' : null"
+        [attr.aria-describedby]="showError() ? errorId() : null"
+        [attr.aria-invalid]="showError()"
+      />
+    }
+  }
+
+  @if (showError()) {
+    <div class="invalid-feedback d-block" [id]="errorId()" role="alert">
+      @if (currentControl.hasError('required')) {
+        {{ currentQuestion.label }} is required.
+      } @else if (currentControl.hasError('email')) {
+        Enter a valid email address.
+      } @else if (currentControl.hasError('min')) {
+        Enter a value of zero or more.
+      }
+    </div>
+  }
+</div>
