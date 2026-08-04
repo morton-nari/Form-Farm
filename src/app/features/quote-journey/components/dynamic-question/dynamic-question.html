@@ -15,6 +15,8 @@
         [class.is-invalid]="showError()"
         [id]="controlId()"
         [formControl]="currentControl"
+        [required]="currentQuestion.required"
+        [attr.aria-required]="currentQuestion.required"
         [attr.aria-describedby]="showError() ? errorId() : null"
         [attr.aria-invalid]="showError()"
       >
@@ -41,6 +43,8 @@
               [id]="controlId() + '-' + optionIndex"
               [formControl]="currentControl"
               [value]="option"
+              [required]="currentQuestion.required"
+              [attr.aria-required]="currentQuestion.required"
               [attr.aria-describedby]="showError() ? errorId() : null"
               [attr.aria-invalid]="showError()"
             />
@@ -68,6 +72,8 @@
         [class.is-invalid]="showError()"
         [id]="controlId()"
         [formControl]="currentControl"
+        [required]="currentQuestion.required"
+        [attr.aria-required]="currentQuestion.required"
         [attr.aria-describedby]="showError() ? errorId() : null"
         [attr.aria-invalid]="showError()"
       />
@@ -86,7 +92,12 @@
         [id]="controlId()"
         [type]="currentQuestion.type"
         [formControl]="currentControl"
-        [attr.autocomplete]="currentQuestion.type === 'email' ? 'email' : null"
+        [required]="currentQuestion.required"
+        [attr.aria-required]="currentQuestion.required"
+        [attr.autocomplete]="
+          currentQuestion.id === 'phone' ? 'tel' : currentQuestion.type === 'email' ? 'email' : null
+        "
+        [attr.inputmode]="currentQuestion.id === 'phone' ? 'tel' : null"
         [attr.aria-describedby]="showError() ? errorId() : null"
         [attr.aria-invalid]="showError()"
       />
