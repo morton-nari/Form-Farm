@@ -18,20 +18,12 @@ export class JourneySidebar {
   readonly activeSectionIndex = input.required<number>();
   readonly activeStage = input.required<JourneyStage>();
   readonly completedSectionIds = input.required<ReadonlySet<string>>();
-  readonly highestReachableIndex = input.required<number>();
 
   readonly sectionSelected = output<number>();
 
   protected readonly applicationSections = computed<readonly IndexedSection[]>(() =>
-    this.sections()
-      .map((section, index) => ({ section, index }))
-      .filter(({ section }) => section.stage === 'application'),
+    this.sections().map((section, index) => ({ section, index })),
   );
-
-  protected readonly yourDetailsSection = computed<IndexedSection | null>(() => {
-    const index = this.sections().findIndex((section) => section.stage === 'your-details');
-    return index >= 0 ? { index, section: this.sections()[index]! } : null;
-  });
 
   protected readonly applicationComplete = computed(() => {
     const applicationSections = this.applicationSections();
@@ -45,12 +37,8 @@ export class JourneySidebar {
     return this.activeStage() !== 'quote' && this.activeSectionIndex() === index;
   }
 
-  protected canNavigateTo(index: number): boolean {
-    return index <= this.highestReachableIndex();
-  }
-
   protected selectSection(index: number): void {
-    if (this.canNavigateTo(index)) {
+    if (this.activeStage() === 'application') {
       this.sectionSelected.emit(index);
     }
   }

@@ -30,7 +30,6 @@
               [activeSectionIndex]="store.activeSectionIndex()"
               [activeStage]="activeStage()"
               [completedSectionIds]="completedSectionIds()"
-              [highestReachableIndex]="highestReachableIndex()"
               (sectionSelected)="selectSection($event)"
             />
           </div>
@@ -97,32 +96,40 @@
                   }
                 </button>
               </div>
-            } @else if (store.activeSection(); as section) {
-              <p class="eyebrow">
-                {{ section.stage === 'your-details' ? 'Your Details' : 'Application' }}
-              </p>
-              <h1 id="section-title" class="h2 mb-3" tabindex="-1">{{ section.title }}</h1>
-              <p class="text-body-secondary mb-4">
-                Fields marked with <span class="text-danger" aria-hidden="true">*</span> are
-                required.
-              </p>
+            } @else {
+              <div class="form-heading d-flex align-items-center gap-3 mb-4">
+                <span class="heading-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" role="img">
+                    <circle cx="12" cy="8" r="3.25" />
+                    <path d="M5.75 19c.5-4 2.6-6 6.25-6s5.75 2 6.25 6" />
+                  </svg>
+                </span>
+                <h1 id="section-title" class="h2 mb-0" tabindex="-1">{{ formTitle() }}</h1>
+              </div>
 
               <form [formGroup]="currentForm" novalidate (ngSubmit)="continue()">
-                @for (question of section.questions; track question.id) {
-                  <app-dynamic-question [question]="question" [control]="controlFor(question.id)" />
+                @for (section of formSections(); track section.id) {
+                  <div
+                    class="question-section"
+                    [attr.data-section-index]="sectionIndex(section.id)"
+                    (change)="activateSection(sectionIndex(section.id))"
+                  >
+                    @for (question of section.questions; track question.id) {
+                      <app-dynamic-question
+                        [question]="question"
+                        [control]="controlFor(question.id)"
+                      />
+                    }
+                  </div>
                 }
 
                 <div class="navigation-actions border-top pt-4 mt-2">
-                  @if (store.hasPreviousSection()) {
-                    <button class="btn btn-outline-secondary" type="button" (click)="goBack()">
-                      Back
-                    </button>
-                  } @else {
-                    <span></span>
-                  }
+                  <button class="btn btn-outline-secondary" type="button" disabled>
+                    <span aria-hidden="true">‹</span> Back
+                  </button>
 
                   <button class="btn btn-primary" type="submit">
-                    {{ store.hasNextSection() ? 'Continue' : 'Review answers' }}
+                    Next <span aria-hidden="true">›</span>
                   </button>
                 </div>
               </form>

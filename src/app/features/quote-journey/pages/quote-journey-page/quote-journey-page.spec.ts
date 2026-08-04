@@ -23,19 +23,24 @@ describe('QuoteJourneyPage', () => {
     httpTesting.verify();
   });
 
-  it('loads the schema and starts with future sections unavailable', () => {
+  it('shows Your Details as completed and renders every initial API question', () => {
     loadApplication();
 
-    expect(heading()).toBe('Your Details');
+    expect(heading()).toBe('About You');
     expect(inputFor('email')).toBeTruthy();
     expect(inputFor('phone')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('#question-occupation')).toBeTruthy();
+    expect(fixture.nativeElement.querySelectorAll('input[type="radio"]')).toHaveLength(2);
+    expect(fixture.nativeElement.querySelector('.completed-static')?.textContent).toContain(
+      'Your Details',
+    );
 
     const sectionLinks = fixture.nativeElement.querySelectorAll(
       '.section-link',
     ) as NodeListOf<HTMLButtonElement>;
     expect(sectionLinks).toHaveLength(2);
-    expect(sectionLinks[0]?.disabled).toBe(true);
-    expect(sectionLinks[1]?.disabled).toBe(true);
+    expect(sectionLinks[0]?.disabled).toBe(false);
+    expect(sectionLinks[0]?.classList).toContain('active');
   });
 
   it('blocks invalid progression and focuses the first invalid field', async () => {
@@ -45,34 +50,29 @@ describe('QuoteJourneyPage', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(heading()).toBe('Your Details');
-    expect(fixture.nativeElement.querySelectorAll('[role="alert"]')).toHaveLength(2);
+    expect(heading()).toBe('About You');
+    expect(fixture.nativeElement.querySelectorAll('[role="alert"]')).toHaveLength(4);
     expect(document.activeElement?.id).toBe('question-email');
   });
 
-  it('progresses through valid sections and presents an answer review', () => {
+  it('highlights the section being answered and presents an answer review', () => {
     loadApplication();
 
     enterValue(inputFor('email'), 'person@example.com');
     enterValue(inputFor('phone'), '0412345678');
-    submitCurrentSection();
-
-    expect(heading()).toBe('About You');
-    expect(fixture.nativeElement.querySelector('.journey-stage .completed')).toBeTruthy();
-
     const occupation = fixture.nativeElement.querySelector(
       '#question-occupation',
     ) as HTMLSelectElement;
     enterValue(occupation, 'Teacher', 'change');
-    submitCurrentSection();
-
-    expect(heading()).toBe('Lifestyle');
 
     const noOption = fixture.nativeElement.querySelectorAll(
       'input[type="radio"]',
     )[1] as HTMLInputElement;
     noOption.click();
     fixture.detectChanges();
+    expect(fixture.nativeElement.querySelectorAll('.section-link')[1]?.classList).toContain(
+      'active',
+    );
     submitCurrentSection();
 
     expect(heading()).toBe('Ready for your quote');
@@ -97,7 +97,7 @@ describe('QuoteJourneyPage', () => {
 
     httpTesting.expectOne('/api/application').flush(createApplicationDefinition());
     fixture.detectChanges();
-    expect(heading()).toBe('Your Details');
+    expect(heading()).toBe('About You');
   });
 
   it('submits a non-smoker application and renders the returned quote', () => {
@@ -234,14 +234,11 @@ describe('QuoteJourneyPage', () => {
   function completeKnownApplication(smokedLast12Months: 'Yes' | 'No'): void {
     enterValue(inputFor('email'), 'person@example.com');
     enterValue(inputFor('phone'), '0412345678');
-    submitCurrentSection();
-
     enterValue(
       fixture.nativeElement.querySelector('#question-occupation') as HTMLSelectElement,
       'Teacher',
       'change',
     );
-    submitCurrentSection();
 
     const optionIndex = smokedLast12Months === 'Yes' ? 0 : 1;
     const option = fixture.nativeElement.querySelectorAll('input[type="radio"]')[

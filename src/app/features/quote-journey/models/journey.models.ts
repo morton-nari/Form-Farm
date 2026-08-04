@@ -1,11 +1,10 @@
 import { ApplicationQuestion } from '../../../core/api/insurance-api.models';
 
-export type JourneyStage = 'your-details' | 'application' | 'quote';
+export type JourneyStage = 'application' | 'quote';
 
 export interface JourneySection {
   readonly id: string;
   readonly title: string;
-  readonly stage: Exclude<JourneyStage, 'quote'>;
   readonly questions: readonly ApplicationQuestion[];
 }
 

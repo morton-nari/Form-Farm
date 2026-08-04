@@ -5,24 +5,20 @@ import {
 } from './journey-schema.adapter';
 
 describe('adaptApplicationToJourney', () => {
-  it('separates contact questions from the API About You page', () => {
+  it('preserves the API pages and their question groupings', () => {
     const application = createApplicationDefinition();
 
     const journey = adaptApplicationToJourney(application);
 
     expect(journey.applicationId).toBe('1');
     expect(journey.title).toBe('Life Insurance Application');
-    expect(journey.sections.map((section) => section.id)).toEqual([
-      'your-details',
-      'about-you',
-      'lifestyle',
-    ]);
+    expect(journey.sections.map((section) => section.id)).toEqual(['about-you', 'lifestyle']);
     expect(journey.sections[0]?.questions.map((question) => question.id)).toEqual([
       'email',
       'phone',
+      'occupation',
     ]);
-    expect(journey.sections[1]?.questions.map((question) => question.id)).toEqual(['occupation']);
-    expect(journey.sections[2]?.questions.map((question) => question.id)).toEqual([
+    expect(journey.sections[1]?.questions.map((question) => question.id)).toEqual([
       'smokedLast12Months',
     ]);
   });
@@ -52,7 +48,6 @@ describe('adaptApplicationToJourney', () => {
     expect(journey.sections.at(-1)).toEqual({
       id: 'future-page',
       title: 'Future Page',
-      stage: 'application',
       questions: application.pages.at(-1)?.questions,
     });
   });
@@ -78,7 +73,6 @@ describe('adaptApplicationToJourney', () => {
     expect(sections[0]).toMatchObject({
       id: 'smoking-details',
       title: 'Smoking Details',
-      stage: 'application',
     });
   });
 });

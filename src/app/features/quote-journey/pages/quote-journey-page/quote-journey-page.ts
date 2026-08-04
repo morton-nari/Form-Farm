@@ -34,21 +34,31 @@ export class QuoteJourneyPage implements OnInit {
 
   private readonly formState = signal<JourneyForm | null>(null);
   private readonly completedSectionIdsState = signal<ReadonlySet<string>>(new Set());
-  private readonly highestReachableIndexState = signal(0);
+  private readonly initialSectionCountState = signal(0);
   private readonly reviewReadyState = signal(false);
   private loadedApplicationId: string | null = null;
 
   protected readonly form = this.formState.asReadonly();
   protected readonly completedSectionIds = this.completedSectionIdsState.asReadonly();
-  protected readonly highestReachableIndex = this.highestReachableIndexState.asReadonly();
   protected readonly reviewReady = this.reviewReadyState.asReadonly();
   protected readonly activeStage = computed<JourneyStage>(() => {
     if (this.store.quote() || this.reviewReadyState()) {
       return 'quote';
     }
 
-    return this.store.activeStage();
+    return 'application';
   });
+  protected readonly formSections = computed(() => {
+    const sections = this.store.sections();
+    const additionalSections = sections.slice(this.initialSectionCountState());
+
+    return additionalSections.length > 0
+      ? additionalSections
+      : sections.slice(0, this.initialSectionCountState());
+  });
+  protected readonly formTitle = computed(
+    () => this.formSections()[0]?.title ?? this.store.activeSection()?.title ?? 'Application',
+  );
   protected readonly allQuestions = computed(() =>
     this.store.sections().flatMap((section) => section.questions),
   );
@@ -61,7 +71,7 @@ export class QuoteJourneyPage implements OnInit {
         this.loadedApplicationId = journey.applicationId;
         this.formState.set(this.formFactory.create(journey.sections));
         this.completedSectionIdsState.set(new Set());
-        this.highestReachableIndexState.set(0);
+        this.initialSectionCountState.set(journey.sections.length);
         this.reviewReadyState.set(false);
       } else if (journey && this.formState()) {
         this.formFactory.addQuestions(
@@ -76,9 +86,6 @@ export class QuoteJourneyPage implements OnInit {
 
       if (submissionStatus === 'additional-questions') {
         this.reviewReadyState.set(false);
-        this.highestReachableIndexState.update((index) =>
-          Math.max(index, this.store.activeSectionIndex()),
-        );
         this.focusSectionHeading();
       } else if (submissionStatus === 'quoted') {
         this.reviewReadyState.set(false);
@@ -108,21 +115,16 @@ export class QuoteJourneyPage implements OnInit {
   }
 
   protected continue(): void {
-    const section = this.store.activeSection();
+    const sections = this.formSections();
 
-    if (!section || !this.validateSection(section)) {
+    if (sections.length === 0 || !this.validateSections(sections)) {
+      this.activateSectionForFirstInvalidControl(sections);
       this.focusFirstInvalidControl();
       return;
     }
 
-    this.markSectionComplete(section.id);
-
-    if (this.store.goToNextSection()) {
-      this.highestReachableIndexState.update((index) =>
-        Math.max(index, this.store.activeSectionIndex()),
-      );
-      this.focusSectionHeading();
-      return;
+    for (const section of sections) {
+      this.markSectionComplete(section.id);
     }
 
     this.reviewReadyState.set(true);
@@ -130,23 +132,24 @@ export class QuoteJourneyPage implements OnInit {
   }
 
   protected goBack(): void {
-    if (this.reviewReadyState()) {
-      this.reviewReadyState.set(false);
-    } else {
-      this.store.goToPreviousSection();
-    }
+    this.reviewReadyState.set(false);
 
     this.focusSectionHeading();
   }
 
   protected selectSection(index: number): void {
-    if (index > this.highestReachableIndexState()) {
-      return;
-    }
-
     this.reviewReadyState.set(false);
+    if (this.store.goToSection(index)) {
+      this.focusSection(index);
+    }
+  }
+
+  protected activateSection(index: number): void {
     this.store.goToSection(index);
-    this.focusSectionHeading();
+  }
+
+  protected sectionIndex(sectionId: string): number {
+    return this.store.sections().findIndex((section) => section.id === sectionId);
   }
 
   protected answerFor(questionId: string): string | number {
@@ -161,8 +164,10 @@ export class QuoteJourneyPage implements OnInit {
     }
   }
 
-  private validateSection(section: JourneySection): boolean {
-    const controls = section.questions.map((question) => this.controlFor(question.id));
+  private validateSections(sections: readonly JourneySection[]): boolean {
+    const controls = sections.flatMap((section) =>
+      section.questions.map((question) => this.controlFor(question.id)),
+    );
 
     for (const control of controls) {
       control.markAsTouched();
@@ -170,6 +175,16 @@ export class QuoteJourneyPage implements OnInit {
     }
 
     return controls.every((control) => control.valid);
+  }
+
+  private activateSectionForFirstInvalidControl(sections: readonly JourneySection[]): void {
+    const invalidSection = sections.find((section) =>
+      section.questions.some((question) => this.controlFor(question.id).invalid),
+    );
+
+    if (invalidSection) {
+      this.store.goToSection(this.sectionIndex(invalidSection.id));
+    }
   }
 
   private markSectionComplete(sectionId: string): void {
@@ -192,6 +207,16 @@ export class QuoteJourneyPage implements OnInit {
   private focusSectionHeading(): void {
     queueMicrotask(() => {
       this.document.getElementById('section-title')?.focus();
+    });
+  }
+
+  private focusSection(index: number): void {
+    queueMicrotask(() => {
+      this.document
+        .querySelector<HTMLElement>(
+          `[data-section-index="${index}"] input, [data-section-index="${index}"] select`,
+        )
+        ?.focus();
     });
   }
 }
