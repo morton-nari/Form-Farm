@@ -113,8 +113,6 @@ The application code therefore contains no environment-specific host name. The t
 
 The quote endpoint requires answers to be sent inside an `answers` property. No authentication headers or API keys are required.
 
-In development mode, successful GET and POST responses are logged in the browser console with both the browser-facing `/api` URL and the corresponding Azure upstream URL. These diagnostic messages are disabled in production mode.
-
 The Angular development proxy is only active with `npm start`. A production deployment will require its hosting platform to forward `/api` to the supplied API or provide an equivalent same-origin backend route.
 
 ## Quality and verification
