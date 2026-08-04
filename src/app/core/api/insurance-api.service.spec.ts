@@ -23,6 +23,7 @@ describe('InsuranceApiService', () => {
   });
 
   it('gets the application definition from the proxied endpoint', () => {
+    const consoleLog = vi.spyOn(console, 'log').mockImplementation(() => undefined);
     const application: ApplicationDefinition = {
       id: '1',
       title: 'Life Insurance Application',
@@ -50,9 +51,22 @@ describe('InsuranceApiService', () => {
 
     expect(request.request.method).toBe('GET');
     request.flush(application);
+
+    expect(consoleLog).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'GET https://insurance-quote-api-f4h7ebg2hrg8f3gh.australiasoutheast-01.azurewebsites.net/application',
+      ),
+      expect.objectContaining({
+        browserRequestUrl: '/api/application',
+        upstreamRequestUrl:
+          'https://insurance-quote-api-f4h7ebg2hrg8f3gh.australiasoutheast-01.azurewebsites.net/application',
+        response: application,
+      }),
+    );
   });
 
   it('wraps answers when requesting a quote', () => {
+    const consoleLog = vi.spyOn(console, 'log').mockImplementation(() => undefined);
     const answers: QuoteAnswers = {
       email: 'assessment.test@example.com',
       phone: '0412345678',
@@ -77,6 +91,18 @@ describe('InsuranceApiService', () => {
     expect(request.request.method).toBe('POST');
     expect(request.request.body).toEqual({ answers });
     request.flush(response);
+
+    expect(consoleLog).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'POST https://insurance-quote-api-f4h7ebg2hrg8f3gh.australiasoutheast-01.azurewebsites.net/quote',
+      ),
+      expect.objectContaining({
+        browserRequestUrl: '/api/quote',
+        upstreamRequestUrl:
+          'https://insurance-quote-api-f4h7ebg2hrg8f3gh.australiasoutheast-01.azurewebsites.net/quote',
+        response,
+      }),
+    );
   });
 
   it('supports an additional-questions response', () => {
