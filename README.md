@@ -4,7 +4,7 @@ A modern Angular foundation for the Nobleoak frontend coding assessment. The app
 
 `Your Details → Application → Quote`
 
-> **Current status:** application foundation and typed API integration are complete. The assessment journey UI has intentionally not been implemented yet.
+> **Current status:** application foundation, typed API integration, and signal-based journey state are complete. The assessment journey UI has intentionally not been implemented yet.
 
 ## Technical baseline
 
@@ -77,6 +77,11 @@ npm ci
 ```text
 src/
 ├── app/
+│   ├── core/api/        # Typed HTTP contracts and API client
+│   ├── features/
+│   │   └── quote-journey/
+│   │       ├── data-access/ # API schema adapter and signal store
+│   │       └── models/      # Presentation-focused journey models
 │   ├── app.config.ts   # Application-level providers
 │   ├── app.routes.ts   # Route definitions
 │   ├── app.ts          # Standalone root component
@@ -114,7 +119,7 @@ The next implementation phase will add:
 
 - the `Your Details`, `Application`, and `Quote` journey;
 - required-field validation with typed reactive forms;
-- signal-based journey and submission state;
+- signal-based submission and quote state;
 - support for API-driven additional questions;
 - loading, validation, error, and final quote states;
 - focused unit tests.
