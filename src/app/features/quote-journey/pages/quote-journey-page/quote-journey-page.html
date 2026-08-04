@@ -1,0 +1,94 @@
+<header class="app-header border-bottom bg-white">
+  <div class="container py-3">
+    <a class="brand text-decoration-none" href="/" aria-label="Nobleoak home"> Nobleoak </a>
+  </div>
+</header>
+
+<main class="journey-main">
+  <div class="container py-4 py-lg-5">
+    @if (store.loadStatus() === 'loading' || store.loadStatus() === 'idle') {
+      <div class="loading-state text-center" role="status" aria-live="polite">
+        <div class="spinner-border text-primary" aria-hidden="true"></div>
+        <p class="mt-3 mb-0">Loading your application…</p>
+      </div>
+    } @else if (store.loadStatus() === 'error') {
+      <div class="alert alert-danger mx-auto" role="alert">
+        <h1 class="h4">Unable to load your application</h1>
+        <p>{{ store.errorMessage() }}</p>
+        <button class="btn btn-outline-danger" type="button" (click)="retry()">Try again</button>
+      </div>
+    } @else if (form(); as currentForm) {
+      <div class="journey-layout row g-4 g-lg-5">
+        <aside class="col-lg-4" aria-label="Journey navigation">
+          <div class="sidebar-card">
+            <app-journey-sidebar
+              [sections]="store.sections()"
+              [activeSectionIndex]="store.activeSectionIndex()"
+              [activeStage]="activeStage()"
+              [completedSectionIds]="completedSectionIds()"
+              [highestReachableIndex]="highestReachableIndex()"
+              (sectionSelected)="selectSection($event)"
+            />
+          </div>
+        </aside>
+
+        <section class="col-lg-8 journey-content" aria-live="polite">
+          <div class="content-card">
+            @if (reviewReady()) {
+              <p class="eyebrow">Quote</p>
+              <h1 id="section-title" class="h2 mb-3" tabindex="-1">Ready for your quote</h1>
+              <p class="text-body-secondary">
+                Your application details are complete. Review your answers before requesting a
+                quote.
+              </p>
+
+              <dl class="review-list mt-4">
+                @for (question of allQuestions(); track question.id) {
+                  <div class="review-item">
+                    <dt>{{ question.label }}</dt>
+                    <dd>{{ answerFor(question.id) }}</dd>
+                  </div>
+                }
+              </dl>
+
+              <div class="d-flex justify-content-start border-top pt-4 mt-4">
+                <button class="btn btn-outline-secondary" type="button" (click)="goBack()">
+                  Back to application
+                </button>
+              </div>
+            } @else if (store.activeSection(); as section) {
+              <p class="eyebrow">
+                {{ section.stage === 'your-details' ? 'Your Details' : 'Application' }}
+              </p>
+              <h1 id="section-title" class="h2 mb-3" tabindex="-1">{{ section.title }}</h1>
+              <p class="text-body-secondary mb-4">
+                Fields marked with <span class="text-danger" aria-hidden="true">*</span> are
+                required.
+              </p>
+
+              <form [formGroup]="currentForm" novalidate (ngSubmit)="continue()">
+                @for (question of section.questions; track question.id) {
+                  <app-dynamic-question [question]="question" [control]="controlFor(question.id)" />
+                }
+
+                <div class="navigation-actions border-top pt-4 mt-2">
+                  @if (store.hasPreviousSection()) {
+                    <button class="btn btn-outline-secondary" type="button" (click)="goBack()">
+                      Back
+                    </button>
+                  } @else {
+                    <span></span>
+                  }
+
+                  <button class="btn btn-primary" type="submit">
+                    {{ store.hasNextSection() ? 'Continue' : 'Review answers' }}
+                  </button>
+                </div>
+              </form>
+            }
+          </div>
+        </section>
+      </div>
+    }
+  </div>
+</main>
