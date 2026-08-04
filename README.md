@@ -4,7 +4,7 @@ A modern Angular foundation for the Nobleoak frontend coding assessment. The app
 
 `Your Details → Application → Quote`
 
-> **Current status:** application foundation, typed API integration, signal-based journey state, and dynamic Reactive Forms are complete. The composed assessment journey UI has intentionally not been implemented yet.
+> **Current status:** the API-driven details/application journey, signal state, Reactive Forms, validation, responsive navigation, and answer review are complete. Quote submission and additional-question handling are the next implementation phase.
 
 ## Technical baseline
 
@@ -27,7 +27,7 @@ Exact dependency versions are recorded in `package-lock.json` for reproducible i
 - **Zoneless:** Angular 22 applications are zoneless by default. This project does not install `zone.js` or configure a zone-based change-detection provider.
 - **Signals:** signals will hold synchronous UI and journey state.
 - **Reactive Forms:** Angular Reactive Forms will provide typed form models and validation.
-- **Angular Router:** routes are configured through standalone providers.
+- **Single-page journey:** signal-based section state drives the assessment flow, so no unused URL router is bundled.
 - **Bootstrap CSS only:** Bootstrap supplies styling and layout utilities. Its JavaScript bundle is intentionally excluded so Angular remains responsible for interactive behaviour and DOM state.
 - **SCSS:** application-specific styles use SCSS.
 - **Strict compilation:** strict TypeScript and Angular template checks are enabled.
@@ -80,12 +80,12 @@ src/
 │   ├── core/api/        # Typed HTTP contracts and API client
 │   ├── features/
 │   │   └── quote-journey/
-│   │       ├── components/  # API-driven question renderer
+│   │       ├── components/  # Question renderer and journey navigation
 │   │       ├── data-access/ # API schema adapter and signal store
 │   │       ├── forms/       # Dynamic Reactive Forms factory
-│   │       └── models/      # Presentation-focused journey models
+│   │       ├── models/      # Presentation-focused journey models
+│   │       └── pages/       # Composed quote journey screen
 │   ├── app.config.ts   # Application-level providers
-│   ├── app.routes.ts   # Route definitions
 │   ├── app.ts          # Standalone root component
 │   ├── app.html        # Minimal application shell
 │   ├── app.scss        # Root component styles
@@ -119,11 +119,9 @@ The Angular development proxy is only active with `npm start`. A production depl
 
 The next implementation phase will add:
 
-- the `Your Details`, `Application`, and `Quote` journey;
-- connect required-field validation to journey navigation;
 - signal-based submission and quote state;
 - support for API-driven additional questions;
-- loading, validation, error, and final quote states;
+- submission errors and the final quote state;
 - focused unit tests.
 
 ## Assumptions

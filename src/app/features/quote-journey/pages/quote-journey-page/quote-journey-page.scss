@@ -1,0 +1,94 @@
+:host {
+  display: block;
+  min-height: 100vh;
+}
+
+.app-header {
+  position: relative;
+  z-index: 1;
+}
+
+.brand {
+  color: var(--bs-body-color);
+  font-size: 1.35rem;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+
+.journey-main {
+  background: var(--bs-tertiary-bg);
+  min-height: calc(100vh - 65px);
+}
+
+.loading-state,
+.alert {
+  margin-top: 10vh;
+  max-width: 42rem;
+}
+
+.sidebar-card,
+.content-card {
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: 0.75rem;
+  box-shadow: 0 0.25rem 1rem rgba(15, 23, 42, 0.05);
+}
+
+.sidebar-card {
+  padding: 1rem;
+}
+
+.content-card {
+  padding: clamp(1.5rem, 4vw, 3rem);
+}
+
+.eyebrow {
+  color: var(--bs-primary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+}
+
+#section-title:focus {
+  outline: none;
+}
+
+.navigation-actions {
+  display: flex;
+  justify-content: space-between;
+}
+
+.review-list {
+  border: 1px solid var(--bs-border-color);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.review-item {
+  display: grid;
+  gap: 0.25rem;
+  padding: 1rem 1.25rem;
+
+  & + & {
+    border-top: 1px solid var(--bs-border-color);
+  }
+
+  dt {
+    color: var(--bs-secondary-color);
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+
+  dd {
+    margin: 0;
+  }
+}
+
+@media (min-width: 992px) {
+  .sidebar-card {
+    position: sticky;
+    top: 1.5rem;
+  }
+}
