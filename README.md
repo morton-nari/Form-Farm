@@ -4,7 +4,7 @@ A modern Angular foundation for the Nobleoak frontend coding assessment. The app
 
 `Your Details → Application → Quote`
 
-> **Current status:** base application only. The assessment journey and API integration have intentionally not been implemented yet.
+> **Current status:** application foundation and typed API integration are complete. The assessment journey UI has intentionally not been implemented yet.
 
 ## Technical baseline
 
@@ -90,6 +90,24 @@ src/
 
 Bootstrap's minified CSS is included through the `styles` array in `angular.json`. No Bootstrap JavaScript is loaded.
 
+## API development
+
+The supplied Azure API does not expose browser CORS headers. During local development, Angular forwards relative `/api` requests through the development proxy configured in `proxy.conf.json`:
+
+```text
+Browser → /api/application → Angular development proxy → Azure API /application
+Browser → /api/quote       → Angular development proxy → Azure API /quote
+```
+
+The application code therefore contains no environment-specific host name. The typed API client is located under `src/app/core/api` and exposes:
+
+- `getApplication()` for `GET /api/application`;
+- `submitQuote(answers)` for `POST /api/quote`.
+
+The quote endpoint requires answers to be sent inside an `answers` property. No authentication headers or API keys are required.
+
+The Angular development proxy is only active with `npm start`. A production deployment will require its hosting platform to forward `/api` to the supplied API or provide an equivalent same-origin backend route.
+
 ## Planned assessment scope
 
 The next implementation phase will add:
@@ -97,7 +115,6 @@ The next implementation phase will add:
 - the `Your Details`, `Application`, and `Quote` journey;
 - required-field validation with typed reactive forms;
 - signal-based journey and submission state;
-- `GET /application` and `POST /quote` integration;
 - support for API-driven additional questions;
 - loading, validation, error, and final quote states;
 - focused unit tests.
@@ -106,13 +123,13 @@ The next implementation phase will add:
 
 - The supplied wireframe is a visual reference rather than a pixel-perfect specification.
 - The API contract shown in the assessment brief is the source of truth.
-- API base URLs and the local development strategy will be documented when integration is implemented.
+- The API requires no authentication based on direct GET and POST contract verification.
 - Bootstrap utilities may be supplemented with small, application-specific SCSS rules.
 
 ## Known limitations
 
 - This baseline does not yet implement the insurance journey.
-- API services and mock API behaviour have not yet been added.
+- Production hosting must provide the documented same-origin `/api` forwarding rule because the external API does not enable CORS.
 - Accessibility, responsive behaviour, and full feature tests will be completed with the feature implementation.
 - `npm audit` currently reports three moderate development-tooling advisories through the latest Angular CLI's MCP dependencies. There are no high or critical advisories and no production-runtime dependency is affected; npm's suggested remediation is an Angular CLI downgrade, which has intentionally not been applied.
 
