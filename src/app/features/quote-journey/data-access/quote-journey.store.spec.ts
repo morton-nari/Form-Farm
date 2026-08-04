@@ -41,13 +41,8 @@ describe('QuoteJourneyStore', () => {
     applicationResponse.complete();
 
     expect(store.loadStatus()).toBe('loaded');
-    expect(store.sections().map((section) => section.id)).toEqual([
-      'your-details',
-      'about-you',
-      'lifestyle',
-    ]);
-    expect(store.activeSection()?.id).toBe('your-details');
-    expect(store.activeStage()).toBe('your-details');
+    expect(store.sections().map((section) => section.id)).toEqual(['about-you', 'lifestyle']);
+    expect(store.activeSection()?.id).toBe('about-you');
   });
 
   it('exposes a retry-friendly error state when loading fails', () => {
@@ -65,23 +60,14 @@ describe('QuoteJourneyStore', () => {
     store.loadApplication();
     applicationResponse.next(createApplicationDefinition());
 
-    expect(store.hasPreviousSection()).toBe(false);
-    expect(store.hasNextSection()).toBe(true);
-    expect(store.goToNextSection()).toBe(true);
-    expect(store.activeSection()?.id).toBe('about-you');
-    expect(store.activeStage()).toBe('application');
-    expect(store.hasPreviousSection()).toBe(true);
-
-    expect(store.goToSection(2)).toBe(true);
+    expect(store.goToSection(1)).toBe(true);
     expect(store.activeSection()?.id).toBe('lifestyle');
-    expect(store.hasNextSection()).toBe(false);
 
-    expect(store.goToNextSection()).toBe(false);
     expect(store.goToSection(-1)).toBe(false);
     expect(store.goToSection(1.5)).toBe(false);
     expect(store.activeSection()?.id).toBe('lifestyle');
 
-    expect(store.goToPreviousSection()).toBe(true);
+    expect(store.goToSection(0)).toBe(true);
     expect(store.activeSection()?.id).toBe('about-you');
   });
 
@@ -132,17 +118,15 @@ describe('QuoteJourneyStore', () => {
 
     expect(store.submissionStatus()).toBe('additional-questions');
     expect(store.sections().map((section) => section.id)).toEqual([
-      'your-details',
       'about-you',
       'lifestyle',
       'smoking-details',
     ]);
     expect(store.activeSection()?.id).toBe('smoking-details');
-    expect(store.hasNextSection()).toBe(false);
 
     store.submitQuote({ smokedLast12Months: 'Yes', cigarettesPerWeek: 20 });
     quoteResponse.next(additionalQuestionsResponse);
-    expect(store.sections()).toHaveLength(4);
+    expect(store.sections()).toHaveLength(3);
   });
 
   it('exposes a retryable quote error', () => {

@@ -28,6 +28,7 @@ Exact dependency versions are recorded in `package-lock.json` for reproducible i
 - **Signals:** signals hold synchronous UI and journey state, including loading, navigation, submission, and quote results.
 - **Reactive Forms:** Angular Reactive Forms provide typed, API-driven form models and validation.
 - **Single-page journey:** signal-based section state drives the assessment flow, so no unused URL router is bundled.
+- **API page fidelity:** the supplied About You and Lifestyle pages are kept intact and rendered together; answering a section updates the progress navigation without moving questions into synthetic form steps.
 - **Bootstrap CSS only:** Bootstrap supplies styling and layout utilities. Its JavaScript bundle is intentionally excluded so Angular remains responsible for interactive behaviour and DOM state.
 - **SCSS:** application-specific styles use SCSS.
 - **Strict compilation:** strict TypeScript and Angular template checks are enabled.
@@ -130,6 +131,7 @@ The UI includes native labelled controls, required/error announcements, visible 
 ## Assumptions
 
 - The supplied wireframe is a visual reference rather than a pixel-perfect specification.
+- `Your Details` represents an earlier completed stage, so it is displayed as static progress and is not inferred from the application API fields.
 - The API contract shown in the assessment brief is the source of truth.
 - The API requires no authentication based on direct GET and POST contract verification.
 - Bootstrap utilities may be supplemented with small, application-specific SCSS rules.

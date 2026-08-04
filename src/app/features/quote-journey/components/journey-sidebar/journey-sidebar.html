@@ -1,29 +1,10 @@
 <nav aria-label="Application progress">
   <ol class="journey-list list-unstyled mb-0">
-    @if (yourDetailsSection(); as details) {
-      <li>
-        <button
-          class="journey-stage"
-          type="button"
-          [class.active]="activeStage() === 'your-details'"
-          [disabled]="!canNavigateTo(details.index)"
-          [attr.aria-current]="activeStage() === 'your-details' ? 'step' : null"
-          (click)="selectSection(details.index)"
-        >
-          <span
-            class="stage-marker"
-            [class.completed]="completedSectionIds().has(details.section.id)"
-            aria-hidden="true"
-          >
-            {{ completedSectionIds().has(details.section.id) ? '✓' : '1' }}
-          </span>
-          <span>{{ details.section.title }}</span>
-          @if (completedSectionIds().has(details.section.id)) {
-            <span class="visually-hidden">completed</span>
-          }
-        </button>
-      </li>
-    }
+    <li class="stage-row completed-static" aria-label="Your Details, completed">
+      <span class="stage-marker completed-number" aria-hidden="true">1</span>
+      <span>Your Details</span>
+      <span class="completion-check" aria-hidden="true">✓</span>
+    </li>
 
     <li>
       <div class="journey-stage stage-label" [class.active]="activeStage() === 'application'">
@@ -44,7 +25,7 @@
               type="button"
               [class.active]="isSectionActive(item.index)"
               [class.completed]="completedSectionIds().has(item.section.id)"
-              [disabled]="!canNavigateTo(item.index)"
+              [disabled]="activeStage() !== 'application'"
               [attr.aria-current]="isSectionActive(item.index) ? 'step' : null"
               (click)="selectSection(item.index)"
             >

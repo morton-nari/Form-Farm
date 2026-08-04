@@ -7,7 +7,6 @@ import { ApplicationPage, Quote, QuoteAnswers } from '../../../core/api/insuranc
 import {
   JourneyDefinition,
   JourneyLoadStatus,
-  JourneyStage,
   QuoteSubmissionStatus,
 } from '../models/journey.models';
 import {
@@ -40,14 +39,6 @@ export class QuoteJourneyStore {
   readonly quote = this.quoteState.asReadonly();
 
   readonly activeSection = computed(() => this.sections()[this.activeSectionIndexState()] ?? null);
-  readonly activeStage = computed<JourneyStage>(
-    () => this.activeSection()?.stage ?? 'your-details',
-  );
-  readonly hasPreviousSection = computed(() => this.activeSectionIndexState() > 0);
-  readonly hasNextSection = computed(
-    () => this.activeSectionIndexState() < this.sections().length - 1,
-  );
-
   loadApplication(): void {
     this.loadSubscription?.unsubscribe();
     this.submitSubscription?.unsubscribe();
@@ -82,14 +73,6 @@ export class QuoteJourneyStore {
 
     this.activeSectionIndexState.set(index);
     return true;
-  }
-
-  goToNextSection(): boolean {
-    return this.goToSection(this.activeSectionIndexState() + 1);
-  }
-
-  goToPreviousSection(): boolean {
-    return this.goToSection(this.activeSectionIndexState() - 1);
   }
 
   submitQuote(answers: QuoteAnswers): boolean {

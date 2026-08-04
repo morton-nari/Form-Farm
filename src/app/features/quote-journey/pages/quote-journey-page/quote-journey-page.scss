@@ -54,6 +54,35 @@
   padding: clamp(1.5rem, 4vw, 3rem);
 }
 
+.heading-icon {
+  align-items: center;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 0.375rem;
+  display: inline-flex;
+  flex: 0 0 2.25rem;
+  height: 2.25rem;
+  justify-content: center;
+
+  svg {
+    fill: none;
+    height: 1.25rem;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.5;
+    width: 1.25rem;
+  }
+}
+
+.content-card .btn-primary {
+  --bs-btn-bg: #212529;
+  --bs-btn-border-color: #212529;
+  --bs-btn-hover-bg: #343a40;
+  --bs-btn-hover-border-color: #343a40;
+  --bs-btn-active-bg: #000;
+  --bs-btn-active-border-color: #000;
+}
+
 .eyebrow {
   color: var(--bs-primary);
   font-size: 0.75rem;

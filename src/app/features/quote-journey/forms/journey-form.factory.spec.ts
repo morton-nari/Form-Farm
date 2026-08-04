@@ -66,19 +66,11 @@ describe('JourneyFormFactory', () => {
 function createSections(): readonly JourneySection[] {
   return [
     {
-      id: 'your-details',
-      title: 'Your Details',
-      stage: 'your-details',
+      id: 'about-you',
+      title: 'About You',
       questions: [
         createQuestion('email', 'Email Address', 'email'),
         createQuestion('phone', 'Phone Number', 'text'),
-      ],
-    },
-    {
-      id: 'about-you',
-      title: 'About You',
-      stage: 'application',
-      questions: [
         {
           ...createQuestion('occupation', 'Occupation', 'select'),
           options: ['Accountant', 'Teacher', 'Builder', 'Pilot', 'Other'],
