@@ -1,4 +1,4 @@
-import { ApplicationDefinition } from '../../../core/api/insurance-api.models';
+import { ApplicationDefinition, ApplicationPage } from '../../../core/api/insurance-api.models';
 import { JourneyDefinition, JourneySection } from '../models/journey.models';
 
 const YOUR_DETAILS_QUESTION_IDS = new Set(['email', 'phone']);
@@ -30,4 +30,17 @@ export function adaptApplicationToJourney(application: ApplicationDefinition): J
       ...applicationSections,
     ],
   };
+}
+
+export function adaptAdditionalPagesToSections(
+  pages: readonly ApplicationPage[],
+): readonly JourneySection[] {
+  return pages
+    .filter((page) => page.questions.length > 0)
+    .map((page) => ({
+      id: page.id,
+      title: page.title,
+      stage: 'application' as const,
+      questions: page.questions,
+    }));
 }

@@ -86,6 +86,46 @@
   }
 }
 
+.quote-success-marker {
+  align-items: center;
+  background: var(--bs-success);
+  border-radius: 50%;
+  color: var(--bs-white);
+  display: inline-flex;
+  font-size: 1.5rem;
+  height: 3.5rem;
+  justify-content: center;
+  width: 3.5rem;
+}
+
+.quote-summary {
+  border: 1px solid var(--bs-border-color);
+  border-radius: 0.75rem;
+  display: grid;
+  margin-inline: auto;
+  max-width: 32rem;
+  overflow: hidden;
+
+  > div {
+    display: grid;
+    gap: 0.25rem;
+    padding: 1.25rem;
+
+    & + div {
+      border-top: 1px solid var(--bs-border-color);
+    }
+  }
+
+  span {
+    color: var(--bs-secondary-color);
+    font-size: 0.875rem;
+  }
+
+  strong {
+    font-size: 1.5rem;
+  }
+}
+
 @media (min-width: 992px) {
   .sidebar-card {
     position: sticky;
