@@ -1,4 +1,4 @@
-import { DOCUMENT } from '@angular/common';
+import { CurrencyPipe, DOCUMENT } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -22,7 +22,7 @@ import { JourneySection, JourneyStage } from '../../models/journey.models';
 
 @Component({
   selector: 'app-quote-journey-page',
-  imports: [DynamicQuestion, JourneySidebar, ReactiveFormsModule],
+  imports: [CurrencyPipe, DynamicQuestion, JourneySidebar, ReactiveFormsModule],
   templateUrl: './quote-journey-page.html',
   styleUrl: './quote-journey-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -42,9 +42,13 @@ export class QuoteJourneyPage implements OnInit {
   protected readonly completedSectionIds = this.completedSectionIdsState.asReadonly();
   protected readonly highestReachableIndex = this.highestReachableIndexState.asReadonly();
   protected readonly reviewReady = this.reviewReadyState.asReadonly();
-  protected readonly activeStage = computed<JourneyStage>(() =>
-    this.reviewReadyState() ? 'quote' : this.store.activeStage(),
-  );
+  protected readonly activeStage = computed<JourneyStage>(() => {
+    if (this.store.quote() || this.reviewReadyState()) {
+      return 'quote';
+    }
+
+    return this.store.activeStage();
+  });
   protected readonly allQuestions = computed(() =>
     this.store.sections().flatMap((section) => section.questions),
   );
@@ -59,6 +63,26 @@ export class QuoteJourneyPage implements OnInit {
         this.completedSectionIdsState.set(new Set());
         this.highestReachableIndexState.set(0);
         this.reviewReadyState.set(false);
+      } else if (journey && this.formState()) {
+        this.formFactory.addQuestions(
+          this.formState()!,
+          journey.sections.flatMap((section) => section.questions),
+        );
+      }
+    });
+
+    effect(() => {
+      const submissionStatus = this.store.submissionStatus();
+
+      if (submissionStatus === 'additional-questions') {
+        this.reviewReadyState.set(false);
+        this.highestReachableIndexState.update((index) =>
+          Math.max(index, this.store.activeSectionIndex()),
+        );
+        this.focusSectionHeading();
+      } else if (submissionStatus === 'quoted') {
+        this.reviewReadyState.set(false);
+        this.focusSectionHeading();
       }
     });
   }
@@ -127,6 +151,14 @@ export class QuoteJourneyPage implements OnInit {
 
   protected answerFor(questionId: string): string | number {
     return this.controlFor(questionId).value ?? '';
+  }
+
+  protected requestQuote(): void {
+    const form = this.formState();
+
+    if (form) {
+      this.store.submitQuote(this.formFactory.getAnswers(form));
+    }
   }
 
   private validateSection(section: JourneySection): boolean {

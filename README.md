@@ -4,7 +4,7 @@ A modern Angular foundation for the Nobleoak frontend coding assessment. The app
 
 `Your Details → Application → Quote`
 
-> **Current status:** the API-driven details/application journey, signal state, Reactive Forms, validation, responsive navigation, and answer review are complete. Quote submission and additional-question handling are the next implementation phase.
+> **Current status:** the complete API-driven journey is functional, including validation, responsive navigation, answer review, quote submission, dynamically appended follow-up questions, resubmission, and final quote presentation.
 
 ## Technical baseline
 
@@ -115,14 +115,13 @@ The quote endpoint requires answers to be sent inside an `answers` property. No 
 
 The Angular development proxy is only active with `npm start`. A production deployment will require its hosting platform to forward `/api` to the supplied API or provide an equivalent same-origin backend route.
 
-## Planned assessment scope
+## Planned finalisation
 
-The next implementation phase will add:
+The final implementation phase will cover:
 
-- signal-based submission and quote state;
-- support for API-driven additional questions;
-- submission errors and the final quote state;
-- focused unit tests.
+- visual polish against the supplied wireframe;
+- a final keyboard, screen-reader semantics, and responsive-layout audit;
+- final documentation, limitations, and time-spent updates.
 
 ## Assumptions
 
@@ -133,9 +132,8 @@ The next implementation phase will add:
 
 ## Known limitations
 
-- This baseline does not yet implement the insurance journey.
 - Production hosting must provide the documented same-origin `/api` forwarding rule because the external API does not enable CORS.
-- Accessibility, responsive behaviour, and full feature tests will be completed with the feature implementation.
+- The current quote is presented for assessment purposes only; purchasing or persisting a policy is outside the supplied API contract.
 - `npm audit` currently reports three moderate development-tooling advisories through the latest Angular CLI's MCP dependencies. There are no high or critical advisories and no production-runtime dependency is affected; npm's suggested remediation is an Angular CLI downgrade, which has intentionally not been applied.
 
 ## Time spent

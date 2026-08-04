@@ -100,6 +100,107 @@ describe('QuoteJourneyPage', () => {
     expect(heading()).toBe('Your Details');
   });
 
+  it('submits a non-smoker application and renders the returned quote', () => {
+    loadApplication();
+    completeKnownApplication('No');
+
+    clickGetQuote();
+    const quoteRequest = httpTesting.expectOne('/api/quote');
+    expect(quoteRequest.request.body).toEqual({
+      answers: {
+        email: 'person@example.com',
+        phone: '0412345678',
+        occupation: 'Teacher',
+        smokedLast12Months: 'No',
+      },
+    });
+    quoteRequest.flush({
+      status: 'quoted',
+      quote: { product: 'Life Protect', coverAmount: 500_000, premium: 64.85 },
+    });
+    fixture.detectChanges();
+
+    expect(heading()).toBe('Life Protect');
+    expect(fixture.nativeElement.querySelector('.quote-summary')?.textContent).toContain('500,000');
+    expect(fixture.nativeElement.querySelector('.quote-summary')?.textContent).toContain('64.85');
+  });
+
+  it('adds smoking questions and resubmits every accumulated answer', () => {
+    loadApplication();
+    completeKnownApplication('Yes');
+
+    clickGetQuote();
+    httpTesting.expectOne('/api/quote').flush({
+      status: 'additionalQuestionsRequired',
+      pages: [
+        {
+          id: 'smoking-details',
+          title: 'Smoking Details',
+          questions: [
+            {
+              id: 'cigarettesPerWeek',
+              label: 'How many cigarettes do you smoke each week?',
+              type: 'number',
+              required: true,
+            },
+          ],
+        },
+      ],
+    });
+    fixture.detectChanges();
+
+    expect(heading()).toBe('Smoking Details');
+    const cigarettes = inputFor('cigarettesPerWeek');
+    expect(cigarettes.type).toBe('number');
+    enterValue(cigarettes, '20');
+    submitCurrentSection();
+    expect(heading()).toBe('Ready for your quote');
+
+    clickGetQuote();
+    const finalRequest = httpTesting.expectOne('/api/quote');
+    expect(finalRequest.request.body).toEqual({
+      answers: {
+        email: 'person@example.com',
+        phone: '0412345678',
+        occupation: 'Teacher',
+        smokedLast12Months: 'Yes',
+        cigarettesPerWeek: 20,
+      },
+    });
+    finalRequest.flush({
+      status: 'quoted',
+      quote: { product: 'Life Protect', coverAmount: 500_000, premium: 104.75 },
+    });
+    fixture.detectChanges();
+
+    expect(heading()).toBe('Life Protect');
+    expect(fixture.nativeElement.querySelector('.quote-summary')?.textContent).toContain('104.75');
+  });
+
+  it('shows a quote error and allows the same answers to be retried', () => {
+    loadApplication();
+    completeKnownApplication('No');
+
+    clickGetQuote();
+    httpTesting
+      .expectOne('/api/quote')
+      .flush('Unavailable', { status: 503, statusText: 'Service Unavailable' });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.alert-danger')?.textContent).toContain(
+      'We could not retrieve your quote.',
+    );
+
+    clickGetQuote();
+    httpTesting.expectOne('/api/quote').flush({
+      status: 'quoted',
+      quote: { product: 'Life Protect', coverAmount: 500_000, premium: 64.85 },
+    });
+    fixture.detectChanges();
+
+    expect(heading()).toBe('Life Protect');
+  });
+
   function loadApplication(): void {
     fixture.detectChanges();
     httpTesting.expectOne('/api/application').flush(createApplicationDefinition());
@@ -127,6 +228,36 @@ describe('QuoteJourneyPage', () => {
   function submitCurrentSection(): void {
     const form = fixture.nativeElement.querySelector('form') as HTMLFormElement;
     form.dispatchEvent(new Event('submit'));
+    fixture.detectChanges();
+  }
+
+  function completeKnownApplication(smokedLast12Months: 'Yes' | 'No'): void {
+    enterValue(inputFor('email'), 'person@example.com');
+    enterValue(inputFor('phone'), '0412345678');
+    submitCurrentSection();
+
+    enterValue(
+      fixture.nativeElement.querySelector('#question-occupation') as HTMLSelectElement,
+      'Teacher',
+      'change',
+    );
+    submitCurrentSection();
+
+    const optionIndex = smokedLast12Months === 'Yes' ? 0 : 1;
+    const option = fixture.nativeElement.querySelectorAll('input[type="radio"]')[
+      optionIndex
+    ] as HTMLInputElement;
+    option.click();
+    fixture.detectChanges();
+    submitCurrentSection();
+    expect(heading()).toBe('Ready for your quote');
+  }
+
+  function clickGetQuote(): void {
+    const button = Array.from(
+      fixture.nativeElement.querySelectorAll('button') as NodeListOf<HTMLButtonElement>,
+    ).find((candidate) => candidate.textContent?.includes('Get my quote'));
+    button?.click();
     fixture.detectChanges();
   }
 

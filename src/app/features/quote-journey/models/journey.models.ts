@@ -16,3 +16,6 @@ export interface JourneyDefinition {
 }
 
 export type JourneyLoadStatus = 'idle' | 'loading' | 'loaded' | 'error';
+
+export type QuoteSubmissionStatus =
+  'idle' | 'submitting' | 'additional-questions' | 'quoted' | 'error';

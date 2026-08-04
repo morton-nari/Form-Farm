@@ -1,5 +1,8 @@
 import { ApplicationDefinition } from '../../../core/api/insurance-api.models';
-import { adaptApplicationToJourney } from './journey-schema.adapter';
+import {
+  adaptAdditionalPagesToSections,
+  adaptApplicationToJourney,
+} from './journey-schema.adapter';
 
 describe('adaptApplicationToJourney', () => {
   it('separates contact questions from the API About You page', () => {
@@ -51,6 +54,31 @@ describe('adaptApplicationToJourney', () => {
       title: 'Future Page',
       stage: 'application',
       questions: application.pages.at(-1)?.questions,
+    });
+  });
+
+  it('adapts non-empty follow-up pages into application sections', () => {
+    const sections = adaptAdditionalPagesToSections([
+      {
+        id: 'smoking-details',
+        title: 'Smoking Details',
+        questions: [
+          {
+            id: 'cigarettesPerWeek',
+            label: 'How many cigarettes do you smoke each week?',
+            type: 'number',
+            required: true,
+          },
+        ],
+      },
+      { id: 'empty-page', title: 'Empty Page', questions: [] },
+    ]);
+
+    expect(sections).toHaveLength(1);
+    expect(sections[0]).toMatchObject({
+      id: 'smoking-details',
+      title: 'Smoking Details',
+      stage: 'application',
     });
   });
 });

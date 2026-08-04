@@ -52,6 +52,27 @@
       </fieldset>
     }
 
+    @case ('number') {
+      <label class="form-label" [for]="controlId()">
+        {{ currentQuestion.label }}
+        @if (currentQuestion.required) {
+          <span class="required-indicator" aria-hidden="true">*</span>
+        }
+      </label>
+      <input
+        class="form-control"
+        type="number"
+        min="0"
+        step="1"
+        inputmode="numeric"
+        [class.is-invalid]="showError()"
+        [id]="controlId()"
+        [formControl]="currentControl"
+        [attr.aria-describedby]="showError() ? errorId() : null"
+        [attr.aria-invalid]="showError()"
+      />
+    }
+
     @default {
       <label class="form-label" [for]="controlId()">
         {{ currentQuestion.label }}
@@ -65,8 +86,6 @@
         [id]="controlId()"
         [type]="currentQuestion.type"
         [formControl]="currentControl"
-        [attr.min]="currentQuestion.type === 'number' ? 0 : null"
-        [attr.step]="currentQuestion.type === 'number' ? 1 : null"
         [attr.autocomplete]="currentQuestion.type === 'email' ? 'email' : null"
         [attr.aria-describedby]="showError() ? errorId() : null"
         [attr.aria-invalid]="showError()"

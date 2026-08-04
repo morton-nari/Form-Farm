@@ -34,7 +34,25 @@
 
         <section class="col-lg-8 journey-content" aria-live="polite">
           <div class="content-card">
-            @if (reviewReady()) {
+            @if (store.quote(); as quote) {
+              <div class="quote-result text-center" aria-live="polite">
+                <span class="quote-success-marker" aria-hidden="true">✓</span>
+                <p class="eyebrow mt-3">Your Quote</p>
+                <h1 id="section-title" class="h2 mb-2" tabindex="-1">{{ quote.product }}</h1>
+                <p class="text-body-secondary mb-4">Your life insurance quote is ready.</p>
+
+                <div class="quote-summary">
+                  <div>
+                    <span>Cover amount</span>
+                    <strong>{{ quote.coverAmount | currency: 'AUD' : 'symbol' : '1.0-0' }}</strong>
+                  </div>
+                  <div>
+                    <span>Monthly premium</span>
+                    <strong>{{ quote.premium | currency: 'AUD' : 'symbol' : '1.2-2' }}</strong>
+                  </div>
+                </div>
+              </div>
+            } @else if (reviewReady()) {
               <p class="eyebrow">Quote</p>
               <h1 id="section-title" class="h2 mb-3" tabindex="-1">Ready for your quote</h1>
               <p class="text-body-secondary">
@@ -51,9 +69,28 @@
                 }
               </dl>
 
-              <div class="d-flex justify-content-start border-top pt-4 mt-4">
+              @if (store.submissionError()) {
+                <div class="alert alert-danger mt-4 mb-0" role="alert">
+                  {{ store.submissionError() }}
+                </div>
+              }
+
+              <div class="d-flex justify-content-between gap-3 border-top pt-4 mt-4">
                 <button class="btn btn-outline-secondary" type="button" (click)="goBack()">
                   Back to application
+                </button>
+                <button
+                  class="btn btn-primary"
+                  type="button"
+                  [disabled]="store.submissionStatus() === 'submitting'"
+                  (click)="requestQuote()"
+                >
+                  @if (store.submissionStatus() === 'submitting') {
+                    <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                    Getting quote…
+                  } @else {
+                    Get my quote
+                  }
                 </button>
               </div>
             } @else if (store.activeSection(); as section) {
