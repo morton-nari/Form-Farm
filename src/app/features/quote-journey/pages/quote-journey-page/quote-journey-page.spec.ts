@@ -23,8 +23,8 @@ describe('QuoteJourneyPage', () => {
     httpTesting.verify();
   });
 
-  it('shows Your Details as completed and renders every initial API question', () => {
-    loadApplication();
+  it('shows Your Details as completed and renders every initial API question', async () => {
+    await loadApplication();
 
     expect(heading()).toBe('About You');
     expect(inputFor('email')).toBeTruthy();
@@ -44,7 +44,7 @@ describe('QuoteJourneyPage', () => {
   });
 
   it('blocks invalid progression and focuses the first invalid field', async () => {
-    loadApplication();
+    await loadApplication();
 
     submitCurrentSection();
     await fixture.whenStable();
@@ -55,8 +55,8 @@ describe('QuoteJourneyPage', () => {
     expect(document.activeElement?.id).toBe('question-email');
   });
 
-  it('highlights the section being answered and presents an answer review', () => {
-    loadApplication();
+  it('highlights the section being answered and presents an answer review', async () => {
+    await loadApplication();
 
     enterValue(inputFor('email'), 'person@example.com');
     enterValue(inputFor('phone'), '0412345678');
@@ -82,11 +82,12 @@ describe('QuoteJourneyPage', () => {
     );
   });
 
-  it('shows a retry action when the application request fails', () => {
+  it('shows a retry action when the application request fails', async () => {
     fixture.detectChanges();
     httpTesting
       .expectOne('/api/application')
       .flush('Unavailable', { status: 503, statusText: 'Service Unavailable' });
+    await fixture.whenStable();
     fixture.detectChanges();
 
     expect(heading()).toBe('Unable to load your application');
@@ -96,12 +97,13 @@ describe('QuoteJourneyPage', () => {
     fixture.detectChanges();
 
     httpTesting.expectOne('/api/application').flush(createApplicationDefinition());
+    await fixture.whenStable();
     fixture.detectChanges();
     expect(heading()).toBe('About You');
   });
 
-  it('submits a non-smoker application and renders the returned quote', () => {
-    loadApplication();
+  it('submits a non-smoker application and renders the returned quote', async () => {
+    await loadApplication();
     completeKnownApplication('No');
 
     clickGetQuote();
@@ -125,8 +127,8 @@ describe('QuoteJourneyPage', () => {
     expect(fixture.nativeElement.querySelector('.quote-summary')?.textContent).toContain('64.85');
   });
 
-  it('adds smoking questions and resubmits every accumulated answer', () => {
-    loadApplication();
+  it('adds smoking questions and resubmits every accumulated answer', async () => {
+    await loadApplication();
     completeKnownApplication('Yes');
 
     clickGetQuote();
@@ -177,8 +179,8 @@ describe('QuoteJourneyPage', () => {
     expect(fixture.nativeElement.querySelector('.quote-summary')?.textContent).toContain('104.75');
   });
 
-  it('shows a quote error and allows the same answers to be retried', () => {
-    loadApplication();
+  it('shows a quote error and allows the same answers to be retried', async () => {
+    await loadApplication();
     completeKnownApplication('No');
 
     clickGetQuote();
@@ -201,9 +203,10 @@ describe('QuoteJourneyPage', () => {
     expect(heading()).toBe('Life Protect');
   });
 
-  function loadApplication(): void {
+  async function loadApplication(): Promise<void> {
     fixture.detectChanges();
     httpTesting.expectOne('/api/application').flush(createApplicationDefinition());
+    await fixture.whenStable();
     fixture.detectChanges();
   }
 

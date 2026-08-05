@@ -30,11 +30,12 @@ describe('App', () => {
     expect(fixture.componentInstance).toBeTruthy();
   });
 
-  it('renders the first application section', () => {
+  it('renders the first application section', async () => {
     const fixture = TestBed.createComponent(App);
 
     fixture.detectChanges();
     httpTesting.expectOne('/api/application').flush(createApplicationDefinition());
+    await fixture.whenStable();
     fixture.detectChanges();
 
     const compiled = fixture.nativeElement as HTMLElement;

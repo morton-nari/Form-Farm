@@ -2,7 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 
-import { ApplicationDefinition, QuoteAnswers, QuoteResponse } from './insurance-api.models';
+import { QuoteAnswers, QuoteResponse } from './insurance-api.models';
 import { InsuranceApiService } from './insurance-api.service';
 
 describe('InsuranceApiService', () => {
@@ -20,36 +20,6 @@ describe('InsuranceApiService', () => {
 
   afterEach(() => {
     httpTesting.verify();
-  });
-
-  it('gets the application definition from the proxied endpoint', () => {
-    const application: ApplicationDefinition = {
-      id: '1',
-      title: 'Life Insurance Application',
-      pages: [
-        {
-          id: 'about-you',
-          title: 'About You',
-          questions: [
-            {
-              id: 'email',
-              label: 'Email Address',
-              type: 'email',
-              required: true,
-            },
-          ],
-        },
-      ],
-    };
-
-    service.getApplication().subscribe((response) => {
-      expect(response).toEqual(application);
-    });
-
-    const request = httpTesting.expectOne('/api/application');
-
-    expect(request.request.method).toBe('GET');
-    request.flush(application);
   });
 
   it('wraps answers when requesting a quote', () => {

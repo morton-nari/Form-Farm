@@ -25,7 +25,7 @@ Exact dependency versions are recorded in `package-lock.json` for reproducible i
 
 - **Standalone Angular:** the application is bootstrapped with `bootstrapApplication`; there are no NgModules.
 - **Zoneless:** Angular 22 applications are zoneless by default. This project does not install `zone.js` or configure a zone-based change-detection provider.
-- **Signals:** signals hold synchronous UI and journey state, including loading, navigation, submission, and quote results.
+- **Signals and `httpResource`:** the initial application definition is fetched as a reactive HTTP resource, while signals and computed state drive loading, errors, navigation, submission, and quote presentation.
 - **Reactive Forms:** Angular Reactive Forms provide typed, API-driven form models and validation.
 - **Single-page journey:** signal-based section state drives the assessment flow, so no unused URL router is bundled.
 - **API page fidelity:** the supplied About You and Lifestyle pages are kept intact and rendered together; answering a section updates the progress navigation without moving questions into synthetic form steps.
@@ -107,10 +107,10 @@ Browser → /api/application → Angular development proxy → Azure API /applic
 Browser → /api/quote       → Angular development proxy → Azure API /quote
 ```
 
-The application code therefore contains no environment-specific host name. The typed API client is located under `src/app/core/api` and exposes:
+The application code therefore contains no environment-specific host name. API access follows Angular's read-versus-mutation boundary:
 
-- `getApplication()` for `GET /api/application`;
-- `submitQuote(answers)` for `POST /api/quote`.
+- the quote journey store uses `httpResource()` for the reactive `GET /api/application` read;
+- the typed API client under `src/app/core/api` uses `HttpClient` for the user-triggered `POST /api/quote` mutation.
 
 The quote endpoint requires answers to be sent inside an `answers` property. No authentication headers or API keys are required.
 
