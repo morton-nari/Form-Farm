@@ -1,9 +1,15 @@
-import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
+import { httpResource } from '@angular/common/http';
+import { computed, DestroyRef, effect, inject, Injectable, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subscription, take } from 'rxjs';
 
 import { InsuranceApiService } from '../../../core/api/insurance-api.service';
-import { ApplicationPage, Quote, QuoteAnswers } from '../../../core/api/insurance-api.models';
+import {
+  ApplicationDefinition,
+  ApplicationPage,
+  Quote,
+  QuoteAnswers,
+} from '../../../core/api/insurance-api.models';
 import {
   JourneyDefinition,
   JourneyLoadStatus,
@@ -18,52 +24,67 @@ import {
 export class QuoteJourneyStore {
   private readonly api = inject(InsuranceApiService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly applicationResource = httpResource<ApplicationDefinition>(
+    () => '/api/application',
+  );
 
   private readonly journeyState = signal<JourneyDefinition | null>(null);
   private readonly activeSectionIndexState = signal(0);
-  private readonly loadStatusState = signal<JourneyLoadStatus>('idle');
-  private readonly errorMessageState = signal<string | null>(null);
   private readonly submissionStatusState = signal<QuoteSubmissionStatus>('idle');
   private readonly submissionErrorState = signal<string | null>(null);
   private readonly quoteState = signal<Quote | null>(null);
-  private loadSubscription?: Subscription;
   private submitSubscription?: Subscription;
 
   readonly journey = this.journeyState.asReadonly();
   readonly sections = computed(() => this.journeyState()?.sections ?? []);
   readonly activeSectionIndex = this.activeSectionIndexState.asReadonly();
-  readonly loadStatus = this.loadStatusState.asReadonly();
-  readonly errorMessage = this.errorMessageState.asReadonly();
+  readonly loadStatus = computed<JourneyLoadStatus>(() => {
+    if (this.applicationResource.isLoading()) {
+      return 'loading';
+    }
+
+    if (this.applicationResource.error()) {
+      return 'error';
+    }
+
+    return this.applicationResource.hasValue() ? 'loaded' : 'idle';
+  });
+  readonly errorMessage = computed(() =>
+    this.applicationResource.error()
+      ? 'We could not load the application. Please try again.'
+      : null,
+  );
   readonly submissionStatus = this.submissionStatusState.asReadonly();
   readonly submissionError = this.submissionErrorState.asReadonly();
   readonly quote = this.quoteState.asReadonly();
 
   readonly activeSection = computed(() => this.sections()[this.activeSectionIndexState()] ?? null);
+
+  constructor() {
+    effect(() => {
+      if (!this.applicationResource.hasValue()) {
+        if (this.applicationResource.error()) {
+          this.journeyState.set(null);
+          this.activeSectionIndexState.set(0);
+        }
+
+        return;
+      }
+
+      this.journeyState.set(adaptApplicationToJourney(this.applicationResource.value()));
+      this.activeSectionIndexState.set(0);
+    });
+  }
+
   loadApplication(): void {
-    this.loadSubscription?.unsubscribe();
     this.submitSubscription?.unsubscribe();
-    this.loadStatusState.set('loading');
-    this.errorMessageState.set(null);
     this.submissionStatusState.set('idle');
     this.submissionErrorState.set(null);
     this.quoteState.set(null);
 
-    this.loadSubscription = this.api
-      .getApplication()
-      .pipe(take(1), takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (application) => {
-          this.journeyState.set(adaptApplicationToJourney(application));
-          this.activeSectionIndexState.set(0);
-          this.loadStatusState.set('loaded');
-        },
-        error: () => {
-          this.journeyState.set(null);
-          this.activeSectionIndexState.set(0);
-          this.loadStatusState.set('error');
-          this.errorMessageState.set('We could not load the application. Please try again.');
-        },
-      });
+    if (this.applicationResource.error()) {
+      this.applicationResource.reload();
+    }
   }
 
   goToSection(index: number): boolean {

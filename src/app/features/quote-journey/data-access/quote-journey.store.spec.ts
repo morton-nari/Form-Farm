@@ -1,3 +1,6 @@
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { ApplicationRef } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Subject } from 'rxjs';
 import { vi } from 'vitest';
@@ -7,21 +10,21 @@ import { InsuranceApiService } from '../../../core/api/insurance-api.service';
 import { QuoteJourneyStore } from './quote-journey.store';
 
 describe('QuoteJourneyStore', () => {
-  let applicationResponse: Subject<ApplicationDefinition>;
   let quoteResponse: Subject<QuoteResponse>;
+  let httpTesting: HttpTestingController;
   let store: QuoteJourneyStore;
 
   beforeEach(() => {
-    applicationResponse = new Subject<ApplicationDefinition>();
     quoteResponse = new Subject<QuoteResponse>();
 
     TestBed.configureTestingModule({
       providers: [
         QuoteJourneyStore,
+        provideHttpClient(),
+        provideHttpClientTesting(),
         {
           provide: InsuranceApiService,
           useValue: {
-            getApplication: vi.fn(() => applicationResponse.asObservable()),
             submitQuote: vi.fn(() => quoteResponse.asObservable()),
           },
         },
@@ -29,26 +32,36 @@ describe('QuoteJourneyStore', () => {
     });
 
     store = TestBed.inject(QuoteJourneyStore);
+    httpTesting = TestBed.inject(HttpTestingController);
   });
 
-  it('loads and adapts the application into readonly signal state', () => {
+  afterEach(() => {
+    httpTesting.verify();
+  });
+
+  it('loads and adapts the application into readonly signal state', async () => {
     store.loadApplication();
+    TestBed.tick();
 
     expect(store.loadStatus()).toBe('loading');
     expect(store.errorMessage()).toBeNull();
 
-    applicationResponse.next(createApplicationDefinition());
-    applicationResponse.complete();
+    await flushApplication();
 
     expect(store.loadStatus()).toBe('loaded');
     expect(store.sections().map((section) => section.id)).toEqual(['about-you', 'lifestyle']);
     expect(store.activeSection()?.id).toBe('about-you');
   });
 
-  it('exposes a retry-friendly error state when loading fails', () => {
+  it('exposes a retry-friendly error state when loading fails', async () => {
     store.loadApplication();
+    TestBed.tick();
 
-    applicationResponse.error(new Error('Network unavailable'));
+    httpTesting.expectOne('/api/application').flush('Network unavailable', {
+      status: 503,
+      statusText: 'Service Unavailable',
+    });
+    await TestBed.inject(ApplicationRef).whenStable();
 
     expect(store.loadStatus()).toBe('error');
     expect(store.journey()).toBeNull();
@@ -56,9 +69,9 @@ describe('QuoteJourneyStore', () => {
     expect(store.errorMessage()).toBe('We could not load the application. Please try again.');
   });
 
-  it('navigates between valid sections and rejects invalid indexes', () => {
+  it('navigates between valid sections and rejects invalid indexes', async () => {
     store.loadApplication();
-    applicationResponse.next(createApplicationDefinition());
+    await flushApplication();
 
     expect(store.goToSection(1)).toBe(true);
     expect(store.activeSection()?.id).toBe('lifestyle');
@@ -71,9 +84,9 @@ describe('QuoteJourneyStore', () => {
     expect(store.activeSection()?.id).toBe('about-you');
   });
 
-  it('exposes submission state and stores a returned quote', () => {
+  it('exposes submission state and stores a returned quote', async () => {
     store.loadApplication();
-    applicationResponse.next(createApplicationDefinition());
+    await flushApplication();
 
     expect(store.submitQuote({ smokedLast12Months: 'No' })).toBe(true);
     expect(store.submissionStatus()).toBe('submitting');
@@ -92,9 +105,9 @@ describe('QuoteJourneyStore', () => {
     });
   });
 
-  it('appends and activates additional question pages without duplicates', () => {
+  it('appends and activates additional question pages without duplicates', async () => {
     store.loadApplication();
-    applicationResponse.next(createApplicationDefinition());
+    await flushApplication();
     store.submitQuote({ smokedLast12Months: 'Yes' });
 
     const additionalQuestionsResponse: QuoteResponse = {
@@ -129,9 +142,9 @@ describe('QuoteJourneyStore', () => {
     expect(store.sections()).toHaveLength(3);
   });
 
-  it('exposes a retryable quote error', () => {
+  it('exposes a retryable quote error', async () => {
     store.loadApplication();
-    applicationResponse.next(createApplicationDefinition());
+    await flushApplication();
     store.submitQuote({ smokedLast12Months: 'No' });
 
     quoteResponse.error(new Error('Quote unavailable'));
@@ -141,6 +154,15 @@ describe('QuoteJourneyStore', () => {
     expect(store.submissionError()).toBe('We could not retrieve your quote. Please try again.');
   });
 });
+
+async function flushApplication(): Promise<void> {
+  TestBed.tick();
+  const request = TestBed.inject(HttpTestingController).expectOne('/api/application');
+
+  expect(request.request.method).toBe('GET');
+  request.flush(createApplicationDefinition());
+  await TestBed.inject(ApplicationRef).whenStable();
+}
 
 function createApplicationDefinition(): ApplicationDefinition {
   return {
