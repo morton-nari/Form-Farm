@@ -128,10 +128,6 @@ The implementation is verified with:
 
 The UI includes native labelled controls, required/error announcements, visible keyboard focus, a skip link, responsive navigation, and loading/error states. API question IDs drive the data model while labels, input types, required rules, and options remain server-driven.
 
-## Code walkthrough
-
-An assessor-focused architecture walkthrough and interview preparation guide is available as [PDF](docs/Nobleoak_Angular_Assessment_Walkthrough.pdf). Its editable print source is [HTML](docs/Nobleoak_Angular_Assessment_Walkthrough.html).
-
 ## Assumptions
 
 - The supplied wireframe is a visual reference rather than a pixel-perfect specification.
