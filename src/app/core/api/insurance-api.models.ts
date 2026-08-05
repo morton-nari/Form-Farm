@@ -1,4 +1,16 @@
-export type QuestionType = 'email' | 'text' | 'select' | 'radio' | 'number';
+
+
+export interface ApplicationDefinition {
+  readonly id: string;
+  readonly title: string;
+  readonly pages: readonly ApplicationPage[];
+}
+
+export interface ApplicationPage {
+  readonly id: string;
+  readonly title: string;
+  readonly questions: readonly ApplicationQuestion[];
+}
 
 export interface ApplicationQuestion {
   readonly id: string;
@@ -8,29 +20,13 @@ export interface ApplicationQuestion {
   readonly options?: readonly string[];
 }
 
-export interface ApplicationPage {
-  readonly id: string;
-  readonly title: string;
-  readonly questions: readonly ApplicationQuestion[];
-}
-
-export interface ApplicationDefinition {
-  readonly id: string;
-  readonly title: string;
-  readonly pages: readonly ApplicationPage[];
-}
+export type QuestionType = 'email' | 'text' | 'select' | 'radio' | 'number';
 
 export type AnswerValue = string | number;
 
-export type QuoteAnswers = Readonly<Record<string, AnswerValue>>;
-
-export interface QuoteRequest {
-  readonly answers: QuoteAnswers;
-}
-
-export interface AdditionalQuestionsResponse {
-  readonly status: 'additionalQuestionsRequired';
-  readonly pages: readonly ApplicationPage[];
+export interface QuotedResponse {
+  readonly status: 'quoted';
+  readonly quote: Quote;
 }
 
 export interface Quote {
@@ -38,10 +34,15 @@ export interface Quote {
   readonly coverAmount: number;
   readonly premium: number;
 }
+export interface QuoteRequest {
+  readonly answers: QuoteAnswers;
+}
 
-export interface QuotedResponse {
-  readonly status: 'quoted';
-  readonly quote: Quote;
+export type QuoteAnswers = Readonly<Record<string, AnswerValue>>;
+
+export interface AdditionalQuestionsResponse {
+  readonly status: 'additionalQuestionsRequired';
+  readonly pages: readonly ApplicationPage[];
 }
 
 export type QuoteResponse = AdditionalQuestionsResponse | QuotedResponse;
