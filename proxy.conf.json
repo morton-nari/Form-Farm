@@ -1,0 +1,10 @@
+{
+  "/api": {
+    "target": "https://insurance-quote-api-f4h7ebg2hrg8f3gh.australiasoutheast-01.azurewebsites.net",
+    "secure": true,
+    "changeOrigin": true,
+    "pathRewrite": {
+      "^/api": ""
+    }
+  }
+}
