@@ -31,7 +31,12 @@ Accessible Reactive Form UI
 The legacy insurance API supplies text, email, number, select, and radio questions. Its adapter maps
 those contracts into validated provider-neutral definitions. The reusable form runner depends only on
 the Form Farm domain and has explicit rendering and Reactive Forms behavior for all 15 schema-version-1
-field discriminants. The project has no owned backend, database, authentication, or AI integration yet.
+field discriminants.
+
+The repository also contains an initial Fastify 5 backend workspace. Its current implemented scope is
+deliberately limited to a testable application factory, startup configuration validation, `GET /health`,
+safe HTTP error mapping, and graceful shutdown. It has no form routes, database, authentication, or AI
+integration yet.
 
 ## Target architecture
 
@@ -53,7 +58,7 @@ External AI provider APIs
 
 Microservices are not planned. They would add operational complexity without solving a current scaling or ownership problem.
 
-The owned backend will use Fastify 5 directly as a lean modular TypeScript application. Domain models,
+The owned backend uses Fastify 5 directly as a lean modular TypeScript application. Domain models,
 validation, and use cases remain framework-independent; Fastify routes and plugins form the HTTP and
 infrastructure edge. The decision and alternatives are recorded in
 [`ADR 0002`](adr/0002-backend-framework.md).

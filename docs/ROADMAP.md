@@ -30,8 +30,8 @@ Status: **in progress**
 ## Phase 2 — Owned backend
 
 - [x] Compare backend approaches and select lean Fastify 5 in ADR 0002
-- Scaffold a TypeScript backend
-- Add health, configuration, and error-handling foundations
+- [x] Scaffold a TypeScript backend
+- [x] Add health, configuration, and error-handling foundations
 - Serve a deterministic form definition from the owned API
 - Connect the Angular form runner to that API
 - Add backend and API contract tests

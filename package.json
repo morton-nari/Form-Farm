@@ -6,9 +6,18 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test --watch=false"
+    "test": "ng test --watch=false",
+    "backend:dev": "npm run dev --workspace @form-farm/backend",
+    "backend:start": "npm run start --workspace @form-farm/backend",
+    "backend:test": "npm run test --workspace @form-farm/backend",
+    "backend:build": "npm run build --workspace @form-farm/backend",
+    "test:all": "npm test && npm run backend:test",
+    "build:all": "npm run build && npm run backend:build"
   },
   "private": true,
+  "workspaces": [
+    "backend"
+  ],
   "packageManager": "npm@12.0.2",
   "engines": {
     "node": "^22.22.3 || >=24.15.0 <25 || >=26.0.0",

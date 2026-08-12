@@ -9,7 +9,7 @@ The product direction is documented in [Product Vision](docs/PRODUCT_VISION.md),
 The provider-neutral form contract and its supported version-one capabilities are documented in
 [Form Schema](docs/FORM_SCHEMA.md).
 
-> **Current status:** the Angular API-driven journey is functional. The owned backend, database, authentication, form builder, and AI capabilities described in the roadmap are not implemented yet.
+> **Current status:** the Angular API-driven journey is functional. An owned Fastify backend foundation now provides configuration validation, health checks, safe HTTP error mapping, and graceful shutdown. Database, authentication, generic form APIs, the form builder, and AI capabilities are not implemented yet.
 
 ## Technical baseline
 
@@ -20,6 +20,7 @@ The provider-neutral form contract and its supported version-one capabilities ar
 | TypeScript  | 6.0.x                       |
 | RxJS        | 7.8.x                       |
 | Bootstrap   | 5.3.8                       |
+| Fastify     | 5.x                         |
 | Vitest      | 4.x                         |
 | Node.js     | 22.22.3+, 24.15.0+, or 26.x |
 | npm         | 12.0.2+                     |
@@ -63,6 +64,14 @@ npm start
 
 Open [http://localhost:4200](http://localhost:4200). The development server reloads when source files change.
 
+Run the backend separately with:
+
+```bash
+npm run backend:dev
+```
+
+It listens on `http://127.0.0.1:3000` by default. `GET /health` returns `{ "status": "ok" }`.
+
 For a clean, lockfile-based installation, such as in CI, use:
 
 ```bash
@@ -71,16 +80,30 @@ npm ci
 
 ## Available commands
 
-| Command         | Purpose                                                |
-| --------------- | ------------------------------------------------------ |
-| `npm start`     | Start the local development server                     |
-| `npm run build` | Create a production build in `dist/`                   |
-| `npm test`      | Run the unit test suite once                           |
-| `npm run watch` | Build continuously using the development configuration |
+| Command                   | Purpose                                                   |
+| ------------------------- | --------------------------------------------------------- |
+| `npm start`               | Start the Angular development server                      |
+| `npm run backend:dev`     | Start the backend with file watching                      |
+| `npm run backend:start`   | Run the compiled backend                                  |
+| `npm run build`           | Create the Angular production build                       |
+| `npm run backend:build`   | Strictly compile the backend                              |
+| `npm run build:all`       | Build the frontend and backend                            |
+| `npm test`                | Run the Angular unit tests once                           |
+| `npm run backend:test`    | Run the backend tests once                                |
+| `npm run test:all`        | Run frontend and backend tests                            |
+| `npm run watch`           | Build Angular continuously in development mode            |
 
 ## Current project structure
 
 ```text
+backend/
+`-- src/
+    |-- application/    # Framework-independent application errors and future use cases
+    |-- config/         # Validated process configuration
+    |-- http/           # Fastify routes and HTTP error mapping
+    |-- lifecycle/      # Graceful process shutdown
+    |-- app.ts          # Testable Fastify application factory
+    `-- main.ts         # Process entry point
 src/
 ├── app/
 │   ├── core/api/        # Typed HTTP contracts and API client
@@ -104,6 +127,19 @@ src/
 ```
 
 Bootstrap's minified CSS is included through the `styles` array in `angular.json`. No Bootstrap JavaScript is loaded.
+
+## Backend configuration
+
+Backend configuration is read and validated once at startup. Invalid configuration stops startup without including environment values in the error.
+
+| Variable    | Default       | Accepted values                              |
+| ----------- | ------------- | -------------------------------------------- |
+| `NODE_ENV`  | `development` | `development`, `test`, `production`          |
+| `HOST`      | `127.0.0.1`   | Any non-empty host                           |
+| `PORT`      | `3000`        | Integer from 1 through 65535                  |
+| `LOG_LEVEL` | `info`        | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent` |
+
+Fastify remains an HTTP adapter. Application and domain code must not depend on Fastify types. The backend does not yet expose form-definition or submission endpoints.
 
 ## API development
 
