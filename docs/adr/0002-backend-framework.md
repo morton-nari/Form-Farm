@@ -28,9 +28,26 @@ The backend will be a workspace inside the existing repository, without introduc
 - form-domain use cases;
 - external adapters such as persistence and AI providers when those capabilities are introduced.
 
+The intended dependency direction is:
+
+```text
+HTTP / Fastify
+      ↓
+application use cases
+      ↓
+provider-neutral domain
+
+infrastructure adapters
+      ↑ implement ports required by application use cases
+```
+
+Fastify request and reply types belong only at the HTTP edge. Application and domain code must not import them. Persistence and AI implementations may depend on application-owned ports; application use cases must not import concrete infrastructure adapters.
+
 Route handlers will remain thin. Form definitions entering from fixtures, HTTP, persistence, or future AI output must pass the existing owned `validateFormDefinition` boundary before use. Fastify route validation does not replace Form Farm domain validation.
 
 Fastify plugins will be registered explicitly. Framework decorators, a dependency-injection container, and generated module scaffolding will not be recreated through custom abstractions. Dependencies will be passed using ordinary TypeScript composition until a demonstrated need justifies a different approach.
+
+The first scaffold must keep configuration loading centralized and validated at startup, establish consistent mapping from application/domain errors to HTTP responses, expose an application factory testable with `fastify.inject()`, and support graceful shutdown. It must not add database, authentication, OpenAPI, persistence, or AI abstractions before a concrete slice requires them.
 
 ## Comparison
 
