@@ -53,6 +53,43 @@ External AI provider APIs
 
 Microservices are not planned. They would add operational complexity without solving a current scaling or ownership problem.
 
+The owned backend will use Fastify 5 directly as a lean modular TypeScript application. Domain models,
+validation, and use cases remain framework-independent; Fastify routes and plugins form the HTTP and
+infrastructure edge. The decision and alternatives are recorded in
+[`ADR 0002`](adr/0002-backend-framework.md).
+
+```text
+HTTP / Fastify → application use cases → domain
+                         ↑
+              infrastructure adapters
+```
+
+Infrastructure implementations satisfy ports required by application use cases. Application and domain
+code do not import Fastify request/reply types or concrete persistence and AI adapters.
+
+## Form API direction
+
+Forms are resources, not individually generated APIs. Seeded templates and future administrator-created
+forms use the same stable routes, such as `GET /api/forms/:formId` and
+`POST /api/forms/:formId/submissions`. Creating or publishing a custom form creates validated form data
+and immutable versions; it must not register arbitrary Fastify routes or compile user-provided schemas
+as executable route schemas.
+
+Initial seeded examples should demonstrate meaningfully different data-collection needs without pulling
+forward deferred security capabilities:
+
+- customer feedback;
+- event registration;
+- job application without file upload.
+
+Common template libraries also emphasize contact, lead, order, booking, consent, appointment, and
+application forms. Those are candidates for later templates, not separate endpoint families. Payment,
+signature, upload, and conditional-flow templates wait for their required domain and security designs.
+
+Login is an authentication operation rather than a generic stored form submission. Account registration
+may eventually reuse the renderer, but a trusted backend handler must create the account, hash credentials,
+and apply security policy. A form definition alone cannot authorize that behavior.
+
 ## Form domain boundary
 
 The reusable form engine must depend on provider-neutral types:
@@ -105,9 +142,25 @@ handler, or workflow outcome. That separation must be preserved as publishing ca
 
 PostgreSQL is the preferred candidate. The intended model combines relational lifecycle data with JSONB for the flexible schema:
 
-- `Form` owns identity, name, status, and ownership.
+- `Form` owns stable identity, name, status, and ownership.
 - `FormVersion` stores an immutable validated schema and version number.
 - `FormSubmission` references the exact published version and stores validated answers.
+
+Future authentication will associate forms with an owning user and may later introduce organizations.
+Ownership and authorization are relational concerns; they must not be embedded inside `FormDefinition`.
+The model must support a future owner dashboard that can efficiently list forms, filter by lifecycle
+status, show the current published version, count submissions, and inspect recent activity without
+scanning JSONB documents.
+
+Likely relational query fields include owner identity, form status, created/updated timestamps,
+published version, submission timestamps, and exact form-version references. Flexible definitions and
+answer payloads can use JSONB after validation. Appropriate ownership, status, version, and submission
+time indexes will be designed with the actual database schema.
+
+Form versions are immutable once published. Submissions retain the exact form version used for collection
+so later edits do not change the meaning of historical answers. Deleting or archiving a form must not
+silently orphan or reinterpret its submissions. Retention, export, deletion, and sensitive-data policies
+require explicit design before production data is collected.
 
 The database and data model will be confirmed through ADRs before implementation.
 
@@ -132,8 +185,6 @@ Users preview and approve generated forms before persistence or publication.
 
 ## Decisions still required
 
-- Backend framework
-- Runtime schema-validation library
 - Database access and migration tooling
 - Authentication strategy
 - Hosting architecture

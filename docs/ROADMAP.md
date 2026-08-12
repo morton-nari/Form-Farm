@@ -24,12 +24,12 @@ Status: **in progress**
 - [x] Define a provider-neutral form schema
 - [x] Add runtime schema validation
 - [x] Expand supported field and validation types
-- Decouple the form engine from insurance API contracts (in progress in issue #26)
-- Preserve existing accessibility and tests
+- [x] Decouple the form engine from insurance API contracts
+- [x] Preserve existing accessibility and tests
 
 ## Phase 2 — Owned backend
 
-- Compare backend approaches and record the selection in an ADR
+- [x] Compare backend approaches and select lean Fastify 5 in ADR 0002
 - Scaffold a TypeScript backend
 - Add health, configuration, and error-handling foundations
 - Serve a deterministic form definition from the owned API
@@ -38,7 +38,7 @@ Status: **in progress**
 
 ## Phase 3 — Form builder and realistic demos
 
-- List and create forms
+- Add an owner dashboard that lists and creates forms
 - Add and arrange sections and fields
 - Configure field options and validation
 - Preview forms through the existing runner
@@ -47,16 +47,17 @@ Status: **in progress**
 ## Phase 4 — PostgreSQL persistence and versioning
 
 - Select database access and migration tooling
-- Persist forms and immutable versions
+- Persist owned forms and immutable versions
 - Publish form versions
 - Store submissions against the submitted version
+- Support dashboard-friendly form and submission queries
 - Add database integration tests
 
 ## Phase 5 — Authentication and authorization
 
 - Implement sign-up, login, logout, and session handling
 - Protect frontend routes and backend operations
-- Add form ownership and authorization
+- Add user form ownership and authorization, with organizations deferred until justified
 - Establish secure secret and environment management
 
 ## Phase 6 — AI form generation
