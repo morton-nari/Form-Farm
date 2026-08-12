@@ -6,7 +6,7 @@
   },
   "newProjectRoot": "projects",
   "projects": {
-    "nobleoak": {
+    "smart-forms-ai": {
       "projectType": "application",
       "schematics": {
         "@schematics/angular:component": {
@@ -62,10 +62,10 @@
           },
           "configurations": {
             "production": {
-              "buildTarget": "nobleoak:build:production"
+              "buildTarget": "smart-forms-ai:build:production"
             },
             "development": {
-              "buildTarget": "nobleoak:build:development"
+              "buildTarget": "smart-forms-ai:build:development"
             }
           },
           "defaultConfiguration": "development"
