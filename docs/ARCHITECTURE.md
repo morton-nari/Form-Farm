@@ -66,6 +66,11 @@ FormDefinition
 
 External API contracts, persistence records, and AI output must be mapped and validated before entering this domain.
 
+Untrusted definitions pass through the owned `validateFormDefinition` boundary. Zod performs strict
+structural parsing and owned validation code applies cross-object domain invariants. Consumers receive
+a provider-neutral result with path-specific issues and do not depend directly on Zod APIs. The
+decision is recorded in [`ADR 0001`](adr/0001-runtime-schema-validation.md).
+
 The version-one domain contract is defined in `src/app/domain/forms` and documented in
 [`FORM_SCHEMA.md`](FORM_SCHEMA.md). It supports a controlled set of standard form fields through a
 discriminated union. Field IDs are globally unique answer keys, array position defines ordering, and

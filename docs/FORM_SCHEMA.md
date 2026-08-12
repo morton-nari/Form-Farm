@@ -4,7 +4,7 @@
 
 The Form Farm schema is the provider-neutral contract used to describe a form. A form definition can come from a deterministic backend endpoint, persisted data, a form builder, or validated AI structured output. The Angular renderer must not need feature-specific knowledge to display it.
 
-The TypeScript source of truth currently lives in `src/app/domain/forms/form-definition.models.ts`. Runtime validation of untrusted data is separate work tracked by GitHub issue #17.
+The TypeScript domain vocabulary lives in `src/app/domain/forms/form-definition.models.ts`. Untrusted input enters through `validateFormDefinition` in `form-definition.validator.ts`, which applies strict structural parsing followed by domain invariant validation. The validation approach is recorded in [ADR 0001](adr/0001-runtime-schema-validation.md).
 
 ## Boundary
 
@@ -50,7 +50,7 @@ Both are positive integers. A submission must reference the exact logical form a
 - IDs use machine-safe values matching `^[A-Za-z][A-Za-z0-9_-]*$`.
 - Array position is authoritative for sections, fields, and options. Separate order properties are intentionally omitted.
 
-Runtime domain validation will enforce these invariants.
+Runtime domain validation enforces these invariants before external data enters the form engine.
 
 ## Supported fields
 
