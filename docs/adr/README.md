@@ -25,4 +25,4 @@ Do not create ADRs for minor implementation details or decisions that have not y
 
 - [ADR 0001: Runtime form-schema validation](0001-runtime-schema-validation.md)
 - [ADR 0002: Backend framework](0002-backend-framework.md)
-- [ADR 0003: PostgreSQL persistence tooling and data model](0003-postgresql-persistence.md) — proposed
+- [ADR 0003: PostgreSQL persistence tooling and data model](0003-postgresql-persistence.md)
