@@ -66,6 +66,16 @@ FormDefinition
 
 External API contracts, persistence records, and AI output must be mapped and validated before entering this domain.
 
+The version-one domain contract is defined in `src/app/domain/forms` and documented in
+[`FORM_SCHEMA.md`](FORM_SCHEMA.md). It supports a controlled set of standard form fields through a
+discriminated union. Field IDs are globally unique answer keys, array position defines ordering, and
+choice labels are separate from their stable submitted values.
+
+The schema contains renderable form content and safe submission presentation only. Lifecycle,
+ownership, persistence metadata, AI generation metadata, HTTP destinations, and privileged backend
+operations remain outside the form definition. The current insurance API remains a legacy external
+contract until the runner migration in Phase 1; it does not define the new domain.
+
 ## Persistence direction
 
 PostgreSQL is the preferred candidate. The intended model combines relational lifecycle data with JSONB for the flexible schema:
