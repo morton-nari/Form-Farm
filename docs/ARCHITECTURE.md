@@ -1,10 +1,10 @@
-# Smart Forms AI Architecture
+# Form Farm AI Architecture
 
 This document separates the architecture that exists today from the intended target. Planned capabilities must not be described as implemented.
 
 ## Current architecture
 
-Smart Forms AI currently contains an Angular 22 frontend derived from the Nobleoak coding assessment.
+Form Farm AI currently contains an Angular 22 frontend derived from the Nobleoak coding assessment.
 
 ```text
 External insurance API

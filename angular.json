@@ -6,7 +6,7 @@
   },
   "newProjectRoot": "projects",
   "projects": {
-    "smart-forms-ai": {
+    "form-farm-ai": {
       "projectType": "application",
       "schematics": {
         "@schematics/angular:component": {
@@ -62,10 +62,10 @@
           },
           "configurations": {
             "production": {
-              "buildTarget": "smart-forms-ai:build:production"
+              "buildTarget": "form-farm-ai:build:production"
             },
             "development": {
-              "buildTarget": "smart-forms-ai:build:development"
+              "buildTarget": "form-farm-ai:build:development"
             }
           },
           "defaultConfiguration": "development"

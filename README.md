@@ -1,6 +1,6 @@
-# Smart Forms AI
+# Form Farm AI
 
-Smart Forms AI is evolving into an AI-powered dynamic form platform. Its current working foundation is a modern Angular implementation of the insurance journey from the original Nobleoak frontend coding assessment:
+Form Farm AI is evolving into an AI-powered dynamic form platform. Its current working foundation is a modern Angular implementation of the insurance journey from the original Nobleoak frontend coding assessment:
 
 `Your Details → Application → Quote`
 
