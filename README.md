@@ -84,6 +84,8 @@ npm ci
 src/
 ├── app/
 │   ├── core/api/        # Typed HTTP contracts and API client
+│   ├── domain/forms/    # Provider-neutral form contract and runtime validation
+│   ├── shared/form-runner/ # Generic Reactive Forms factory and field renderer
 │   ├── features/
 │   │   └── quote-journey/
 │   │       ├── components/  # Question renderer and journey navigation

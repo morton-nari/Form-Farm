@@ -1,13 +1,13 @@
-import { z } from 'zod';
+import { z } from 'zod/mini';
 
 import { FormDefinition } from './form-definition.models';
 
 const identifier = z
   .string()
-  .regex(/^[A-Za-z][A-Za-z0-9_-]*$/, 'Must be a machine-safe identifier.');
-const nonBlankText = z.string().trim().min(1, 'Must not be empty.');
-const positiveInteger = z.number().int().positive();
-const nonNegativeInteger = z.number().int().nonnegative();
+  .check(z.regex(/^[A-Za-z][A-Za-z0-9_-]*$/, 'Must be a machine-safe identifier.'));
+const nonBlankText = z.string().check(z.trim(), z.minLength(1, 'Must not be empty.'));
+const positiveInteger = z.number().check(z.int(), z.positive());
+const nonNegativeInteger = z.number().check(z.int(), z.nonnegative());
 
 const requiredRule = z.strictObject({ type: z.literal('required') });
 const minLengthRule = z.strictObject({
@@ -18,8 +18,8 @@ const maxLengthRule = z.strictObject({
   type: z.literal('maxLength'),
   value: nonNegativeInteger,
 });
-const minRule = z.strictObject({ type: z.literal('min'), value: z.number().finite() });
-const maxRule = z.strictObject({ type: z.literal('max'), value: z.number().finite() });
+const minRule = z.strictObject({ type: z.literal('min'), value: z.number() });
+const maxRule = z.strictObject({ type: z.literal('max'), value: z.number() });
 const integerRule = z.strictObject({ type: z.literal('integer') });
 const earliestRule = z.strictObject({ type: z.literal('earliest'), value: nonBlankText });
 const latestRule = z.strictObject({ type: z.literal('latest'), value: nonBlankText });
@@ -65,43 +65,43 @@ const autocomplete = z.enum([
 const fieldBase = {
   id: identifier,
   label: nonBlankText,
-  helpText: nonBlankText.optional(),
+  helpText: z.optional(nonBlankText),
 };
 
 const textEntryBase = {
   ...fieldBase,
-  placeholder: z.string().optional(),
-  autocomplete: autocomplete.optional(),
-  defaultValue: z.string().optional(),
-  validation: z.array(textRule).optional(),
+  placeholder: z.optional(z.string()),
+  autocomplete: z.optional(autocomplete),
+  defaultValue: z.optional(z.string()),
+  validation: z.optional(z.array(textRule)),
 };
 
 const passwordField = z.strictObject({
   ...fieldBase,
   type: z.literal('password'),
-  placeholder: z.string().optional(),
-  autocomplete: autocomplete.optional(),
-  validation: z.array(textRule).optional(),
+  placeholder: z.optional(z.string()),
+  autocomplete: z.optional(autocomplete),
+  validation: z.optional(z.array(textRule)),
 });
 
 const option = z.strictObject({
   label: nonBlankText,
   value: nonBlankText,
-  disabled: z.boolean().optional(),
+  disabled: z.optional(z.boolean()),
 });
 
 const singleChoiceBase = {
   ...fieldBase,
-  options: z.array(option).min(1),
-  defaultValue: z.string().optional(),
-  validation: z.array(requiredRule).optional(),
+  options: z.array(option).check(z.minLength(1)),
+  defaultValue: z.optional(z.string()),
+  validation: z.optional(z.array(requiredRule)),
 };
 
 const multipleChoiceBase = {
   ...fieldBase,
-  options: z.array(option).min(1),
-  defaultValue: z.array(z.string()).optional(),
-  validation: z.array(selectionRule).optional(),
+  options: z.array(option).check(z.minLength(1)),
+  defaultValue: z.optional(z.array(z.string())),
+  validation: z.optional(z.array(selectionRule)),
 };
 
 const formFieldSchema = z.discriminatedUnion('type', [
@@ -109,53 +109,53 @@ const formFieldSchema = z.discriminatedUnion('type', [
   z.strictObject({
     ...textEntryBase,
     type: z.literal('email'),
-    defaultValue: z.email().optional(),
+    defaultValue: z.optional(z.email()),
   }),
   passwordField,
   z.strictObject({ ...textEntryBase, type: z.literal('tel') }),
-  z.strictObject({ ...textEntryBase, type: z.literal('url'), defaultValue: z.url().optional() }),
+  z.strictObject({ ...textEntryBase, type: z.literal('url'), defaultValue: z.optional(z.url()) }),
   z.strictObject({
     ...textEntryBase,
     type: z.literal('textarea'),
-    rows: positiveInteger.optional(),
+    rows: z.optional(positiveInteger),
   }),
   z.strictObject({
     ...fieldBase,
     type: z.literal('number'),
-    placeholder: z.string().optional(),
-    defaultValue: z.number().finite().optional(),
-    validation: z.array(numberRule).optional(),
+    placeholder: z.optional(z.string()),
+    defaultValue: z.optional(z.number()),
+    validation: z.optional(z.array(numberRule)),
   }),
   z.strictObject({
     ...fieldBase,
     type: z.literal('date'),
-    defaultValue: z.iso.date().optional(),
-    validation: z.array(temporalRule).optional(),
+    defaultValue: z.optional(z.iso.date()),
+    validation: z.optional(z.array(temporalRule)),
   }),
   z.strictObject({
     ...fieldBase,
     type: z.literal('datetime'),
-    defaultValue: z.iso.datetime({ local: true }).optional(),
-    validation: z.array(temporalRule).optional(),
+    defaultValue: z.optional(z.iso.datetime({ local: true })),
+    validation: z.optional(z.array(temporalRule)),
   }),
   z.strictObject({
     ...fieldBase,
     type: z.literal('time'),
-    defaultValue: z.iso.time().optional(),
-    validation: z.array(temporalRule).optional(),
+    defaultValue: z.optional(z.iso.time()),
+    validation: z.optional(z.array(temporalRule)),
   }),
   z.strictObject({
     ...singleChoiceBase,
     type: z.literal('select'),
-    placeholder: z.string().optional(),
+    placeholder: z.optional(z.string()),
   }),
   z.strictObject({ ...singleChoiceBase, type: z.literal('radio') }),
   z.strictObject({ ...multipleChoiceBase, type: z.literal('multi-select') }),
   z.strictObject({
     ...fieldBase,
     type: z.literal('checkbox'),
-    defaultValue: z.boolean().optional(),
-    validation: z.array(booleanRule).optional(),
+    defaultValue: z.optional(z.boolean()),
+    validation: z.optional(z.array(booleanRule)),
   }),
   z.strictObject({ ...multipleChoiceBase, type: z.literal('checkbox-group') }),
 ]);
@@ -165,17 +165,17 @@ const formDefinitionStructure = z.strictObject({
   id: identifier,
   formVersion: positiveInteger,
   title: nonBlankText,
-  description: nonBlankText.optional(),
+  description: z.optional(nonBlankText),
   sections: z
     .array(
       z.strictObject({
         id: identifier,
         title: nonBlankText,
-        description: nonBlankText.optional(),
-        fields: z.array(formFieldSchema).min(1),
+        description: z.optional(nonBlankText),
+        fields: z.array(formFieldSchema).check(z.minLength(1)),
       }),
     )
-    .min(1),
+    .check(z.minLength(1)),
   submission: z.strictObject({
     submitLabel: nonBlankText,
     successMessage: nonBlankText,

@@ -126,6 +126,8 @@ AI produces candidate structured data on the backend, never Angular source code.
 
 The frontend validates the API response, creates Reactive Form controls from the rules, renders fields by their discriminant, and submits typed answers. It does not infer behavior from field IDs or from names such as “registration.”
 
+The reusable Angular implementation lives under `src/app/shared/form-runner`. It explicitly renders every schema-version-1 field discriminant and maps each validation-rule family to Reactive Forms. The current insurance integration is isolated in a feature adapter and is not part of the reusable engine.
+
 ## Legacy migration
 
 The existing insurance API is an external legacy contract, not part of the Form Farm domain. During migration:

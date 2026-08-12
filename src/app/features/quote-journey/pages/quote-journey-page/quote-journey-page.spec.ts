@@ -29,7 +29,7 @@ describe('QuoteJourneyPage', () => {
     expect(heading()).toBe('About You');
     expect(inputFor('email')).toBeTruthy();
     expect(inputFor('phone')).toBeTruthy();
-    expect(fixture.nativeElement.querySelector('#question-occupation')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('#field-occupation')).toBeTruthy();
     expect(fixture.nativeElement.querySelectorAll('input[type="radio"]')).toHaveLength(2);
     expect(fixture.nativeElement.querySelector('.completed-static')?.textContent).toContain(
       'Your Details',
@@ -52,7 +52,7 @@ describe('QuoteJourneyPage', () => {
 
     expect(heading()).toBe('About You');
     expect(fixture.nativeElement.querySelectorAll('[role="alert"]')).toHaveLength(4);
-    expect(document.activeElement?.id).toBe('question-email');
+    expect(document.activeElement?.id).toBe('field-email');
   });
 
   it('highlights the section being answered and presents an answer review', () => {
@@ -61,7 +61,7 @@ describe('QuoteJourneyPage', () => {
     enterValue(inputFor('email'), 'person@example.com');
     enterValue(inputFor('phone'), '0412345678');
     const occupation = fixture.nativeElement.querySelector(
-      '#question-occupation',
+      '#field-occupation',
     ) as HTMLSelectElement;
     enterValue(occupation, 'Teacher', 'change');
 
@@ -212,7 +212,7 @@ describe('QuoteJourneyPage', () => {
   }
 
   function inputFor(questionId: string): HTMLInputElement {
-    return fixture.nativeElement.querySelector(`#question-${questionId}`) as HTMLInputElement;
+    return fixture.nativeElement.querySelector(`#field-${questionId}`) as HTMLInputElement;
   }
 
   function enterValue(
@@ -235,7 +235,7 @@ describe('QuoteJourneyPage', () => {
     enterValue(inputFor('email'), 'person@example.com');
     enterValue(inputFor('phone'), '0412345678');
     enterValue(
-      fixture.nativeElement.querySelector('#question-occupation') as HTMLSelectElement,
+      fixture.nativeElement.querySelector('#field-occupation') as HTMLSelectElement,
       'Teacher',
       'change',
     );

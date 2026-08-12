@@ -14,6 +14,9 @@ The provider-neutral schema has 15 discriminated field variants, field-specific 
 
 Use Zod 4 for structural runtime parsing behind the owned `validateFormDefinition` function.
 
+Browser builds import the supported `zod/mini` functional API to reduce bundle cost without changing
+the owned validation result or domain invariants.
+
 The boundary has two layers:
 
 1. Strict Zod schemas validate JSON-compatible structure, supported schema and field discriminants, field-specific properties, rule shapes, and primitive formats.

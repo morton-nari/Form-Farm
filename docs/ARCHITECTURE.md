@@ -28,7 +28,10 @@ Accessible Reactive Form UI
 - `features/quote-journey/components` renders questions and progress navigation.
 - `features/quote-journey/pages` coordinates the screen and focus behaviour.
 
-The current schema supports text, email, number, select, and radio controls. The project has no owned backend, database, authentication, or AI integration yet.
+The legacy insurance API supplies text, email, number, select, and radio questions. Its adapter maps
+those contracts into validated provider-neutral definitions. The reusable form runner depends only on
+the Form Farm domain and has explicit rendering and Reactive Forms behavior for all 15 schema-version-1
+field discriminants. The project has no owned backend, database, authentication, or AI integration yet.
 
 ## Target architecture
 
@@ -74,6 +77,15 @@ decision is recorded in [`ADR 0001`](adr/0001-runtime-schema-validation.md).
 Passing this boundary establishes structural and domain validity only. It does not grant
 authorization, approve publication, establish ownership, or authorize workflow execution. Those
 decisions remain separate trusted backend responsibilities.
+
+The browser uses Zod's supported Mini entry point to limit the cost of strict runtime validation. The
+initial bundle warning budget is 850 kB, with the existing 1 MB error ceiling retained; production
+build output must be reviewed when domain capabilities change.
+
+The Angular `shared/form-runner` maps validated domain fields into Reactive Form controls and accessible
+UI. It does not import legacy API models or encode quote, registration, payment, publishing, or other
+workflow behavior. The current quote feature adapts generic answers back to its legacy submission
+contract at the feature boundary; the owned API will replace that temporary path in issue #21.
 
 The version-one domain contract is defined in `src/app/domain/forms` and documented in
 [`FORM_SCHEMA.md`](FORM_SCHEMA.md). It supports a controlled set of standard form fields through a
