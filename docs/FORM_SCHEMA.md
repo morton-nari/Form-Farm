@@ -18,6 +18,8 @@ The TypeScript source of truth currently lives in `src/app/domain/forms/form-def
 
 The backend chooses the controlled operation associated with a published form. Schema data may control safe presentation such as button text and a success message, but it cannot select arbitrary executable behavior.
 
+`submission.submitLabel` and `submission.successMessage` remain in the immutable definition for schema version 1 because they are part of the form's API-driven user experience and should be versioned with the fields users complete. They are presentation content only. Publishing metadata, redirects, API destinations, handler selection, and workflow outcomes remain outside the definition. This boundary should be reconsidered if publishing later needs to vary presentation without creating a new form version.
+
 ## Structure
 
 ```text
@@ -52,26 +54,25 @@ Runtime domain validation will enforce these invariants.
 
 ## Supported fields
 
-Schema version 1 defines these standard fields:
+Schema version 1 defines these standard fields. A type is considered supported only when its runtime structure and invariants are validated, its answer representation is enforced, the frontend renders it accessibly, and those behaviors have automated test coverage. The TypeScript contract establishes that target; issues #17 and #21 will prove it at the system boundary.
 
-| Field type       | Answer value              | Notes                                                          |
-| ---------------- | ------------------------- | -------------------------------------------------------------- |
-| `text`           | string                    | Single-line text                                               |
-| `email`          | string                    | Email syntax is inherent to the type                           |
-| `password`       | string                    | No default value; sensitive handling is required               |
-| `tel`            | string                    | Telephone input semantics without assuming a particular format |
-| `url`            | string                    | URL syntax is inherent to the type                             |
-| `textarea`       | string                    | Multi-line text                                                |
-| `number`         | number                    | May be constrained by range and integer rules                  |
-| `date`           | string                    | ISO `YYYY-MM-DD`                                               |
-| `datetime`       | string                    | ISO 8601 date-time                                             |
-| `time`           | string                    | `HH:mm` or `HH:mm:ss`                                          |
-| `select`         | string                    | One stable option value                                        |
-| `radio`          | string                    | One stable option value                                        |
-| `multi-select`   | string[]                  | Multiple stable option values                                  |
-| `checkbox`       | boolean                   | One boolean answer                                             |
-| `checkbox-group` | string[]                  | Multiple stable option values                                  |
-| `file`           | uploaded file reference[] | Files use a controlled upload API, not inline data             |
+| Field type       | Answer value | Notes                                                          |
+| ---------------- | ------------ | -------------------------------------------------------------- |
+| `text`           | string       | Single-line text                                               |
+| `email`          | string       | Email syntax is inherent to the type                           |
+| `password`       | string       | No default value; sensitive handling is required               |
+| `tel`            | string       | Telephone input semantics without assuming a particular format |
+| `url`            | string       | URL syntax is inherent to the type                             |
+| `textarea`       | string       | Multi-line text                                                |
+| `number`         | number       | May be constrained by range and integer rules                  |
+| `date`           | string       | ISO `YYYY-MM-DD`                                               |
+| `datetime`       | string       | ISO 8601 date-time                                             |
+| `time`           | string       | `HH:mm` or `HH:mm:ss`                                          |
+| `select`         | string       | One stable option value                                        |
+| `radio`          | string       | One stable option value                                        |
+| `multi-select`   | string[]     | Multiple stable option values                                  |
+| `checkbox`       | boolean      | One boolean answer                                             |
+| `checkbox-group` | string[]     | Multiple stable option values                                  |
 
 The union deliberately prevents invalid combinations such as options on an email field. Renderers and validators should handle the union exhaustively and reject unknown types.
 
@@ -94,7 +95,6 @@ Validation is declarative and restricted by field category:
 - date/time: `required`, `earliest`, `latest`;
 - multi-choice: `required`, `minSelections`, `maxSelections`;
 - checkbox: `required`, `accepted`;
-- file: `required`, `allowedFileTypes`, `maxFileSize`, `maxFiles`.
 
 Email and URL format validation follows the field type. Empty optional answers are omitted from submissions. `null` may be useful in frontend form state but is not a submitted answer value.
 
@@ -149,6 +149,7 @@ The following require concrete use cases and separate security or design work:
 - remote option sources;
 - arbitrary custom widgets;
 - rich-text editing;
+- file uploads and uploaded-file reference lifecycle;
 - signatures;
 - payments;
 - address-provider integrations;

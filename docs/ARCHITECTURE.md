@@ -76,6 +76,10 @@ ownership, persistence metadata, AI generation metadata, HTTP destinations, and 
 operations remain outside the form definition. The current insurance API remains a legacy external
 contract until the runner migration in Phase 1; it does not define the new domain.
 
+Submission button text and success text are versioned with the immutable form definition in schema
+version 1 because they are API-driven presentation content. They do not select a route, redirect,
+handler, or workflow outcome. That separation must be preserved as publishing capabilities evolve.
+
 ## Persistence direction
 
 PostgreSQL is the preferred candidate. The intended model combines relational lifecycle data with JSONB for the flexible schema:

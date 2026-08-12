@@ -51,9 +51,8 @@ describe('provider-neutral form definition', () => {
       'multi-select',
       'checkbox',
       'checkbox-group',
-      'file',
     ];
 
-    expect(fieldTypes).toHaveLength(16);
+    expect(fieldTypes).toHaveLength(15);
   });
 });

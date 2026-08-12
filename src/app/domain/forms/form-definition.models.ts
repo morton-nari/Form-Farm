@@ -136,11 +136,6 @@ export interface CheckboxField extends FormFieldBase {
   readonly validation?: readonly BooleanValidationRule[];
 }
 
-export interface FileField extends FormFieldBase {
-  readonly type: 'file';
-  readonly validation?: readonly FileValidationRule[];
-}
-
 export type FormField =
   | TextField
   | EmailField
@@ -156,8 +151,7 @@ export type FormField =
   | RadioField
   | MultiSelectField
   | CheckboxField
-  | CheckboxGroupField
-  | FileField;
+  | CheckboxGroupField;
 
 export interface FormFieldOption {
   readonly label: string;
@@ -193,22 +187,7 @@ export type SelectionValidationRule =
 
 export type BooleanValidationRule = RequiredRule | { readonly type: 'accepted' };
 
-export type FileValidationRule =
-  | RequiredRule
-  | { readonly type: 'allowedFileTypes'; readonly values: readonly string[] }
-  | { readonly type: 'maxFileSize'; readonly valueBytes: number }
-  | { readonly type: 'maxFiles'; readonly value: number };
-
-export interface FormFileReference {
-  /** Opaque identifier returned by the controlled upload API. */
-  readonly id: string;
-  readonly name: string;
-  readonly mediaType: string;
-  readonly sizeBytes: number;
-}
-
-export type FormAnswerValue =
-  string | number | boolean | readonly string[] | readonly FormFileReference[];
+export type FormAnswerValue = string | number | boolean | readonly string[];
 
 export type FormAnswers = Readonly<Record<string, FormAnswerValue>>;
 
