@@ -1,14 +1,14 @@
-# Smart Forms AI Product Vision
+# Form Farm AI Product Vision
 
 ## Product
 
-Smart Forms AI is an AI-powered dynamic form platform. It will enable people to create, manage, publish, complete, and analyse forms without requiring a developer to build each form by hand.
+Form Farm AI is an AI-powered dynamic form platform. It will enable people to create, manage, publish, complete, and analyse forms without requiring a developer to build each form by hand.
 
 The existing Angular insurance journey is the first working form runner. It is the foundation of the product, not a disposable prototype.
 
 ## Problem
 
-Traditional form builders make simple forms easy, but complex forms still require users to understand field configuration, validation, conditional behaviour, and data structure. Smart Forms AI will combine a reliable schema-driven form engine with carefully controlled AI assistance.
+Traditional form builders make simple forms easy, but complex forms still require users to understand field configuration, validation, conditional behaviour, and data structure. Form Farm AI will combine a reliable schema-driven form engine with carefully controlled AI assistance.
 
 ## Target users
 
@@ -43,7 +43,7 @@ Structured model output
         ↓
 Runtime and domain validation
         ↓
-Smart Forms AI schema
+Form Farm AI schema
         ↓
 Existing Angular form engine
         ↓

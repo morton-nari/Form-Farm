@@ -1,4 +1,4 @@
-# Smart Forms AI Roadmap
+# Form Farm AI Roadmap
 
 ## Current status
 
@@ -8,7 +8,7 @@ The Angular form runner is functional and tested. It still consumes the supplied
 
 Status: **in progress**
 
-- [x] Confirm product name: Smart Forms AI
+- [x] Confirm product name: Form Farm AI
 - [x] Rename GitHub repository to Form-Farm
 - [x] Restore service-owned Observable application loading
 - [x] Document product vision and current/target architecture

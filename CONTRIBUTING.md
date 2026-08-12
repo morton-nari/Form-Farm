@@ -1,6 +1,6 @@
-# Contributing to Smart Forms AI
+# Contributing to Form Farm AI
 
-Smart Forms AI is built incrementally as a production-quality learning and portfolio project. Contributions should preserve working behaviour, strengthen clear architecture, and avoid speculative complexity.
+Form Farm AI is built incrementally as a production-quality learning and portfolio project. Contributions should preserve working behaviour, strengthen clear architecture, and avoid speculative complexity.
 
 ## Before starting
 
