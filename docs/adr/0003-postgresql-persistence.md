@@ -63,6 +63,18 @@ application-owned ports limit replacement cost.
 - `updated_at timestamptz not null`;
 - `archived_at timestamptz null`.
 
+`latest_version = 0` is the only representation of a form for which no version has ever been created.
+Persisted `form_versions.version` values begin at 1, and the first version transaction must therefore
+require `formVersion = latest_version + 1 = 1`. Once incremented, `latest_version` never decreases.
+
+The lifecycle checks are intentionally small and explicit:
+
+- `current_published_version is null or current_published_version <= latest_version`;
+- `published` requires a non-null `current_published_version`;
+- `draft` requires a null `current_published_version`;
+- `archived_at is not null` if and only if status is `archived`;
+- an archived form may retain a published-version reference so history remains identifiable.
+
 The database repeats the machine-safe ID check intentionally as defence in depth. The public domain
 constant remains the application source of truth; migration tests must detect drift between it and the
 database constraint.
@@ -85,16 +97,31 @@ released.
 - foreign key `form_id -> forms.id on delete restrict on update restrict`.
 
 The composite primary key enforces version-number uniqueness per logical form at the database level.
-`forms (id, current_published_version)` references `form_versions (form_id, version)` with deletion and
-update restricted. The nullable version column allows an unpublished form while ensuring every non-null
-published pointer resolves to the same form.
+After both tables exist, the migration adds this exact circular reference:
+
+```sql
+alter table forms
+  add constraint forms_current_published_version_fk
+  foreign key (id, current_published_version)
+  references form_versions (form_id, version)
+  match simple
+  on update restrict
+  on delete restrict;
+```
+
+`MATCH SIMPLE` is intentional. Because `forms.id` is never null, a null `current_published_version`
+exempts the pair from reference checking and represents an unpublished form. When the version is non-null,
+the pair must match the composite `form_versions` primary key and therefore cannot point to another form's
+version. `MATCH FULL` would incorrectly reject the intended `(non-null id, null version)` state.
 
 The JSONB document stores the complete validated schema-versioned `FormDefinition`, not a separate
 persistence DTO. Relational columns intentionally duplicate the form ID, form version, and schema version
-for constraints and queries. Database checks require those JSONB values to agree with the relational
-columns and require the stored definition to be a JSON object. On reads, the adapter treats JSONB as
-`unknown`, calls `validateFormDefinition`, and verifies the validated identity/version against the row
-before returning the domain value. Drizzle's compile-time JSON typing never replaces that runtime boundary.
+for constraints and queries. Database JSONB checks remain deliberately shallow: they require an object and
+compare only its top-level `id`, `formVersion`, and `schemaVersion` values with the corresponding relational
+columns. PostgreSQL must not reproduce field types, validation rules, or other
+`validateFormDefinition` semantics. On reads, the adapter treats JSONB as `unknown`, calls
+`validateFormDefinition`, and verifies the validated identity/version against the row before returning the
+domain value. Drizzle's compile-time JSON typing never replaces that runtime boundary.
 
 Form definition content is append-only. Definitions are never updated in place; an edit creates another
 version. Publication metadata may make a single one-way transition from unpublished to published. The
@@ -104,7 +131,7 @@ added before those use cases prove it necessary.
 
 ### `form_submissions`
 
-- `id uuid` primary key;
+- `id uuid` primary key defaulting to PostgreSQL `gen_random_uuid()`;
 - `form_id text not null`;
 - `form_version integer not null`;
 - `answers jsonb not null`;
@@ -112,6 +139,8 @@ added before those use cases prove it necessary.
 - composite foreign key `(form_id, form_version) -> form_versions (form_id, version) on delete restrict on update restrict`.
 
 Answers store the complete validated provider-neutral answer map associated with the submitted version.
+PostgreSQL owns submission ID generation; application code treats the returned UUID as an opaque identity
+and does not generate a competing value by default.
 Submission records may be removed only through a future explicit retention/deletion use case. Deleting a
 submission never deletes its form version. Forms and versions referenced by historical submissions cannot
 be deleted; forms are archived instead. No cascading delete is used anywhere in this chain.
@@ -149,6 +178,12 @@ The initial schema uses named primary-key, foreign-key, unique, not-null, and ch
 - valid current-published-version references;
 - exact submission-to-version references.
 
+PostgreSQL owns persistence timestamps. Inserts use `default now()` for `created_at` and `submitted_at`;
+publishing sets `published_at = now()`; lifecycle writes set `updated_at = now()` in the same statement or
+transaction as their data change. Application code does not supply ordinary persistence timestamps. Tests
+that need deterministic time assert ordering or use a database-controlled test clock strategy rather than
+introducing mixed timestamp ownership.
+
 Initial B-tree indexes support the current read and anticipated lifecycle queries:
 
 - the `forms.id` primary key;
@@ -163,9 +198,12 @@ queries should use relational columns. Ownership indexes are added with the auth
 ## Connection lifecycle
 
 Create one `pg.Pool` during backend composition and inject an infrastructure adapter built from it. Add
-`DATABASE_URL` to centralized startup validation without ever logging its value. Start with a conservative
-pool maximum of 10, zero minimum idle connections, a finite connection timeout, and the driver's normal
-idle cleanup. Pool size becomes configuration only when hosting limits or measured concurrency require it.
+`DATABASE_URL` to centralized startup validation without ever logging its value. A maximum of 10 is only
+the initial local default, alongside zero minimum idle connections, a finite connection timeout, and the
+driver's normal idle cleanup. It is not an architectural capacity assumption. Deployment configuration
+must budget total connections across every application instance, migration job, and provider limit;
+serverless or constrained environments may require a maximum of 1 or another substantially smaller value.
+Further tuning requires hosting constraints or measured concurrency.
 
 The pool participates in application cleanup and is closed once during graceful shutdown. Routes and use
 cases never create pools or read database environment variables. Pool errors are logged safely without
@@ -196,6 +234,11 @@ Keep unit and `fastify.inject()` tests database-free by injecting test ports. Th
 must cover valid reads, missing forms, malformed JSONB failing closed, relational/JSONB identity mismatch,
 constraint enforcement, connection cleanup, and the migration history from an empty database. CI must
 provide Docker or an equivalent isolated PostgreSQL service before these tests become required checks.
+
+The first implementation PR remains read-only: it creates the schema/migration and replaces
+`SeededFormDefinitionSource` for the existing get-form flow. It must not implement version creation,
+publication, submissions, or lifecycle mutation. The write-oriented constraints and transaction design in
+this ADR guide later issues and do not enlarge that first slice.
 
 ## Consequences
 
