@@ -1,4 +1,5 @@
 import { ApplicationDefinition } from '../../../core/api/insurance-api.models';
+import { validateFormDefinition } from '../../../domain/forms/form-definition.validator';
 import {
   adaptAdditionalPagesToSections,
   adaptApplicationToJourney,
@@ -10,17 +11,18 @@ describe('adaptApplicationToJourney', () => {
 
     const journey = adaptApplicationToJourney(application);
 
-    expect(journey.applicationId).toBe('1');
+    expect(validateFormDefinition(journey)).toEqual({ success: true, value: journey });
+    expect(journey.id).toBe('legacy-1');
+    expect(journey.schemaVersion).toBe(1);
+    expect(journey.formVersion).toBe(1);
     expect(journey.title).toBe('Life Insurance Application');
     expect(journey.sections.map((section) => section.id)).toEqual(['about-you', 'lifestyle']);
-    expect(journey.sections[0]?.questions.map((question) => question.id)).toEqual([
+    expect(journey.sections[0]?.fields.map((field) => field.id)).toEqual([
       'email',
       'phone',
       'occupation',
     ]);
-    expect(journey.sections[1]?.questions.map((question) => question.id)).toEqual([
-      'smokedLast12Months',
-    ]);
+    expect(journey.sections[1]?.fields.map((field) => field.id)).toEqual(['smokedLast12Months']);
   });
 
   it('preserves API-driven pages that do not contain contact questions', () => {
@@ -48,7 +50,14 @@ describe('adaptApplicationToJourney', () => {
     expect(journey.sections.at(-1)).toEqual({
       id: 'future-page',
       title: 'Future Page',
-      questions: application.pages.at(-1)?.questions,
+      fields: [
+        {
+          id: 'futureQuestion',
+          label: 'Future question',
+          type: 'text',
+          validation: undefined,
+        },
+      ],
     });
   });
 
@@ -73,6 +82,33 @@ describe('adaptApplicationToJourney', () => {
     expect(sections[0]).toMatchObject({
       id: 'smoking-details',
       title: 'Smoking Details',
+      fields: [
+        expect.objectContaining({
+          id: 'cigarettesPerWeek',
+          type: 'number',
+          validation: [{ type: 'required' }, { type: 'min', value: 0 }, { type: 'integer' }],
+        }),
+      ],
+    });
+  });
+
+  it('separates legacy option labels and values and maps phone semantics explicitly', () => {
+    const journey = adaptApplicationToJourney(createApplicationDefinition());
+    const fields = journey.sections.flatMap((section) => section.fields);
+
+    expect(fields.find((field) => field.id === 'phone')).toMatchObject({
+      type: 'tel',
+      autocomplete: 'tel',
+    });
+    expect(fields.find((field) => field.id === 'occupation')).toMatchObject({
+      type: 'select',
+      options: [
+        { label: 'Accountant', value: 'Accountant' },
+        { label: 'Teacher', value: 'Teacher' },
+        { label: 'Builder', value: 'Builder' },
+        { label: 'Pilot', value: 'Pilot' },
+        { label: 'Other', value: 'Other' },
+      ],
     });
   });
 });

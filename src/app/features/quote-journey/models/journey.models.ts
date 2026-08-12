@@ -1,20 +1,9 @@
-import { ApplicationQuestion } from '../../../core/api/insurance-api.models';
+import { FormDefinition, FormSection } from '../../../domain/forms/form-definition.models';
 
 export type JourneyStage = 'application' | 'quote';
 
-export interface JourneyDefinition {
-  readonly applicationId: string;
-  readonly title: string;
-  readonly sections: readonly JourneySection[];
-}
-
-export interface JourneySection {
-  readonly id: string;
-  readonly title: string;
-  readonly questions: readonly ApplicationQuestion[];
-}
-
-
+export type JourneyDefinition = FormDefinition;
+export type JourneySection = FormSection;
 
 export type JourneyLoadStatus = 'idle' | 'loading' | 'loaded' | 'error';
 

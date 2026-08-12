@@ -64,10 +64,10 @@
               </p>
 
               <dl class="review-list mt-4">
-                @for (question of allQuestions(); track question.id) {
+                @for (field of allFields(); track field.id) {
                   <div class="review-item">
-                    <dt>{{ question.label }}</dt>
-                    <dd>{{ answerFor(question.id) }}</dd>
+                    <dt>{{ field.label }}</dt>
+                    <dd>{{ answerFor(field.id) }}</dd>
                   </div>
                 }
               </dl>
@@ -114,11 +114,8 @@
                     [attr.data-section-index]="sectionIndex(section.id)"
                     (change)="activateSection(sectionIndex(section.id))"
                   >
-                    @for (question of section.questions; track question.id) {
-                      <app-dynamic-question
-                        [question]="question"
-                        [control]="controlFor(question.id)"
-                      />
+                    @for (field of section.fields; track field.id) {
+                      <app-dynamic-field [field]="field" [control]="controlFor(field.id)" />
                     }
                   </div>
                 }

@@ -10,29 +10,29 @@ import {
 } from '@angular/core';
 import { ReactiveFormsModule } from '@angular/forms';
 
-import { DynamicQuestion } from '../../components/dynamic-question/dynamic-question';
+import { DynamicField } from '../../../../shared/form-runner/components/dynamic-field/dynamic-field';
+import {
+  DynamicForm,
+  DynamicFormControl,
+  DynamicFormFactory,
+} from '../../../../shared/form-runner/forms/dynamic-form.factory';
 import { JourneySidebar } from '../../components/journey-sidebar/journey-sidebar';
 import { QuoteJourneyStore } from '../../data-access/quote-journey.store';
-import {
-  JourneyForm,
-  JourneyFormControl,
-  JourneyFormFactory,
-} from '../../forms/journey-form.factory';
 import { JourneySection, JourneyStage } from '../../models/journey.models';
 
 @Component({
   selector: 'app-quote-journey-page',
-  imports: [CurrencyPipe, DynamicQuestion, JourneySidebar, ReactiveFormsModule],
+  imports: [CurrencyPipe, DynamicField, JourneySidebar, ReactiveFormsModule],
   templateUrl: './quote-journey-page.html',
   styleUrl: './quote-journey-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class QuoteJourneyPage implements OnInit {
   protected readonly store = inject(QuoteJourneyStore);
-  private readonly formFactory = inject(JourneyFormFactory);
+  private readonly formFactory = inject(DynamicFormFactory);
   private readonly document = inject(DOCUMENT);
 
-  private readonly formState = signal<JourneyForm | null>(null);
+  private readonly formState = signal<DynamicForm | null>(null);
   private readonly completedSectionIdsState = signal<ReadonlySet<string>>(new Set());
   private readonly initialSectionCountState = signal(0);
   private readonly reviewReadyState = signal(false);
@@ -59,24 +59,24 @@ export class QuoteJourneyPage implements OnInit {
   protected readonly formTitle = computed(
     () => this.formSections()[0]?.title ?? this.store.activeSection()?.title ?? 'Application',
   );
-  protected readonly allQuestions = computed(() =>
-    this.store.sections().flatMap((section) => section.questions),
+  protected readonly allFields = computed(() =>
+    this.store.sections().flatMap((section) => section.fields),
   );
 
   constructor() {
     effect(() => {
       const journey = this.store.journey();
 
-      if (journey && journey.applicationId !== this.loadedApplicationId) {
-        this.loadedApplicationId = journey.applicationId;
+      if (journey && journey.id !== this.loadedApplicationId) {
+        this.loadedApplicationId = journey.id;
         this.formState.set(this.formFactory.create(journey.sections));
         this.completedSectionIdsState.set(new Set());
         this.initialSectionCountState.set(journey.sections.length);
         this.reviewReadyState.set(false);
       } else if (journey && this.formState()) {
-        this.formFactory.addQuestions(
+        this.formFactory.addFields(
           this.formState()!,
-          journey.sections.flatMap((section) => section.questions),
+          journey.sections.flatMap((section) => section.fields),
         );
       }
     });
@@ -104,11 +104,11 @@ export class QuoteJourneyPage implements OnInit {
     this.store.loadApplication();
   }
 
-  protected controlFor(questionId: string): JourneyFormControl {
-    const control = this.formState()?.controls[questionId];
+  protected controlFor(fieldId: string): DynamicFormControl {
+    const control = this.formState()?.controls[fieldId];
 
     if (!control) {
-      throw new Error(`No form control exists for question "${questionId}".`);
+      throw new Error(`No form control exists for field "${fieldId}".`);
     }
 
     return control;
@@ -152,8 +152,8 @@ export class QuoteJourneyPage implements OnInit {
     return this.store.sections().findIndex((section) => section.id === sectionId);
   }
 
-  protected answerFor(questionId: string): string | number {
-    return this.controlFor(questionId).value ?? '';
+  protected answerFor(fieldId: string): string | number | boolean | readonly string[] {
+    return this.controlFor(fieldId).value ?? '';
   }
 
   protected requestQuote(): void {
@@ -166,7 +166,7 @@ export class QuoteJourneyPage implements OnInit {
 
   private validateSections(sections: readonly JourneySection[]): boolean {
     const controls = sections.flatMap((section) =>
-      section.questions.map((question) => this.controlFor(question.id)),
+      section.fields.map((field) => this.controlFor(field.id)),
     );
 
     for (const control of controls) {
@@ -179,7 +179,7 @@ export class QuoteJourneyPage implements OnInit {
 
   private activateSectionForFirstInvalidControl(sections: readonly JourneySection[]): void {
     const invalidSection = sections.find((section) =>
-      section.questions.some((question) => this.controlFor(question.id).invalid),
+      section.fields.some((field) => this.controlFor(field.id).invalid),
     );
 
     if (invalidSection) {

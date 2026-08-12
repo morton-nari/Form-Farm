@@ -4,6 +4,8 @@ import { Subscription, take } from 'rxjs';
 
 import { InsuranceApiService } from '../../../core/api/insurance-api.service';
 import { ApplicationPage, Quote, QuoteAnswers } from '../../../core/api/insurance-api.models';
+import { FormAnswers } from '../../../domain/forms/form-definition.models';
+import { validateFormDefinition } from '../../../domain/forms/form-definition.validator';
 import {
   JourneyDefinition,
   JourneyLoadStatus,
@@ -53,16 +55,20 @@ export class QuoteJourneyStore {
       .pipe(take(1), takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (application) => {
-          this.journeyState.set(adaptApplicationToJourney(application));
-          this.activeSectionIndexState.set(0);
-          this.loadStatusState.set('loaded');
+          try {
+            const result = validateFormDefinition(adaptApplicationToJourney(application));
+            if (!result.success) {
+              this.setLoadError();
+              return;
+            }
+            this.journeyState.set(result.value);
+            this.activeSectionIndexState.set(0);
+            this.loadStatusState.set('loaded');
+          } catch {
+            this.setLoadError();
+          }
         },
-        error: () => {
-          this.journeyState.set(null);
-          this.activeSectionIndexState.set(0);
-          this.loadStatusState.set('error');
-          this.errorMessageState.set('We could not load the application. Please try again.');
-        },
+        error: () => this.setLoadError(),
       });
   }
 
@@ -75,7 +81,7 @@ export class QuoteJourneyStore {
     return true;
   }
 
-  submitQuote(answers: QuoteAnswers): boolean {
+  submitQuote(answers: FormAnswers): boolean {
     if (this.submissionStatusState() === 'submitting') {
       return false;
     }
@@ -85,7 +91,7 @@ export class QuoteJourneyStore {
     this.submissionErrorState.set(null);
 
     this.submitSubscription = this.api
-      .submitQuote(answers)
+      .submitQuote(adaptFormAnswersToQuoteAnswers(answers))
       .pipe(take(1), takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (response) => {
@@ -95,8 +101,14 @@ export class QuoteJourneyStore {
             return;
           }
 
-          this.appendAdditionalPages(response.pages);
-          this.submissionStatusState.set('additional-questions');
+          if (this.appendAdditionalPages(response.pages)) {
+            this.submissionStatusState.set('additional-questions');
+          } else {
+            this.submissionStatusState.set('error');
+            this.submissionErrorState.set(
+              'We could not load the additional questions. Please try again.',
+            );
+          }
         },
         error: () => {
           this.submissionStatusState.set('error');
@@ -107,27 +119,55 @@ export class QuoteJourneyStore {
     return true;
   }
 
-  private appendAdditionalPages(pages: readonly ApplicationPage[]): void {
-    const journey = this.journeyState();
+  private appendAdditionalPages(pages: readonly ApplicationPage[]): boolean {
+    try {
+      const journey = this.journeyState();
 
-    if (!journey) {
-      return;
+      if (!journey) {
+        return false;
+      }
+
+      const existingSectionIds = new Set(journey.sections.map((section) => section.id));
+      const additionalSections = adaptAdditionalPagesToSections(pages).filter(
+        (section) => !existingSectionIds.has(section.id),
+      );
+
+      if (additionalSections.length === 0) {
+        return true;
+      }
+
+      const firstAdditionalSectionIndex = journey.sections.length;
+      const result = validateFormDefinition({
+        ...journey,
+        sections: [...journey.sections, ...additionalSections],
+      });
+      if (!result.success) return false;
+
+      this.journeyState.set(result.value);
+      this.activeSectionIndexState.set(firstAdditionalSectionIndex);
+      return true;
+    } catch {
+      return false;
     }
-
-    const existingSectionIds = new Set(journey.sections.map((section) => section.id));
-    const additionalSections = adaptAdditionalPagesToSections(pages).filter(
-      (section) => !existingSectionIds.has(section.id),
-    );
-
-    if (additionalSections.length === 0) {
-      return;
-    }
-
-    const firstAdditionalSectionIndex = journey.sections.length;
-    this.journeyState.set({
-      ...journey,
-      sections: [...journey.sections, ...additionalSections],
-    });
-    this.activeSectionIndexState.set(firstAdditionalSectionIndex);
   }
+
+  private setLoadError(): void {
+    this.journeyState.set(null);
+    this.activeSectionIndexState.set(0);
+    this.loadStatusState.set('error');
+    this.errorMessageState.set('We could not load the application. Please try again.');
+  }
+}
+
+function adaptFormAnswersToQuoteAnswers(answers: FormAnswers): QuoteAnswers {
+  const quoteAnswers: Record<string, string | number> = {};
+
+  for (const [fieldId, value] of Object.entries(answers)) {
+    if (typeof value !== 'string' && typeof value !== 'number') {
+      throw new Error(`Legacy quote submission does not support field "${fieldId}".`);
+    }
+    quoteAnswers[fieldId] = value;
+  }
+
+  return quoteAnswers;
 }

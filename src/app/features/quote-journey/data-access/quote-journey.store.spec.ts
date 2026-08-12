@@ -56,6 +56,26 @@ describe('QuoteJourneyStore', () => {
     expect(store.errorMessage()).toBe('We could not load the application. Please try again.');
   });
 
+  it('does not expose an invalid external definition to the form runner', () => {
+    store.loadApplication();
+    const application = createApplicationDefinition();
+    applicationResponse.next({
+      ...application,
+      pages: [
+        ...application.pages,
+        {
+          id: 'duplicate-field-page',
+          title: 'Duplicate field',
+          questions: [{ id: 'email', label: 'Duplicate email', type: 'email', required: true }],
+        },
+      ],
+    });
+
+    expect(store.loadStatus()).toBe('error');
+    expect(store.journey()).toBeNull();
+    expect(store.sections()).toEqual([]);
+  });
+
   it('navigates between valid sections and rejects invalid indexes', () => {
     store.loadApplication();
     applicationResponse.next(createApplicationDefinition());
@@ -127,6 +147,26 @@ describe('QuoteJourneyStore', () => {
     store.submitQuote({ smokedLast12Months: 'Yes', cigarettesPerWeek: 20 });
     quoteResponse.next(additionalQuestionsResponse);
     expect(store.sections()).toHaveLength(3);
+  });
+
+  it('rejects invalid additional fields without changing the trusted journey', () => {
+    store.loadApplication();
+    applicationResponse.next(createApplicationDefinition());
+    store.submitQuote({ smokedLast12Months: 'Yes' });
+
+    quoteResponse.next({
+      status: 'additionalQuestionsRequired',
+      pages: [
+        {
+          id: 'invalid section',
+          title: 'Invalid',
+          questions: [{ id: 'field', label: 'Field', type: 'text', required: true }],
+        },
+      ],
+    });
+
+    expect(store.submissionStatus()).toBe('error');
+    expect(store.sections().map((section) => section.id)).toEqual(['about-you', 'lifestyle']);
   });
 
   it('exposes a retryable quote error', () => {

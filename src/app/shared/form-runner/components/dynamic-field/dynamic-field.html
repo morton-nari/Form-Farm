@@ -1,0 +1,295 @@
+@let currentField = field();
+@let currentControl = control();
+
+<div class="mb-4">
+  @switch (currentField.type) {
+    @case ('select') {
+      <label class="form-label" [for]="controlId()"
+        >{{ currentField.label }}
+        @if (required()) {
+          <span class="required-indicator" aria-hidden="true">*</span>
+        }
+      </label>
+      <select
+        class="form-select"
+        [class.is-invalid]="showError()"
+        [id]="controlId()"
+        [formControl]="currentControl"
+        [required]="required()"
+        [attr.aria-required]="required()"
+        [attr.aria-describedby]="describedBy()"
+        [attr.aria-invalid]="showError()"
+      >
+        <option [ngValue]="null" disabled>
+          {{ currentField.placeholder ?? 'Select an option' }}
+        </option>
+        @for (option of currentField.options; track option.value) {
+          <option [value]="option.value" [disabled]="option.disabled">{{ option.label }}</option>
+        }
+      </select>
+    }
+    @case ('multi-select') {
+      <label class="form-label" [for]="controlId()"
+        >{{ currentField.label }}
+        @if (required()) {
+          <span class="required-indicator" aria-hidden="true">*</span>
+        }
+      </label>
+      <select
+        class="form-select"
+        multiple
+        [class.is-invalid]="showError()"
+        [id]="controlId()"
+        [formControl]="currentControl"
+        [required]="required()"
+        [attr.aria-required]="required()"
+        [attr.aria-describedby]="describedBy()"
+        [attr.aria-invalid]="showError()"
+      >
+        @for (option of currentField.options; track option.value) {
+          <option [value]="option.value" [disabled]="option.disabled">{{ option.label }}</option>
+        }
+      </select>
+    }
+    @case ('radio') {
+      <fieldset>
+        <legend class="form-label">
+          {{ currentField.label }}
+          @if (required()) {
+            <span class="required-indicator" aria-hidden="true">*</span>
+          }
+        </legend>
+        @for (option of currentField.options; track option.value; let optionIndex = $index) {
+          <div class="form-check">
+            <input
+              class="form-check-input"
+              type="radio"
+              [id]="controlId() + '-' + optionIndex"
+              [formControl]="currentControl"
+              [value]="option.value"
+              [required]="required()"
+              [attr.aria-required]="required()"
+              [attr.aria-describedby]="describedBy()"
+              [attr.aria-invalid]="showError()"
+              [attr.disabled]="option.disabled ? true : null"
+            />
+            <label class="form-check-label" [for]="controlId() + '-' + optionIndex">{{
+              option.label
+            }}</label>
+          </div>
+        }
+      </fieldset>
+    }
+    @case ('checkbox') {
+      <div class="form-check">
+        <input
+          class="form-check-input"
+          type="checkbox"
+          [id]="controlId()"
+          [formControl]="currentControl"
+          [required]="required()"
+          [attr.aria-required]="required()"
+          [attr.aria-describedby]="describedBy()"
+          [attr.aria-invalid]="showError()"
+        />
+        <label class="form-check-label" [for]="controlId()"
+          >{{ currentField.label }}
+          @if (required()) {
+            <span class="required-indicator" aria-hidden="true">*</span>
+          }
+        </label>
+      </div>
+    }
+    @case ('checkbox-group') {
+      <fieldset>
+        <legend class="form-label">
+          {{ currentField.label }}
+          @if (required()) {
+            <span class="required-indicator" aria-hidden="true">*</span>
+          }
+        </legend>
+        @for (option of currentField.options; track option.value; let optionIndex = $index) {
+          <div class="form-check">
+            <input
+              class="form-check-input"
+              type="checkbox"
+              [id]="controlId() + '-' + optionIndex"
+              [checked]="isSelected(option.value)"
+              [disabled]="option.disabled"
+              [attr.aria-describedby]="describedBy()"
+              [attr.aria-invalid]="showError()"
+              (change)="toggleOption(option.value, $any($event.target).checked)"
+            />
+            <label class="form-check-label" [for]="controlId() + '-' + optionIndex">{{
+              option.label
+            }}</label>
+          </div>
+        }
+      </fieldset>
+    }
+    @case ('textarea') {
+      <label class="form-label" [for]="controlId()"
+        >{{ currentField.label }}
+        @if (required()) {
+          <span class="required-indicator" aria-hidden="true">*</span>
+        }
+      </label>
+      <textarea
+        class="form-control"
+        [class.is-invalid]="showError()"
+        [id]="controlId()"
+        [formControl]="currentControl"
+        [rows]="currentField.rows ?? 4"
+        [placeholder]="currentField.placeholder ?? ''"
+        [required]="required()"
+        [attr.autocomplete]="currentField.autocomplete ?? null"
+        [attr.aria-required]="required()"
+        [attr.aria-describedby]="describedBy()"
+        [attr.aria-invalid]="showError()"
+      ></textarea>
+    }
+    @case ('number') {
+      <label class="form-label" [for]="controlId()"
+        >{{ currentField.label }}
+        @if (required()) {
+          <span class="required-indicator" aria-hidden="true">*</span>
+        }
+      </label>
+      <input
+        class="form-control"
+        type="number"
+        [class.is-invalid]="showError()"
+        [id]="controlId()"
+        [formControl]="currentControl"
+        [placeholder]="currentField.placeholder ?? ''"
+        [required]="required()"
+        [attr.aria-required]="required()"
+        [attr.aria-describedby]="describedBy()"
+        [attr.aria-invalid]="showError()"
+      />
+    }
+    @case ('date') {
+      <label class="form-label" [for]="controlId()"
+        >{{ currentField.label }}
+        @if (required()) {
+          <span class="required-indicator" aria-hidden="true">*</span>
+        }
+      </label>
+      <input
+        class="form-control"
+        type="date"
+        [class.is-invalid]="showError()"
+        [id]="controlId()"
+        [formControl]="currentControl"
+        [required]="required()"
+        [attr.aria-required]="required()"
+        [attr.aria-describedby]="describedBy()"
+        [attr.aria-invalid]="showError()"
+      />
+    }
+    @case ('datetime') {
+      <label class="form-label" [for]="controlId()"
+        >{{ currentField.label }}
+        @if (required()) {
+          <span class="required-indicator" aria-hidden="true">*</span>
+        }
+      </label>
+      <input
+        class="form-control"
+        type="datetime-local"
+        [class.is-invalid]="showError()"
+        [id]="controlId()"
+        [formControl]="currentControl"
+        [required]="required()"
+        [attr.aria-required]="required()"
+        [attr.aria-describedby]="describedBy()"
+        [attr.aria-invalid]="showError()"
+      />
+    }
+    @case ('time') {
+      <label class="form-label" [for]="controlId()"
+        >{{ currentField.label }}
+        @if (required()) {
+          <span class="required-indicator" aria-hidden="true">*</span>
+        }
+      </label>
+      <input
+        class="form-control"
+        type="time"
+        [class.is-invalid]="showError()"
+        [id]="controlId()"
+        [formControl]="currentControl"
+        [required]="required()"
+        [attr.aria-required]="required()"
+        [attr.aria-describedby]="describedBy()"
+        [attr.aria-invalid]="showError()"
+      />
+    }
+    @case ('text') {}
+    @case ('email') {}
+    @case ('password') {}
+    @case ('tel') {}
+    @case ('url') {}
+  }
+
+  @if (
+    currentField.type === 'text' ||
+    currentField.type === 'email' ||
+    currentField.type === 'password' ||
+    currentField.type === 'tel' ||
+    currentField.type === 'url'
+  ) {
+    <label class="form-label" [for]="controlId()"
+      >{{ currentField.label }}
+      @if (required()) {
+        <span class="required-indicator" aria-hidden="true">*</span>
+      }
+    </label>
+    <input
+      class="form-control"
+      [type]="currentField.type"
+      [class.is-invalid]="showError()"
+      [id]="controlId()"
+      [formControl]="currentControl"
+      [placeholder]="currentField.placeholder ?? ''"
+      [required]="required()"
+      [attr.autocomplete]="currentField.autocomplete ?? null"
+      [attr.aria-required]="required()"
+      [attr.aria-describedby]="describedBy()"
+      [attr.aria-invalid]="showError()"
+    />
+  }
+
+  @if (currentField.helpText) {
+    <div class="form-text" [id]="helpId()">{{ currentField.helpText }}</div>
+  }
+  @if (showError()) {
+    <div class="invalid-feedback d-block" [id]="errorId()" role="alert">
+      @if (currentControl.hasError('required')) {
+        {{ currentField.label }} is required.
+      } @else if (currentControl.hasError('email')) {
+        Enter a valid email address.
+      } @else if (currentControl.hasError('url')) {
+        Enter a valid URL.
+      } @else if (currentControl.hasError('minlength')) {
+        Enter a longer value.
+      } @else if (currentControl.hasError('maxlength')) {
+        Enter a shorter value.
+      } @else if (currentControl.hasError('min')) {
+        Enter a value at or above the minimum.
+      } @else if (currentControl.hasError('max')) {
+        Enter a value at or below the maximum.
+      } @else if (currentControl.hasError('integer')) {
+        Enter a whole number.
+      } @else if (currentControl.hasError('minSelections')) {
+        Select more options.
+      } @else if (currentControl.hasError('maxSelections')) {
+        Select fewer options.
+      } @else if (currentControl.hasError('earliest')) {
+        Enter a later value.
+      } @else if (currentControl.hasError('latest')) {
+        Enter an earlier value.
+      }
+    </div>
+  }
+</div>
