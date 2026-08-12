@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import { FORM_IDENTIFIER_PATTERN } from '@form-farm/form-domain';
 
 import type { GetFormDefinition } from '../../application/forms/get-form-definition.js';
 
@@ -23,7 +24,7 @@ export async function registerFormDefinitionRoute(
           additionalProperties: false,
           required: ['formId'],
           properties: {
-            formId: { type: 'string', pattern: '^[A-Za-z][A-Za-z0-9_-]*$' },
+            formId: { type: 'string', pattern: FORM_IDENTIFIER_PATTERN },
           },
         },
       },

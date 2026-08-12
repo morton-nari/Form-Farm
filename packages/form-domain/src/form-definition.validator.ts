@@ -1,10 +1,11 @@
 import { z } from 'zod/mini';
 
 import type { FormDefinition } from './form-definition.models.js';
+import { FORM_IDENTIFIER_PATTERN } from './form-identifier.js';
 
 const identifier = z
   .string()
-  .check(z.regex(/^[A-Za-z][A-Za-z0-9_-]*$/, 'Must be a machine-safe identifier.'));
+  .check(z.regex(new RegExp(FORM_IDENTIFIER_PATTERN), 'Must be a machine-safe identifier.'));
 const nonBlankText = z.string().check(z.trim(), z.minLength(1, 'Must not be empty.'));
 const positiveInteger = z.number().check(z.int(), z.positive());
 const nonNegativeInteger = z.number().check(z.int(), z.nonnegative());

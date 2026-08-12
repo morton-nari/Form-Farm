@@ -6,6 +6,10 @@ The Form Farm schema is the provider-neutral contract used to describe a form. A
 
 The TypeScript domain vocabulary lives in `packages/form-domain/src/form-definition.models.ts`. Untrusted input enters through `validateFormDefinition` in `form-definition.validator.ts`, which applies strict structural parsing followed by domain invariant validation. The framework-independent package is shared by Angular and the owned backend. The validation approach is recorded in [ADR 0001](adr/0001-runtime-schema-validation.md).
 
+`FORM_IDENTIFIER_PATTERN` is the public source of the machine-safe identifier invariant used by form,
+section, and field validation and by compatible HTTP boundary schemas. Consumers must not maintain a
+separate copy of that regular expression.
+
 ## Boundary
 
 `FormDefinition` describes renderable form content. It does not contain:
