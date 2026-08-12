@@ -4,15 +4,19 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "npm run build --workspace @form-farm/form-domain",
     "dev": "tsx watch src/main.ts",
     "start": "node dist/main.js",
+    "prebuild": "npm run build --workspace @form-farm/form-domain",
     "build": "tsc --project tsconfig.json",
+    "pretest": "npm run build --workspace @form-farm/form-domain",
     "test": "vitest run"
   },
   "engines": {
     "node": "^22.22.3 || >=24.15.0 <25 || >=26.0.0"
   },
   "dependencies": {
+    "@form-farm/form-domain": "0.0.0",
     "fastify": "^5.6.2",
     "zod": "^4.4.3"
   },

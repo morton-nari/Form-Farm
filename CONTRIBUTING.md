@@ -63,9 +63,10 @@ npm test
 npm run build
 npm run backend:test
 npm run backend:build
+npm run domain:build
 ```
 
-Use `npm run test:all` and `npm run build:all` to validate both workspaces. Add or update tests for changed behaviour.
+The frontend and backend commands build the shared form-domain package when required. Use `npm run test:all` and `npm run build:all` to validate all current workspaces. Add or update tests for changed behaviour.
 
 ## Documentation and ADRs
 

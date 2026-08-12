@@ -4,7 +4,11 @@
 
 The Form Farm schema is the provider-neutral contract used to describe a form. A form definition can come from a deterministic backend endpoint, persisted data, a form builder, or validated AI structured output. The Angular renderer must not need feature-specific knowledge to display it.
 
-The TypeScript domain vocabulary lives in `src/app/domain/forms/form-definition.models.ts`. Untrusted input enters through `validateFormDefinition` in `form-definition.validator.ts`, which applies strict structural parsing followed by domain invariant validation. The validation approach is recorded in [ADR 0001](adr/0001-runtime-schema-validation.md).
+The TypeScript domain vocabulary lives in `packages/form-domain/src/form-definition.models.ts`. Untrusted input enters through `validateFormDefinition` in `form-definition.validator.ts`, which applies strict structural parsing followed by domain invariant validation. The framework-independent package is shared by Angular and the owned backend. The validation approach is recorded in [ADR 0001](adr/0001-runtime-schema-validation.md).
+
+`FORM_IDENTIFIER_PATTERN` is the public source of the machine-safe identifier invariant used by form,
+section, and field validation and by compatible HTTP boundary schemas. Consumers must not maintain a
+separate copy of that regular expression.
 
 ## Boundary
 
@@ -104,7 +108,7 @@ Arbitrary regular expressions, executable validation, asynchronous checks, and c
 
 ## Complete example
 
-`src/app/domain/forms/examples/user-registration.form.ts` demonstrates a complete registration form with API-owned title, sections, labels, validation, options, submission label, and success message.
+`packages/form-domain/src/examples/user-registration.form.ts` demonstrates a complete registration form with API-owned title, sections, labels, validation, options, submission label, and success message. It demonstrates form rendering only; the definition cannot itself create an account or authorize registration behavior.
 
 The example does not authorize account creation by itself. A trusted backend route or stored association selects an approved registration handler, hashes passwords, prevents sensitive logging, and applies authentication policy.
 
@@ -112,7 +116,7 @@ The example does not authorize account creation by itself. A trusted backend rou
 
 ### Backend API
 
-The backend returns a validated `FormDefinition`. A typical read endpoint can identify the logical form and version, while a controlled submission endpoint accepts the corresponding answers. Exact routes will be designed with the owned backend.
+The backend returns a validated `FormDefinition` from `GET /api/v1/forms/:formId`. The API version, schema version, and form content version are distinct. A future controlled submission endpoint will accept answers for an exact form version; it is not implemented yet.
 
 ### Persistence
 
