@@ -24,12 +24,12 @@ Status: **in progress**
 - [x] Define a provider-neutral form schema
 - [x] Add runtime schema validation
 - [x] Expand supported field and validation types
-- Decouple the form engine from insurance API contracts (in progress in issue #26)
-- Preserve existing accessibility and tests
+- [x] Decouple the form engine from insurance API contracts
+- [x] Preserve existing accessibility and tests
 
 ## Phase 2 — Owned backend
 
-- Compare backend approaches and record the selection in an ADR
+- [x] Compare backend approaches and select lean Fastify 5 in ADR 0002
 - Scaffold a TypeScript backend
 - Add health, configuration, and error-handling foundations
 - Serve a deterministic form definition from the owned API

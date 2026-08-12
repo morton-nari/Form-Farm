@@ -53,6 +53,11 @@ External AI provider APIs
 
 Microservices are not planned. They would add operational complexity without solving a current scaling or ownership problem.
 
+The owned backend will use Fastify 5 directly as a lean modular TypeScript application. Domain models,
+validation, and use cases remain framework-independent; Fastify routes and plugins form the HTTP and
+infrastructure edge. The decision and alternatives are recorded in
+[`ADR 0002`](adr/0002-backend-framework.md).
+
 ## Form domain boundary
 
 The reusable form engine must depend on provider-neutral types:
@@ -132,8 +137,6 @@ Users preview and approve generated forms before persistence or publication.
 
 ## Decisions still required
 
-- Backend framework
-- Runtime schema-validation library
 - Database access and migration tooling
 - Authentication strategy
 - Hosting architecture
