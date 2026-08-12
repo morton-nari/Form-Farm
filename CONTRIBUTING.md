@@ -50,14 +50,22 @@ npm install
 npm start
 ```
 
+Run the backend in watch mode with:
+
+```bash
+npm run backend:dev
+```
+
 Before opening a meaningful pull request, run:
 
 ```bash
 npm test
 npm run build
+npm run backend:test
+npm run backend:build
 ```
 
-Add or update tests for changed behaviour. Future backend and end-to-end commands will be documented here when those workspaces exist.
+Use `npm run test:all` and `npm run build:all` to validate both workspaces. Add or update tests for changed behaviour.
 
 ## Documentation and ADRs
 
