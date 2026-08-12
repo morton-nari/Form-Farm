@@ -8,6 +8,7 @@ The product direction is documented in [Product Vision](docs/PRODUCT_VISION.md),
 
 The provider-neutral form contract and its supported version-one capabilities are documented in
 [Form Schema](docs/FORM_SCHEMA.md).
+The owned HTTP endpoints are documented in [Backend API](docs/BACKEND_API.md).
 
 > **Current status:** the Angular API-driven journey is functional. An owned Fastify backend foundation now provides configuration validation, health checks, safe HTTP error mapping, and graceful shutdown. Database, authentication, generic form APIs, the form builder, and AI capabilities are not implemented yet.
 
@@ -104,6 +105,8 @@ backend/
     |-- lifecycle/      # Graceful process shutdown
     |-- app.ts          # Testable Fastify application factory
     `-- main.ts         # Process entry point
+packages/
+`-- form-domain/        # Framework-independent form contract and runtime validator
 src/
 ├── app/
 │   ├── core/api/        # Typed HTTP contracts and API client
@@ -139,7 +142,7 @@ Backend configuration is read and validated once at startup. Invalid configurati
 | `PORT`      | `3000`        | Integer from 1 through 65535                  |
 | `LOG_LEVEL` | `info`        | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent` |
 
-Fastify remains an HTTP adapter. Application and domain code must not depend on Fastify types. The backend does not yet expose form-definition or submission endpoints.
+Fastify remains an HTTP adapter. Application and domain code do not depend on Fastify types. The backend exposes one persistence-free seeded form-definition endpoint and does not yet accept submissions.
 
 ## API development
 

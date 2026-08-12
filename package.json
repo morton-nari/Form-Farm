@@ -3,20 +3,26 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
+    "prestart": "npm run domain:build",
     "start": "ng serve",
+    "prebuild": "npm run domain:build",
     "build": "ng build",
+    "prewatch": "npm run domain:build",
     "watch": "ng build --watch --configuration development",
+    "pretest": "npm run domain:build",
     "test": "ng test --watch=false",
     "backend:dev": "npm run dev --workspace @form-farm/backend",
     "backend:start": "npm run start --workspace @form-farm/backend",
     "backend:test": "npm run test --workspace @form-farm/backend",
     "backend:build": "npm run build --workspace @form-farm/backend",
+    "domain:build": "npm run build --workspace @form-farm/form-domain",
     "test:all": "npm test && npm run backend:test",
     "build:all": "npm run build && npm run backend:build"
   },
   "private": true,
   "workspaces": [
-    "backend"
+    "backend",
+    "packages/*"
   ],
   "packageManager": "npm@12.0.2",
   "engines": {

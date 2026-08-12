@@ -35,8 +35,8 @@ field discriminants.
 
 The repository also contains an initial Fastify 5 backend workspace. Its current implemented scope is
 deliberately limited to a testable application factory, startup configuration validation, `GET /health`,
-safe HTTP error mapping, and graceful shutdown. It has no form routes, database, authentication, or AI
-integration yet.
+safe HTTP error mapping, graceful shutdown, and a persistence-free seeded form-definition endpoint. It
+has no database, authentication, submissions, or AI integration yet.
 
 ## Target architecture
 
@@ -71,6 +71,18 @@ HTTP / Fastify → application use cases → domain
 
 Infrastructure implementations satisfy ports required by application use cases. Application and domain
 code do not import Fastify request/reply types or concrete persistence and AI adapters.
+
+The provider-neutral form contract and runtime validator live in the `@form-farm/form-domain` workspace.
+Angular compatibility exports preserve existing frontend imports while both applications consume the same
+compiled package. The first owned form read follows this dependency flow:
+
+```text
+GET /api/v1/forms/:formId
+        â†“
+Fastify route â†’ GetFormDefinition use case â†’ FormDefinitionSource port
+                         â†“                         â†‘
+              validateFormDefinition      seeded in-memory adapter
+```
 
 ## Form API direction
 
@@ -129,7 +141,7 @@ UI. It does not import legacy API models or encode quote, registration, payment,
 workflow behavior. The current quote feature adapts generic answers back to its legacy submission
 contract at the feature boundary; the owned API will replace that temporary path in issue #21.
 
-The version-one domain contract is defined in `src/app/domain/forms` and documented in
+The version-one domain contract is defined in `packages/form-domain` and documented in
 [`FORM_SCHEMA.md`](FORM_SCHEMA.md). It supports a controlled set of standard form fields through a
 discriminated union. Field IDs are globally unique answer keys, array position defines ordering, and
 choice labels are separate from their stable submitted values.

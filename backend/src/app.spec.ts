@@ -3,10 +3,11 @@ import type { FastifyInstance } from 'fastify';
 
 import { createApplication } from './app.js';
 import { ApplicationError } from './application/errors/application-error.js';
+import type { FormDefinitionSource } from './application/ports/form-definition-source.js';
 
 const applications: FastifyInstance[] = [];
 
-function createTestApplication(): FastifyInstance {
+function createTestApplication(formDefinitionSource?: FormDefinitionSource): FastifyInstance {
   const app = createApplication({
     config: {
       environment: 'test',
@@ -14,6 +15,7 @@ function createTestApplication(): FastifyInstance {
       port: 3000,
       logLevel: 'silent',
     },
+    ...(formDefinitionSource === undefined ? {} : { formDefinitionSource }),
   });
   applications.push(app);
   return app;
@@ -37,6 +39,61 @@ describe('createApplication', () => {
     expect(response.statusCode).toBe(404);
     expect(response.json()).toEqual({
       error: { code: 'route_not_found', message: 'Route not found.' },
+    });
+  });
+
+  it('serves a validated deterministic form definition', async () => {
+    const response = await createTestApplication().inject({
+      method: 'GET',
+      url: '/api/v1/forms/customer-feedback',
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      schemaVersion: 1,
+      id: 'customer-feedback',
+      formVersion: 1,
+      title: 'Customer feedback',
+    });
+  });
+
+  it('returns not found for an unknown valid form identifier', async () => {
+    const response = await createTestApplication().inject({
+      method: 'GET',
+      url: '/api/v1/forms/unknown-form',
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toEqual({
+      error: { code: 'not_found', message: 'Form not found.' },
+    });
+  });
+
+  it('rejects malformed form identifiers at the HTTP boundary', async () => {
+    const response = await createTestApplication().inject({
+      method: 'GET',
+      url: '/api/v1/forms/123-invalid',
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: { code: 'invalid_request', message: 'The request is invalid.' },
+    });
+  });
+
+  it('does not serve invalid source data', async () => {
+    const invalidSource: FormDefinitionSource = {
+      findById: async () => ({ id: 'invalid' }),
+    };
+    const response = await createTestApplication(invalidSource).inject({
+      method: 'GET',
+      url: '/api/v1/forms/invalid',
+    });
+
+    expect(response.statusCode).toBe(500);
+    expect(response.body).not.toContain('Stored form definition');
+    expect(response.json()).toEqual({
+      error: { code: 'internal_error', message: 'An unexpected error occurred.' },
     });
   });
 

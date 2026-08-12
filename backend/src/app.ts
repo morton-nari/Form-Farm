@@ -1,12 +1,17 @@
 import Fastify from 'fastify';
 import type { FastifyInstance } from 'fastify';
 
+import { GetFormDefinition } from './application/forms/get-form-definition.js';
+import type { FormDefinitionSource } from './application/ports/form-definition-source.js';
 import type { BackendConfig } from './config/backend-config.js';
 import { registerErrorHandler } from './http/errors/register-error-handler.js';
+import { registerFormDefinitionRoute } from './http/routes/form-definition.route.js';
 import { registerHealthRoute } from './http/routes/health.route.js';
+import { SeededFormDefinitionSource } from './infrastructure/forms/seeded-form-definition-source.js';
 
 export interface CreateApplicationOptions {
   readonly config: BackendConfig;
+  readonly formDefinitionSource?: FormDefinitionSource;
 }
 
 export function createApplication(options: CreateApplicationOptions): FastifyInstance {
@@ -21,6 +26,10 @@ export function createApplication(options: CreateApplicationOptions): FastifyIns
     }),
   );
   void app.register(registerHealthRoute);
+  const formDefinitionSource = options.formDefinitionSource ?? new SeededFormDefinitionSource();
+  void app.register(registerFormDefinitionRoute, {
+    getFormDefinition: new GetFormDefinition(formDefinitionSource),
+  });
 
   return app;
 }
