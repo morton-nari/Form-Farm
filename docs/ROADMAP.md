@@ -21,7 +21,7 @@ Status: **in progress**
 
 ## Phase 1 — General form domain
 
-- Define a provider-neutral form schema
+- Define a provider-neutral form schema (in progress in issue #16)
 - Add runtime schema validation
 - Expand supported field and validation types
 - Decouple the form engine from insurance API contracts
