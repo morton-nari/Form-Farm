@@ -142,9 +142,25 @@ handler, or workflow outcome. That separation must be preserved as publishing ca
 
 PostgreSQL is the preferred candidate. The intended model combines relational lifecycle data with JSONB for the flexible schema:
 
-- `Form` owns identity, name, status, and ownership.
+- `Form` owns stable identity, name, status, and ownership.
 - `FormVersion` stores an immutable validated schema and version number.
 - `FormSubmission` references the exact published version and stores validated answers.
+
+Future authentication will associate forms with an owning user and may later introduce organizations.
+Ownership and authorization are relational concerns; they must not be embedded inside `FormDefinition`.
+The model must support a future owner dashboard that can efficiently list forms, filter by lifecycle
+status, show the current published version, count submissions, and inspect recent activity without
+scanning JSONB documents.
+
+Likely relational query fields include owner identity, form status, created/updated timestamps,
+published version, submission timestamps, and exact form-version references. Flexible definitions and
+answer payloads can use JSONB after validation. Appropriate ownership, status, version, and submission
+time indexes will be designed with the actual database schema.
+
+Form versions are immutable once published. Submissions retain the exact form version used for collection
+so later edits do not change the meaning of historical answers. Deleting or archiving a form must not
+silently orphan or reinterpret its submissions. Retention, export, deletion, and sensitive-data policies
+require explicit design before production data is collected.
 
 The database and data model will be confirmed through ADRs before implementation.
 

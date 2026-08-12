@@ -49,6 +49,8 @@ Fastify plugins will be registered explicitly. Framework decorators, a dependenc
 
 The first scaffold must keep configuration loading centralized and validated at startup, establish consistent mapping from application/domain errors to HTTP responses, expose an application factory testable with `fastify.inject()`, and support graceful shutdown. It must not add database, authentication, OpenAPI, persistence, or AI abstractions before a concrete slice requires them.
 
+The application boundary must remain ready for later persistence and ownership without inventing those abstractions in the scaffold. PostgreSQL, database tooling, authentication, ownership rules, and dashboard queries will be introduced through their own issues and decisions. When added, infrastructure adapters will implement application-owned ports and participate in application shutdown rather than leaking database clients into routes or domain code.
+
 ## Comparison
 
 | Requirement                      | NestJS with Fastify                                                                                         | Lean Fastify                                                                                                                     | Assessment                                                                                                            |
