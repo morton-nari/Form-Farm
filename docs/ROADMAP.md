@@ -46,7 +46,7 @@ Status: **in progress**
 
 ## Phase 4 — PostgreSQL persistence and versioning
 
-- Select database access and migration tooling
+- [ ] Select database access and migration tooling (proposed in ADR 0003)
 - Persist owned forms and immutable versions
 - Publish form versions
 - Store submissions against the submitted version

@@ -179,7 +179,10 @@ so later edits do not change the meaning of historical answers. Deleting or arch
 silently orphan or reinterpret its submissions. Retention, export, deletion, and sensitive-data policies
 require explicit design before production data is collected.
 
-The database and data model will be confirmed through ADRs before implementation.
+The proposed PostgreSQL tooling, transaction boundaries, relational/JSONB model, deletion rules, migration
+strategy, and integration-test approach are recorded in
+[`ADR 0003`](adr/0003-postgresql-persistence.md). Database implementation remains deferred until that
+decision is accepted.
 
 ## AI boundary
 
@@ -202,7 +205,7 @@ Users preview and approve generated forms before persistence or publication.
 
 ## Decisions still required
 
-- Database access and migration tooling
+- PostgreSQL persistence decision acceptance and implementation
 - Authentication strategy
 - Hosting architecture
 - AI provider and provider-abstraction boundary
