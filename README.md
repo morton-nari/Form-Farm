@@ -4,7 +4,7 @@ Smart Forms AI is evolving into an AI-powered dynamic form platform. Its current
 
 `Your Details → Application → Quote`
 
-The product direction is documented in [Product Vision](docs/PRODUCT_VISION.md), [Architecture](docs/ARCHITECTURE.md), and [Roadmap](docs/ROADMAP.md).
+The product direction is documented in [Product Vision](docs/PRODUCT_VISION.md), [Architecture](docs/ARCHITECTURE.md), and [Roadmap](docs/ROADMAP.md). Development workflow and quality expectations are in [Contributing](CONTRIBUTING.md).
 
 > **Current status:** the Angular API-driven journey is functional. The owned backend, database, authentication, form builder, and AI capabilities described in the roadmap are not implemented yet.
 

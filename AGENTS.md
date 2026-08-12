@@ -4,7 +4,7 @@
 
 Smart Forms AI is evolving from an Angular insurance assessment into an AI-powered dynamic form platform. Treat the existing form runner as reusable foundation code. Do not rewrite working behaviour without a documented reason.
 
-Read `docs/PRODUCT_VISION.md`, `docs/ARCHITECTURE.md`, and `docs/ROADMAP.md` before making architectural changes.
+Read `docs/PRODUCT_VISION.md`, `docs/ARCHITECTURE.md`, `docs/ROADMAP.md`, and `CONTRIBUTING.md` before making architectural changes.
 
 ## Current implementation
 

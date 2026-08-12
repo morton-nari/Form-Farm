@@ -13,8 +13,11 @@ Status: **in progress**
 - [x] Restore service-owned Observable application loading
 - [x] Document product vision and current/target architecture
 - [x] Add repository-level AI agent guidance
+- [x] Add contribution and pull-request guidance
 - [ ] Review and merge the product-foundation PR
 - [ ] Create initial GitHub issues and milestone
+- [ ] Create a GitHub Project and Kanban views
+- [ ] Add the initial pull-request CI workflow on a dedicated branch
 
 ## Phase 1 — General form domain
 
