@@ -1,10 +1,12 @@
-# Nobleoak Angular Assessment
+# Smart Forms AI
 
-A modern Angular foundation for the Nobleoak frontend coding assessment. The application will implement the insurance journey described in the supplied brief:
+Smart Forms AI is evolving into an AI-powered dynamic form platform. Its current working foundation is a modern Angular implementation of the insurance journey from the original Nobleoak frontend coding assessment:
 
 `Your Details → Application → Quote`
 
-> **Current status:** the complete API-driven journey is functional, including validation, responsive navigation, answer review, quote submission, dynamically appended follow-up questions, resubmission, and final quote presentation.
+The product direction is documented in [Product Vision](docs/PRODUCT_VISION.md), [Architecture](docs/ARCHITECTURE.md), and [Roadmap](docs/ROADMAP.md).
+
+> **Current status:** the Angular API-driven journey is functional. The owned backend, database, authentication, form builder, and AI capabilities described in the roadmap are not implemented yet.
 
 ## Technical baseline
 
