@@ -18,6 +18,8 @@ The TypeScript domain vocabulary lives in `src/app/domain/forms/form-definition.
 
 The backend chooses the controlled operation associated with a published form. Schema data may control safe presentation such as button text and a success message, but it cannot select arbitrary executable behavior.
 
+A successful `validateFormDefinition` result means only that the value is structurally valid and satisfies Form Farm's schema invariants. It does not mean that the form is authorized, publishable, approved, or safe to execute as a workflow. Authorization, ownership, lifecycle transitions, publishing approval, submission handlers, and privileged operations remain trusted backend concerns.
+
 `submission.submitLabel` and `submission.successMessage` remain in the immutable definition for schema version 1 because they are part of the form's API-driven user experience and should be versioned with the fields users complete. They are presentation content only. Publishing metadata, redirects, API destinations, handler selection, and workflow outcomes remain outside the definition. This boundary should be reconsidered if publishing later needs to vary presentation without creating a new form version.
 
 ## Structure

@@ -184,9 +184,21 @@ const formDefinitionStructure = z.strictObject({
 
 export interface FormDefinitionValidationIssue {
   readonly path: readonly (string | number)[];
-  readonly code: string;
+  readonly code: FormDefinitionValidationIssueCode;
   readonly message: string;
 }
+
+export type FormDefinitionValidationIssueCode =
+  | 'invalid_type'
+  | 'unsupported_value'
+  | 'unknown_property'
+  | 'invalid_format'
+  | 'value_too_small'
+  | 'duplicate'
+  | 'invalid_default'
+  | 'invalid_range'
+  | 'invalid_temporal_value'
+  | 'invalid_structure';
 
 export type FormDefinitionValidationResult =
   | { readonly success: true; readonly value: FormDefinition }
@@ -200,8 +212,7 @@ export function validateFormDefinition(input: unknown): FormDefinitionValidation
       success: false,
       issues: structuralResult.error.issues.map((issue) => ({
         path: issue.path.map(StringOrNumber),
-        code: issue.code,
-        message: issue.message,
+        ...mapStructuralIssue(issue.code),
       })),
     };
   }
@@ -368,4 +379,24 @@ function addDuplicateIssue(
 
 function StringOrNumber(segment: PropertyKey): string | number {
   return typeof segment === 'number' ? segment : String(segment);
+}
+
+function mapStructuralIssue(code: z.core.$ZodIssue['code']): {
+  readonly code: FormDefinitionValidationIssueCode;
+  readonly message: string;
+} {
+  switch (code) {
+    case 'invalid_type':
+      return { code: 'invalid_type', message: 'Has an invalid type.' };
+    case 'invalid_value':
+      return { code: 'unsupported_value', message: 'Contains an unsupported value.' };
+    case 'unrecognized_keys':
+      return { code: 'unknown_property', message: 'Contains unsupported properties.' };
+    case 'invalid_format':
+      return { code: 'invalid_format', message: 'Has an invalid format.' };
+    case 'too_small':
+      return { code: 'value_too_small', message: 'Is below the allowed minimum.' };
+    default:
+      return { code: 'invalid_structure', message: 'Does not match the form schema.' };
+  }
 }

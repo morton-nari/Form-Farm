@@ -21,6 +21,8 @@ The boundary has two layers:
 
 Consumers depend on the owned validation result and issue types rather than on Zod APIs. The existing TypeScript domain types remain the public domain vocabulary.
 
+A successful validation result asserts structural and domain validity only. It does not assert authorization, ownership, lifecycle eligibility, publication approval, or permission to execute a submission workflow.
+
 ## Alternatives considered
 
 ### Valibot
