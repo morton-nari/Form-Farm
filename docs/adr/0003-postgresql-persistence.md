@@ -123,6 +123,12 @@ columns. PostgreSQL must not reproduce field types, validation rules, or other
 `validateFormDefinition`, and verifies the validated identity/version against the row before returning the
 domain value. Drizzle's compile-time JSON typing never replaces that runtime boundary.
 
+The Drizzle JSONB column and selected database-row type must not be annotated as `FormDefinition`, even if
+Drizzle permits a custom TypeScript type for developer convenience. Such an annotation would assert trust
+before validation and make malformed persisted data appear domain-safe at compile time. Persistence rows
+carry `unknown` definition data; only the successful result of `validateFormDefinition` may introduce the
+`FormDefinition` type into application code.
+
 Form definition content is append-only. Definitions are never updated in place; an edit creates another
 version. Publication metadata may make a single one-way transition from unpublished to published. The
 application exposes no general definition update or version-delete operation. Database roles and
