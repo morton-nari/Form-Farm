@@ -150,7 +150,9 @@ workflow behavior. The current frontend supports validation, answer review, and 
 safe success and retry states. `DynamicFormFactory.getAnswers` extracts a provider-neutral `FormAnswers`
 map; the feature store passes that map and the exact rendered version to the trusted generic endpoint,
 never Angular controls or schema-defined actions. It retains one idempotency key while retrying the same
-logical answers and replaces it when the answers or rendered version change.
+logical answers and replaces it when the answers or rendered version change. Answer identity sorts field
+keys explicitly while preserving array order, so object construction order cannot rotate the key. Client
+keys use the supported-browser `crypto.randomUUID()` baseline; no insecure fallback is provided.
 
 The version-one domain contract is defined in `packages/form-domain` and documented in
 [`FORM_SCHEMA.md`](FORM_SCHEMA.md). It supports a controlled set of standard form fields through a

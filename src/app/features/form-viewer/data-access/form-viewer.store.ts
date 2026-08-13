@@ -59,13 +59,13 @@ export class FormViewerStore {
   }
 
   submit(definition: FormDefinition, answers: FormAnswers): void {
-    if (this.submissionStatusState() === 'submitting') return;
+    if (
+      this.submissionStatusState() === 'submitting' ||
+      this.submissionStatusState() === 'success'
+    )
+      return;
 
-    const identity = JSON.stringify({
-      formId: definition.id,
-      formVersion: definition.formVersion,
-      answers,
-    });
+    const identity = submissionIdentity(definition, answers);
     if (this.submissionAttempt?.identity !== identity) {
       this.submissionAttempt = { identity, idempotencyKey: crypto.randomUUID() };
     }
@@ -125,7 +125,20 @@ function isSubmissionResponse(value: unknown): value is {
   return (
     Object.keys(candidate).length === 2 &&
     typeof candidate['submissionId'] === 'string' &&
-    candidate['submissionId'].length > 0 &&
+    SUBMISSION_ID_PATTERN.test(candidate['submissionId']) &&
     typeof candidate['replayed'] === 'boolean'
   );
 }
+
+function submissionIdentity(definition: FormDefinition, answers: FormAnswers): string {
+  return JSON.stringify({
+    formId: definition.id,
+    formVersion: definition.formVersion,
+    answers: Object.entries(answers).sort(([left], [right]) =>
+      left < right ? -1 : left > right ? 1 : 0,
+    ),
+  });
+}
+
+const SUBMISSION_ID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;

@@ -115,8 +115,12 @@ describe('App', () => {
     const idempotencyKey = first.request.headers.get('Idempotency-Key');
     expect(idempotencyKey).toMatch(/^[0-9a-f-]{36}$/);
     first.flush(
-      { error: { code: 'internal_error', message: 'safe' }, secret: 'database details' },
-      { status: 500, statusText: 'Internal Server Error' },
+      {
+        error: { code: 'invalid_submission', message: 'safe' },
+        issues: [{ path: ['answers', 'overallRating'], code: 'invalid_option' }],
+        secret: 'database details',
+      },
+      { status: 422, statusText: 'Unprocessable Content' },
     );
     fixture.detectChanges();
     await Promise.resolve();
@@ -128,7 +132,7 @@ describe('App', () => {
     primaryButton(compiled).click();
     const retry = httpTesting.expectOne('/api/v1/forms/customer-feedback/submissions');
     expect(retry.request.headers.get('Idempotency-Key')).toBe(idempotencyKey);
-    retry.flush({ submissionId: 'submission-id', replayed: true });
+    retry.flush({ submissionId: '550e8400-e29b-41d4-a716-446655440000', replayed: true });
     fixture.detectChanges();
     await Promise.resolve();
 
@@ -157,7 +161,7 @@ describe('App', () => {
     const changed = httpTesting.expectOne('/api/v1/forms/customer-feedback/submissions');
     expect(changed.request.body).toEqual({ formVersion: 1, answers: { overallRating: 'bad' } });
     expect(changed.request.headers.get('Idempotency-Key')).not.toBe(firstKey);
-    changed.flush({ submissionId: 'changed-id', replayed: false });
+    changed.flush({ submissionId: '550e8400-e29b-41d4-a716-446655440001', replayed: false });
   });
 });
 
