@@ -37,6 +37,7 @@ describe('PostgresFormDefinitionSource', () => {
     for (const migrationName of [
       '0000_initial_form_read.sql',
       '0001_versioned_form_submissions.sql',
+      '0002_authentication_ownership_core.sql',
     ]) {
       const migration = await readFile(
         fileURLToPath(new URL(`../../../drizzle/${migrationName}`, import.meta.url)),
@@ -77,14 +78,17 @@ describe('PostgresFormDefinitionSource', () => {
 
   it('does not return a draft version as published', async () => {
     await pool.query(
-      `insert into forms (id, status, latest_version) values ('draft-form', 'draft', 0)`,
+      `insert into forms (id, status, latest_version, ownership_kind)
+       values ('draft-form', 'draft', 0, 'system')`,
     );
 
     await expect(useCase.execute('draft-form')).rejects.toMatchObject({ code: 'not_found' });
   });
 
   it('enforces relational and JSONB identity consistency', async () => {
-    await pool.query(`insert into forms (id, status) values ('invalid-form', 'draft')`);
+    await pool.query(
+      `insert into forms (id, status, ownership_kind) values ('invalid-form', 'draft', 'system')`,
+    );
 
     await expect(
       pool.query(
@@ -187,7 +191,8 @@ describe('PostgresFormDefinitionSource', () => {
 
   it('does not expose a draft or never-published version', async () => {
     await pool.query(
-      `insert into forms (id, status, latest_version) values ('never-published', 'draft', 1)`,
+      `insert into forms (id, status, latest_version, ownership_kind)
+       values ('never-published', 'draft', 1, 'system')`,
     );
     await pool.query(
       `insert into form_versions (form_id, version, schema_version, definition)
@@ -220,9 +225,7 @@ describe('PostgresFormDefinitionSource', () => {
         }),
       ],
     );
-    await pool.query(
-      `update forms set latest_version = 2 where id = 'unpublished-version-form'`,
-    );
+    await pool.query(`update forms set latest_version = 2 where id = 'unpublished-version-form'`);
 
     await expect(
       submitForm.execute({
@@ -317,9 +320,11 @@ describe('PostgresFormDefinitionSource', () => {
   async function insertPublishedForm(formId: string, definition: unknown): Promise<void> {
     await pool.query('begin');
     try {
-      await pool.query(`insert into forms (id, status, latest_version) values ($1, 'draft', 1)`, [
-        formId,
-      ]);
+      await pool.query(
+        `insert into forms (id, status, latest_version, ownership_kind)
+         values ($1, 'draft', 1, 'system')`,
+        [formId],
+      );
       await pool.query(
         `insert into form_versions (form_id, version, schema_version, definition, published_at)
          values ($1, 1, 1, $2::jsonb, now())`,

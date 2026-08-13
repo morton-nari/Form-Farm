@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Accepted
 
 ## Context
 
@@ -65,7 +65,8 @@ with a locale-independent operation before validation and lookup. The initial ma
 points. A database unique constraint is the final concurrency guarantee. Registration and login share tests
 for the normalization algorithm. Treating the complete address, including its local part, as
 case-insensitive is an intentional Form Farm account-identity policy for predictable login and uniqueness;
-it is not asserted to be a universal email-delivery rule.
+it is not asserted to be a universal email-delivery rule. The initial syntax check is deliberately minimal
+account-identifier validation, not RFC-complete mailbox validation or proof of deliverability.
 
 Passwords:
 
@@ -154,7 +155,10 @@ coarse single-instance protection, not the production account-guessing boundary.
 The application owns a rate-limit port; a PostgreSQL adapter is sufficient initially and can later be
 replaced without changing auth use cases. Safe `429 rate_limited` responses include `Retry-After` without
 confirming account existence. Windows and limits are startup configuration. Permanent account lockout is not
-used because it enables denial of service.
+used because it enables denial of service. Limiter scopes are a finite application-owned type and database
+constraint, never request-controlled strings. A later cleanup job may delete a bucket only after its configured
+window has elapsed; it must use database time and a retention period at least as long as the maximum configured
+window. This PR provides the cleanup index but intentionally does not schedule that operational job.
 
 ### Relational model and ownership
 

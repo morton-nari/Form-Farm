@@ -5,7 +5,11 @@ import { Pool } from 'pg';
 const databaseUrl = process.env['DATABASE_URL'];
 if (!databaseUrl) throw new Error('DATABASE_URL is required to run migrations.');
 
-const migrations = ['0000_initial_form_read.sql', '0001_versioned_form_submissions.sql'] as const;
+const migrations = [
+  '0000_initial_form_read.sql',
+  '0001_versioned_form_submissions.sql',
+  '0002_authentication_ownership_core.sql',
+] as const;
 const pool = new Pool({ connectionString: databaseUrl, max: 1 });
 
 try {
