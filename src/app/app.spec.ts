@@ -2,7 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 
-import { ApplicationDefinition } from './core/api/insurance-api.models';
+import { FormDefinition } from './domain/forms/form-definition.models';
 import { App } from './app';
 
 describe('App', () => {
@@ -25,56 +25,93 @@ describe('App', () => {
     const fixture = TestBed.createComponent(App);
 
     fixture.detectChanges();
-    httpTesting.expectOne('/api/application');
+    httpTesting.expectOne('/api/v1/forms/customer-feedback');
 
     expect(fixture.componentInstance).toBeTruthy();
   });
 
-  it('renders the first application section', () => {
+  it('renders a validated form definition from the owned API', () => {
     const fixture = TestBed.createComponent(App);
 
     fixture.detectChanges();
-    httpTesting.expectOne('/api/application').flush(createApplicationDefinition());
+    httpTesting.expectOne('/api/v1/forms/customer-feedback').flush(createFormDefinition());
     fixture.detectChanges();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('h1')?.textContent).toContain('About You');
+    expect(compiled.querySelector('h1')?.textContent).toContain('Customer feedback');
+    expect(compiled.querySelector('legend')?.textContent).toContain('Your experience');
+  });
+
+  it('rejects an invalid definition and retries the owned API', () => {
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    httpTesting.expectOne('/api/v1/forms/customer-feedback').flush({ title: 'Not valid' });
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.textContent).toContain('Unable to load this form');
+    compiled.querySelector<HTMLButtonElement>('button')?.click();
+    fixture.detectChanges();
+    httpTesting.expectOne('/api/v1/forms/customer-feedback').flush(createFormDefinition());
+    fixture.detectChanges();
+    expect(compiled.textContent).toContain('Customer feedback');
+  });
+
+  it('shows a safe retry state when the owned API fails', () => {
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    httpTesting
+      .expectOne('/api/v1/forms/customer-feedback')
+      .flush('database details', { status: 500, statusText: 'Internal Server Error' });
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.textContent).toContain('We could not load this form. Please try again.');
+    expect(compiled.textContent).not.toContain('database details');
+  });
+
+  it('validates required fields before showing the review', () => {
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    httpTesting.expectOne('/api/v1/forms/customer-feedback').flush(createFormDefinition());
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    compiled.querySelector<HTMLButtonElement>('button[type="submit"]')?.click();
+    fixture.detectChanges();
+    expect(compiled.textContent).toContain('Overall rating is required.');
+
+    const rating = compiled.querySelector<HTMLInputElement>('input[type="radio"]')!;
+    rating.checked = true;
+    rating.dispatchEvent(new Event('change'));
+    compiled.querySelector<HTMLButtonElement>('button[type="submit"]')?.click();
+    fixture.detectChanges();
+    expect(compiled.textContent).toContain('Review your answers');
+    expect(compiled.textContent).toContain('This preview does not send or store answers yet.');
   });
 });
 
-function createApplicationDefinition(): ApplicationDefinition {
+function createFormDefinition(): FormDefinition {
   return {
-    id: '1',
-    title: 'Life Insurance Application',
-    pages: [
+    schemaVersion: 1,
+    id: 'customer-feedback',
+    formVersion: 1,
+    title: 'Customer feedback',
+    sections: [
       {
-        id: 'about-you',
-        title: 'About You',
-        questions: [
-          { id: 'email', label: 'Email Address', type: 'email', required: true },
-          { id: 'phone', label: 'Phone Number', type: 'text', required: true },
+        id: 'experience',
+        title: 'Your experience',
+        fields: [
           {
-            id: 'occupation',
-            label: 'Occupation',
-            type: 'select',
-            required: true,
-            options: ['Accountant', 'Teacher', 'Builder', 'Pilot', 'Other'],
-          },
-        ],
-      },
-      {
-        id: 'lifestyle',
-        title: 'Lifestyle',
-        questions: [
-          {
-            id: 'smokedLast12Months',
-            label: 'Have you smoked in the last 12 months?',
+            id: 'overallRating',
+            label: 'Overall rating',
             type: 'radio',
-            required: true,
-            options: ['Yes', 'No'],
+            options: [{ label: 'Good', value: 'good' }],
+            validation: [{ type: 'required' }],
           },
         ],
       },
     ],
+    submission: { submitLabel: 'Send feedback', successMessage: 'Thank you.' },
   };
 }

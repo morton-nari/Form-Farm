@@ -1,8 +1,7 @@
 # Form Farm AI
 
-Form Farm AI is evolving into an AI-powered dynamic form platform. Its current working foundation is a modern Angular implementation of the insurance journey from the original Nobleoak frontend coding assessment:
-
-`Your Details → Application → Quote`
+Form Farm AI is an API-driven dynamic form platform. Its Angular form runner consumes provider-neutral,
+runtime-validated form definitions from an owned Fastify backend.
 
 The product direction is documented in [Product Vision](docs/PRODUCT_VISION.md), [Architecture](docs/ARCHITECTURE.md), and [Roadmap](docs/ROADMAP.md). Development workflow and quality expectations are in [Contributing](CONTRIBUTING.md).
 
@@ -10,7 +9,9 @@ The provider-neutral form contract and its supported version-one capabilities ar
 [Form Schema](docs/FORM_SCHEMA.md).
 The owned HTTP endpoints are documented in [Backend API](docs/BACKEND_API.md).
 
-> **Current status:** the Angular API-driven journey is functional. An owned Fastify backend foundation now provides configuration validation, health checks, safe HTTP error mapping, and graceful shutdown. Database, authentication, generic form APIs, the form builder, and AI capabilities are not implemented yet.
+> **Current status:** PostgreSQL stores immutable form definitions, Fastify serves the current published
+> version, and Angular validates and renders it with loading, retry, validation, and answer-review states.
+> Submission persistence, authentication, the form builder, and AI capabilities are not implemented yet.
 
 ## Technical baseline
 
@@ -34,8 +35,8 @@ Exact dependency versions are recorded in `package-lock.json` for reproducible i
 - **Zoneless:** Angular 22 applications are zoneless by default. This project does not install `zone.js` or configure a zone-based change-detection provider.
 - **Signals:** signals hold synchronous UI and journey state, including loading, navigation, submission, and quote results.
 - **Reactive Forms:** Angular Reactive Forms provide typed, API-driven form models and validation.
-- **Single-page journey:** signal-based section state drives the assessment flow, so no unused URL router is bundled.
-- **API page fidelity:** the supplied About You and Lifestyle pages are kept intact and rendered together; answering a section updates the progress navigation without moving questions into synthetic form steps.
+- **Single-page form:** the current published form is rendered without an unused URL router.
+- **Untrusted API boundary:** HTTP form data remains `unknown` until shared runtime and domain validation succeeds.
 - **Bootstrap CSS only:** Bootstrap supplies styling and layout utilities. Its JavaScript bundle is intentionally excluded so Angular remains responsible for interactive behaviour and DOM state.
 - **SCSS:** application-specific styles use SCSS.
 - **Strict compilation:** strict TypeScript and Angular template checks are enabled.
@@ -164,29 +165,25 @@ as untrusted data before returning it. It does not yet write forms or accept sub
 
 ## API development
 
-The supplied Azure API does not expose browser CORS headers. During local development, Angular forwards relative `/api` requests through the development proxy configured in `proxy.conf.json`:
+During local development, Angular forwards relative `/api` requests to the owned backend at
+`http://127.0.0.1:3000` through `proxy.conf.json`:
 
 ```text
-Browser → /api/application → Angular development proxy → Azure API /application
-Browser → /api/quote       → Angular development proxy → Azure API /quote
+Browser → /api/v1/forms/customer-feedback → Angular proxy → Fastify → PostgreSQL
 ```
 
-The application code therefore contains no environment-specific host name. The typed API client is located under `src/app/core/api` and exposes:
-
-- `getApplication()` for `GET /api/application`;
-- `submitQuote(answers)` for `POST /api/quote`.
-
-The quote endpoint requires answers to be sent inside an `answers` property. No authentication headers or API keys are required.
-
-The Angular development proxy is only active with `npm start`. A production deployment will require its hosting platform to forward `/api` to the supplied API or provide an equivalent same-origin backend route.
+The client receives `unknown`, and the feature store calls `validateFormDefinition` before exposing a
+definition to the renderer. The Angular development proxy is only active with `npm start`; a production
+host must provide equivalent same-origin `/api` forwarding. There is intentionally no frontend
+submission call until the owned submission use case is designed.
 
 ## Quality and verification
 
 The implementation is verified with:
 
-- unit tests covering API adaptation, state transitions, form rendering, validation, navigation, follow-up questions, retry paths, and quote completion;
+- unit tests covering the owned API boundary, runtime rejection, form rendering, validation, answer review, and retry paths;
 - strict Angular production compilation with `npm run build`;
-- desktop and mobile browser walkthroughs against the live API;
+- desktop and mobile browser walkthroughs against the local owned API;
 - browser console and network inspection;
 - Lighthouse accessibility auditing and keyboard-focused form semantics.
 
@@ -194,16 +191,14 @@ The UI includes native labelled controls, required/error announcements, visible 
 
 ## Assumptions
 
-- The supplied wireframe is a visual reference rather than a pixel-perfect specification.
-- `Your Details` represents an earlier completed stage, so it is displayed as static progress and is not inferred from the application API fields.
-- The API contract shown in the assessment brief is the source of truth.
-- The API requires no authentication based on direct GET and POST contract verification.
+- The seeded customer-feedback form is a deterministic first example, not a special product workflow.
+- Authentication is intentionally deferred; published form reads are currently public.
 - Bootstrap utilities may be supplemented with small, application-specific SCSS rules.
 
 ## Known limitations
 
-- Production hosting must provide the documented same-origin `/api` forwarding rule because the external API does not enable CORS.
-- The current quote is presented for assessment purposes only; purchasing or persisting a policy is outside the supplied API contract.
+- Production hosting must provide the documented same-origin `/api` forwarding rule.
+- The frontend currently reviews answers but does not submit or persist them.
 - `npm audit` currently reports four moderate development-tooling advisories through Drizzle Kit's legacy esbuild loader chain. `npm audit --omit=dev` reports no production dependency vulnerabilities. npm's suggested remediation downgrades Drizzle Kit across a breaking boundary, so it has not been applied; Drizzle dependencies remain exactly pinned and will be upgraded through a focused review.
 
 ## Time spent

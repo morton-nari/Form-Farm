@@ -2,7 +2,9 @@
 
 ## Current status
 
-The Angular form runner is functional and tested. It still consumes the supplied external insurance API. The project is beginning its transition from assessment solution to full-stack product.
+The Angular form runner is functional and tested. It consumes a runtime-validated provider-neutral form
+definition from the owned Fastify and PostgreSQL path. Submission persistence, authentication, the form
+builder, and AI generation are not implemented yet.
 
 ## Phase 0 — Product foundation
 
@@ -33,8 +35,8 @@ Status: **in progress**
 - [x] Scaffold a TypeScript backend
 - [x] Add health, configuration, and error-handling foundations
 - [x] Serve a deterministic form definition from the owned API
-- Connect the Angular form runner to that API
-- Add backend and API contract tests
+- [x] Connect the Angular form runner to that API
+- [x] Add backend and API contract tests
 
 ## Phase 3 — Form builder and realistic demos
 

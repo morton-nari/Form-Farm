@@ -4,34 +4,34 @@ This document separates the architecture that exists today from the intended tar
 
 ## Current architecture
 
-Form Farm AI currently contains an Angular 22 frontend derived from the Nobleoak coding assessment.
+Form Farm AI currently contains an Angular 22 frontend connected to its owned Fastify backend.
 
 ```text
-External insurance API
-        ↓ HTTP Observable
-InsuranceApiService
+GET /api/v1/forms/:formId
+        ↓ HttpClient Observable<unknown>
+FormDefinitionApiService
         ↓
-QuoteJourneyStore
+FormViewerStore + validateFormDefinition
         ↓ readonly signals
-QuoteJourneyPage
+FormViewerPage
         ↓
-JourneyFormFactory + DynamicQuestion
+DynamicFormFactory + DynamicField
         ↓
 Accessible Reactive Form UI
 ```
 
 ### Current boundaries
 
-- `core/api` contains external HTTP contracts and the API client.
-- `features/quote-journey/data-access` adapts API data and owns journey state.
-- `features/quote-journey/forms` creates Reactive Form controls and validators.
-- `features/quote-journey/components` renders questions and progress navigation.
-- `features/quote-journey/pages` coordinates the screen and focus behaviour.
+- `core/api` contains the owned API client and leaves external definitions untrusted.
+- `features/form-viewer/data-access` validates API data and owns loading state.
+- `shared/form-runner/forms` creates Reactive Form controls and validators.
+- `shared/form-runner/components` renders provider-neutral fields accessibly.
+- `features/form-viewer/pages` coordinates rendering, review, retry, and focus behaviour.
 
-The legacy insurance API supplies text, email, number, select, and radio questions. Its adapter maps
-those contracts into validated provider-neutral definitions. The reusable form runner depends only on
-the Form Farm domain and has explicit rendering and Reactive Forms behavior for all 15 schema-version-1
-field discriminants.
+The running frontend loads `GET /api/v1/forms/:formId` through a client that returns `unknown`.
+`FormViewerStore` applies `validateFormDefinition` before exposing readonly state to `FormViewerPage`.
+The shared form runner then maps the validated definition into accessible Reactive Forms controls. It
+has explicit rendering and validation behavior for all 15 schema-version-1 field discriminants.
 
 The repository also contains an initial Fastify 5 backend workspace. Its current implemented scope is
 deliberately limited to a testable application factory, startup configuration validation, `GET /health`,
@@ -138,8 +138,8 @@ build output must be reviewed when domain capabilities change.
 
 The Angular `shared/form-runner` maps validated domain fields into Reactive Form controls and accessible
 UI. It does not import legacy API models or encode quote, registration, payment, publishing, or other
-workflow behavior. The current quote feature adapts generic answers back to its legacy submission
-contract at the feature boundary; the owned API will replace that temporary path in issue #21.
+workflow behavior. The current frontend supports validation and answer review; it explicitly does not
+claim to submit or persist answers before an owned submission use case and endpoint exist.
 
 The version-one domain contract is defined in `packages/form-domain` and documented in
 [`FORM_SCHEMA.md`](FORM_SCHEMA.md). It supports a controlled set of standard form fields through a
@@ -148,8 +148,8 @@ choice labels are separate from their stable submitted values.
 
 The schema contains renderable form content and safe submission presentation only. Lifecycle,
 ownership, persistence metadata, AI generation metadata, HTTP destinations, and privileged backend
-operations remain outside the form definition. The current insurance API remains a legacy external
-contract until the runner migration in Phase 1; it does not define the new domain.
+operations remain outside the form definition. Legacy insurance files remain temporarily as reference
+code, but they no longer feed the running application and do not define the new domain.
 
 Submission button text and success text are versioned with the immutable form definition in schema
 version 1 because they are API-driven presentation content. They do not select a route, redirect,
