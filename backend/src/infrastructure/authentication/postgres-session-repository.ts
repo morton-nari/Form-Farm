@@ -22,7 +22,10 @@ export class PostgresSessionRepository implements SessionRepository {
           tokenHash: input.credentialHash,
           createdAt: sql`now()`,
           lastSeenAt: sql`now()`,
-          idleExpiresAt: sql`now() + (${input.idleTimeoutMilliseconds} * interval '1 millisecond')`,
+          idleExpiresAt: sql`least(
+            now() + (${input.idleTimeoutMilliseconds} * interval '1 millisecond'),
+            now() + (${input.absoluteTimeoutMilliseconds} * interval '1 millisecond')
+          )`,
           absoluteExpiresAt: sql`now() + (${input.absoluteTimeoutMilliseconds} * interval '1 millisecond')`,
         })
         .returning({ sessionId: userSessions.id });
@@ -62,7 +65,10 @@ export class PostgresSessionRepository implements SessionRepository {
           .update(userSessions)
           .set({
             lastSeenAt: sql`now()`,
-            idleExpiresAt: sql`now() + (${input.idleTimeoutMilliseconds} * interval '1 millisecond')`,
+            idleExpiresAt: sql`least(
+              now() + (${input.idleTimeoutMilliseconds} * interval '1 millisecond'),
+              ${userSessions.absoluteExpiresAt}
+            )`,
           })
           .where(
             and(

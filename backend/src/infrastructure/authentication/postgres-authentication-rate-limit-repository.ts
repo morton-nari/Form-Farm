@@ -1,6 +1,9 @@
 import { sql } from 'drizzle-orm';
 
-import type { AuthenticationRateLimitRepository } from '../../application/ports/authentication.js';
+import type {
+  AuthenticationRateLimitRepository,
+  AuthenticationRateLimitScope,
+} from '../../application/ports/authentication.js';
 import type { FormFarmDatabase } from '../database/create-database.js';
 import { safelyPersistAuthentication } from './authentication-persistence-error.js';
 
@@ -8,7 +11,7 @@ export class PostgresAuthenticationRateLimitRepository implements Authentication
   constructor(private readonly database: FormFarmDatabase) {}
 
   async consume(input: {
-    scope: string;
+    scope: AuthenticationRateLimitScope;
     keyHash: string;
     windowMilliseconds: number;
     limit: number;

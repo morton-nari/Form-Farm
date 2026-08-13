@@ -57,6 +57,7 @@ export const userSessions = pgTable(
       'user_sessions_expiry_check',
       sql`${table.lastSeenAt} >= ${table.createdAt}
         and ${table.idleExpiresAt} > ${table.lastSeenAt}
+        and ${table.idleExpiresAt} <= ${table.absoluteExpiresAt}
         and ${table.absoluteExpiresAt} > ${table.createdAt}`,
     ),
     uniqueIndex('user_sessions_token_hash_uidx').on(table.tokenHash),
@@ -82,7 +83,10 @@ export const authRateLimits = pgTable(
   },
   (table) => [
     primaryKey({ columns: [table.scope, table.keyHash] }),
-    check('auth_rate_limits_scope_check', sql`char_length(${table.scope}) between 1 and 64`),
+    check(
+      'auth_rate_limits_scope_check',
+      sql`${table.scope} in ('registration-source', 'registration-account', 'login-source', 'login-account')`,
+    ),
     check('auth_rate_limits_key_hash_check', sql`${table.keyHash} ~ '^[0-9a-f]{64}$'`),
     check('auth_rate_limits_attempt_count_check', sql`${table.attemptCount} > 0`),
     index('auth_rate_limits_cleanup_idx').on(table.updatedAt),

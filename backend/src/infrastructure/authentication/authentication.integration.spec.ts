@@ -168,12 +168,39 @@ describe('authentication PostgreSQL core', () => {
     );
     expect(afterCadence.rows[0].recently_seen).toBe(true);
 
+    await pool.query(
+      `update user_sessions set
+         created_at = now() - interval '10 minutes',
+         last_seen_at = now() - interval '6 minutes',
+         absolute_expires_at = now() + interval '1 minute',
+         idle_expires_at = now() + interval '1 minute'
+       where token_hash = $1`,
+      [credentials.hash(sessionCredential)],
+    );
+    await resolver.execute(sessionCredential);
+    const boundedExpiry = await pool.query<{ idle_is_bounded: boolean }>(
+      `select idle_expires_at = absolute_expires_at as idle_is_bounded
+       from user_sessions where token_hash = $1`,
+      [credentials.hash(sessionCredential)],
+    );
+    expect(boundedExpiry.rows[0].idle_is_bounded).toBe(true);
+    await expect(
+      pool.query(
+        `update user_sessions set idle_expires_at = absolute_expires_at + interval '1 second'
+         where token_hash = $1`,
+        [credentials.hash(sessionCredential)],
+      ),
+    ).rejects.toMatchObject({ constraint: 'user_sessions_expiry_check' });
+
     await pool.query(`update user_sessions set idle_expires_at = now() where token_hash = $1`, [
       credentials.hash(sessionCredential),
     ]);
     await expect(resolver.execute(sessionCredential)).resolves.toBeUndefined();
     await pool.query(
-      `update user_sessions set idle_expires_at = now() + interval '30 minutes' where token_hash = $1`,
+      `update user_sessions set
+         idle_expires_at = now() + interval '30 minutes',
+         absolute_expires_at = now() + interval '7 days'
+       where token_hash = $1`,
       [credentials.hash(sessionCredential)],
     );
 
@@ -187,7 +214,16 @@ describe('authentication PostgreSQL core', () => {
 
     const logout = new Logout(sessions, credentials);
     await logout.execute(sessionCredential);
+    const firstRevocation = await pool.query<{ revoked_at: Date }>(
+      `select revoked_at from user_sessions where token_hash = $1`,
+      [credentials.hash(sessionCredential)],
+    );
     await logout.execute(sessionCredential);
+    const repeatedRevocation = await pool.query<{ revoked_at: Date }>(
+      `select revoked_at from user_sessions where token_hash = $1`,
+      [credentials.hash(sessionCredential)],
+    );
+    expect(repeatedRevocation.rows[0].revoked_at).toEqual(firstRevocation.rows[0].revoked_at);
     await expect(resolver.execute(sessionCredential)).resolves.toBeUndefined();
 
     await pool.query(
@@ -247,6 +283,13 @@ describe('authentication PostgreSQL core', () => {
         limit: 3,
       }),
     ).resolves.toEqual({ allowed: true, retryAfterSeconds: 0 });
+    await expect(
+      pool.query(
+        `insert into auth_rate_limits (scope, key_hash, window_started_at, attempt_count)
+         values ('request-controlled-scope', $1, now(), 1)`,
+        ['b'.repeat(64)],
+      ),
+    ).rejects.toMatchObject({ constraint: 'auth_rate_limits_scope_check' });
   });
 
   async function applyMigration(name: string): Promise<void> {

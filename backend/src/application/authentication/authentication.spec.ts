@@ -31,6 +31,9 @@ describe('authentication application services', () => {
       normalizedEmail: 'usér@example.com',
       passwordHash: 'hash',
     });
+    expect(hash.mock.invocationCallOrder[0]).toBeLessThan(
+      createIfAbsent.mock.invocationCallOrder[0],
+    );
   });
 
   it('applies password boundaries and blocklist policy without account disclosure', async () => {

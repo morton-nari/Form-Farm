@@ -27,6 +27,7 @@ CREATE TABLE "user_sessions" (
   CONSTRAINT "user_sessions_expiry_check" CHECK (
     "last_seen_at" >= "created_at"
     AND "idle_expires_at" > "last_seen_at"
+    AND "idle_expires_at" <= "absolute_expires_at"
     AND "absolute_expires_at" > "created_at"
   )
 );
@@ -46,7 +47,9 @@ CREATE TABLE "auth_rate_limits" (
   "attempt_count" integer NOT NULL,
   "updated_at" timestamp with time zone DEFAULT now() NOT NULL,
   CONSTRAINT "auth_rate_limits_pk" PRIMARY KEY ("scope", "key_hash"),
-  CONSTRAINT "auth_rate_limits_scope_check" CHECK (char_length("scope") BETWEEN 1 AND 64),
+  CONSTRAINT "auth_rate_limits_scope_check" CHECK (
+    "scope" IN ('registration-source', 'registration-account', 'login-source', 'login-account')
+  ),
   CONSTRAINT "auth_rate_limits_key_hash_check" CHECK ("key_hash" ~ '^[0-9a-f]{64}$'),
   CONSTRAINT "auth_rate_limits_attempt_count_check" CHECK ("attempt_count" > 0)
 );

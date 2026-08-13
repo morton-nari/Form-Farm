@@ -47,9 +47,12 @@ export interface SessionRepository {
   deleteExpired(retentionMilliseconds: number): Promise<number>;
 }
 
+export type AuthenticationRateLimitScope =
+  'registration-source' | 'registration-account' | 'login-source' | 'login-account';
+
 export interface AuthenticationRateLimitRepository {
   consume(input: {
-    readonly scope: string;
+    readonly scope: AuthenticationRateLimitScope;
     readonly keyHash: string;
     readonly windowMilliseconds: number;
     readonly limit: number;
