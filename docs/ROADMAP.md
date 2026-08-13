@@ -63,7 +63,7 @@ Status: **in progress**
 - [x] Define authentication, session, CSRF, and ownership architecture in ADR 0005
 - [x] Add the framework-independent account, opaque-session, rate-limit, and ownership persistence core
 - [x] Expose sign-up, login, logout, session, cookie, XSRF, origin, and rate-limit HTTP handling
-- Wire Angular registration, login, session bootstrap, guards, and logout
+- [x] Wire Angular registration, login, session bootstrap, guards, and logout
 - Protect frontend routes and backend operations
 - Add user form ownership and authorization, with organizations deferred until justified
 - Establish secure secret and environment management

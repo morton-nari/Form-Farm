@@ -11,8 +11,9 @@ The owned HTTP endpoints are documented in [Backend API](docs/BACKEND_API.md).
 
 > **Current status:** PostgreSQL stores immutable form definitions, Fastify serves the current published
 > version, and Angular validates and renders it with loading, retry, validation, answer-review, and persisted
-> submission states. The backend exposes secure account/session endpoints; Angular authentication, the owner
-> dashboard, form builder, and AI capabilities are not implemented yet.
+> submission states. Angular provides login, registration, session bootstrap, protected navigation, and logout
+> against the secure backend boundary. The owner-scoped dashboard, form builder, and AI capabilities are not
+> implemented yet.
 
 ## Technical baseline
 
@@ -36,7 +37,8 @@ Exact dependency versions are recorded in `package-lock.json` for reproducible i
 - **Zoneless:** Angular 22 applications are zoneless by default. This project does not install `zone.js` or configure a zone-based change-detection provider.
 - **Signals:** signals hold synchronous UI state, including definition loading, errors, retry, and review.
 - **Reactive Forms:** Angular Reactive Forms provide typed, API-driven form models and validation.
-- **Single-page form:** the current published form is rendered without an unused URL router.
+- **Protected navigation:** Angular routes anonymous users to login and protects the forms area through backend
+  session bootstrap; the reusable form runner remains route-independent.
 - **Untrusted API boundary:** HTTP form data remains `unknown` until shared runtime and domain validation succeeds.
 - **Bootstrap CSS only:** Bootstrap supplies styling and layout utilities. Its JavaScript bundle is intentionally excluded so Angular remains responsible for interactive behaviour and DOM state.
 - **SCSS:** application-specific styles use SCSS.
@@ -200,13 +202,13 @@ The UI includes native labelled controls, required/error announcements, visible 
 ## Assumptions
 
 - The seeded customer-feedback form is a deterministic first example, not a special product workflow.
-- Angular authentication and owner workflows are deferred; published form reads remain public.
+- Owner-scoped form management is deferred; published form reads remain public at the API lifecycle boundary.
 - Bootstrap utilities may be supplemented with small, application-specific SCSS rules.
 
 ## Known limitations
 
 - Production hosting must provide the documented same-origin `/api` forwarding rule.
-- The frontend does not yet expose registration, login, logout, or protected owner navigation.
+- The `/forms` landing page uses the deterministic sample until the owner-scoped dashboard API is implemented.
 - `npm audit` currently reports four moderate development-tooling advisories through Drizzle Kit's legacy esbuild loader chain. `npm audit --omit=dev` reports no production dependency vulnerabilities. npm's suggested remediation downgrades Drizzle Kit across a breaking boundary, so it has not been applied; Drizzle dependencies remain exactly pinned and will be upgraded through a focused review.
 
 ## Time spent
