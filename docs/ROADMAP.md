@@ -26,7 +26,7 @@ Status: **in progress**
 - [x] Define a provider-neutral form schema
 - [x] Add runtime schema validation
 - [x] Expand supported field and validation types
-- [x] Decouple the form engine from insurance API contracts
+- [x] Decouple the form engine from provider-specific API contracts
 - [x] Preserve existing accessibility and tests
 
 ## Phase 2 — Owned backend

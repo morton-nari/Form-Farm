@@ -33,7 +33,7 @@ Exact dependency versions are recorded in `package-lock.json` for reproducible i
 
 - **Standalone Angular:** the application is bootstrapped with `bootstrapApplication`; there are no NgModules.
 - **Zoneless:** Angular 22 applications are zoneless by default. This project does not install `zone.js` or configure a zone-based change-detection provider.
-- **Signals:** signals hold synchronous UI and journey state, including loading, navigation, submission, and quote results.
+- **Signals:** signals hold synchronous UI state, including definition loading, errors, retry, and review.
 - **Reactive Forms:** Angular Reactive Forms provide typed, API-driven form models and validation.
 - **Single-page form:** the current published form is rendered without an unused URL router.
 - **Untrusted API boundary:** HTTP form data remains `unknown` until shared runtime and domain validation succeeds.
@@ -124,16 +124,11 @@ packages/
 `-- form-domain/        # Framework-independent form contract and runtime validator
 src/
 ├── app/
-│   ├── core/api/        # Typed HTTP contracts and API client
+│   ├── core/api/        # Owned API client; external definitions remain unknown
 │   ├── domain/forms/    # Provider-neutral form contract and runtime validation
 │   ├── shared/form-runner/ # Generic Reactive Forms factory and field renderer
 │   ├── features/
-│   │   └── quote-journey/
-│   │       ├── components/  # Question renderer and journey navigation
-│   │       ├── data-access/ # API schema adapter and signal store
-│   │       ├── forms/       # Dynamic Reactive Forms factory
-│   │       ├── models/      # Presentation-focused journey models
-│   │       └── pages/       # Composed quote journey screen
+│   │   └── form-viewer/     # Validated loading state and composed form screen
 │   ├── app.config.ts   # Application-level providers
 │   ├── app.ts          # Standalone root component
 │   ├── app.html        # Minimal application shell

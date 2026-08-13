@@ -157,8 +157,8 @@ choice labels are separate from their stable submitted values.
 
 The schema contains renderable form content and safe submission presentation only. Lifecycle,
 ownership, persistence metadata, AI generation metadata, HTTP destinations, and privileged backend
-operations remain outside the form definition. Legacy insurance files remain temporarily as reference
-code, but they no longer feed the running application and do not define the new domain.
+operations remain outside the form definition. Retired provider-specific API and workflow code has been
+removed; it does not define the domain or the running application.
 
 Submission button text and success text are versioned with the immutable form definition in schema
 version 1 because they are API-driven presentation content. They do not select a route, redirect,
