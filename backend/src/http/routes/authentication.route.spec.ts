@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
+import type { FastifyInstance } from 'fastify';
 
 import { createApplication, type AuthenticationApplicationServices } from '../../app.js';
 import { InvalidCredentialsError } from '../../application/authentication/login.js';
@@ -97,6 +97,36 @@ describe('authentication HTTP boundary', () => {
     });
   });
 
+  it('matches parsed origins by scheme, host, and effective port', async () => {
+    const app = testApplication(
+      {},
+      { secureCookies: true, publicOrigin: 'https://forms.example.com' },
+    );
+    const xsrf = await bootstrapXsrf(app);
+    const accepted = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/register',
+      headers: xsrfHeaders(xsrf, 'https://forms.example.com:443'),
+      payload: { email: 'person@example.com', password: 'a sufficiently long password' },
+    });
+    expect(accepted.statusCode).toBe(202);
+
+    for (const origin of [
+      'http://forms.example.com',
+      'https://forms.example.com:444',
+      'https://forms.example.com.attacker.example',
+      'https://forms.example.com/path',
+    ]) {
+      const rejected = await app.inject({
+        method: 'POST',
+        url: '/api/v1/auth/register',
+        headers: xsrfHeaders(xsrf, origin),
+        payload: { email: 'person@example.com', password: 'a sufficiently long password' },
+      });
+      expect(rejected.statusCode).toBe(403);
+    }
+  });
+
   it('sets production host-only cookies and resolves then idempotently logs out', async () => {
     const logout = { execute: vi.fn(async () => undefined) };
     const app = testApplication(
@@ -146,7 +176,29 @@ describe('authentication HTTP boundary', () => {
     });
     expect(logoutResponse.statusCode).toBe(204);
     expect(logout.execute).toHaveBeenCalledWith('opaque-session-credential');
-    expect(setCookies(logoutResponse.headers['set-cookie']).join(';')).toContain('Max-Age=0');
+    const clearedCookies = setCookies(logoutResponse.headers['set-cookie']);
+    expect(clearedCookies).toHaveLength(2);
+    for (const clearedCookie of clearedCookies) {
+      expect(clearedCookie).toContain('Max-Age=0');
+      expect(clearedCookie).toContain('Path=/');
+      expect(clearedCookie).toContain('Secure');
+      expect(clearedCookie).toContain('SameSite=Lax');
+      expect(clearedCookie).not.toContain('Domain=');
+    }
+
+    const repeatedLogout = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/logout',
+      headers: {
+        cookie: `__Host-ff_session=opaque-session-credential; __Host-ff_xsrf=${xsrfValue}`,
+        origin: 'https://forms.example.com',
+        'x-xsrf-token': xsrfValue,
+      },
+      payload: {},
+    });
+    expect(repeatedLogout.statusCode).toBe(204);
+    expect(logout.execute).toHaveBeenCalledTimes(2);
+    expect(setCookies(repeatedLogout.headers['set-cookie'])).toHaveLength(2);
   });
 
   it('returns safe unauthenticated and throttled responses with Retry-After', async () => {
@@ -202,17 +254,11 @@ describe('authentication HTTP boundary', () => {
     expect(untrustedIdentifiers[0]).toBe('127.0.0.1');
   });
 
-  it('logs only a safe category for unexpected authentication failures', async () => {
-    const errorLog = vi.fn();
-    const logger = testLogger(errorLog);
+  it('returns no authentication input or failure details for unexpected failures', async () => {
     const secret = 'person@example.com with submitted-password-value';
-    const app = testApplication(
-      { registerAccount: { execute: async () => Promise.reject(new Error(secret)) } },
-      {},
-      undefined,
-      [],
-      logger,
-    );
+    const app = testApplication({
+      registerAccount: { execute: async () => Promise.reject(new Error(secret)) },
+    });
     const xsrf = await bootstrapXsrf(app);
     const response = await app.inject({
       method: 'POST',
@@ -222,11 +268,7 @@ describe('authentication HTTP boundary', () => {
     });
 
     expect(response.statusCode).toBe(500);
-    expect(JSON.stringify(errorLog.mock.calls)).not.toContain(secret);
-    expect(errorLog).toHaveBeenCalledWith(
-      { errorName: 'Error' },
-      'Unhandled authentication request error',
-    );
+    expect(response.body).not.toContain(secret);
   });
 });
 
@@ -238,7 +280,6 @@ function testApplication(
     retryAfterSeconds: 0,
   },
   observedIdentifiers: string[] = [],
-  loggerInstance?: FastifyBaseLogger,
 ): FastifyInstance {
   const rateRepository: AuthenticationRateLimitRepository = {
     consume: async () => rateResult,
@@ -274,10 +315,12 @@ function testApplication(
         },
       ],
       auth.rateLimitWindowMilliseconds,
+      auth.previousSecretValidUntilMilliseconds,
     ),
     xsrfTokens: new XsrfTokenService(
       auth.xsrfCurrentSecret,
       auth.xsrfPreviousSecret,
+      auth.previousSecretValidUntilMilliseconds,
       auth.xsrfLifetimeMilliseconds,
     ),
     ...overrides,
@@ -295,25 +338,9 @@ function testApplication(
     formDefinitionSource: new SeededFormDefinitionSource(),
     formSubmissionTransaction: { execute: async () => ({ status: 'created', submissionId: 'id' }) },
     authentication,
-    ...(loggerInstance ? { loggerInstance } : {}),
   });
   applications.push(app);
   return app;
-}
-
-function testLogger(error: ReturnType<typeof vi.fn>): FastifyBaseLogger {
-  const logger = {
-    level: 'info',
-    fatal: vi.fn(),
-    error,
-    warn: vi.fn(),
-    info: vi.fn(),
-    debug: vi.fn(),
-    trace: vi.fn(),
-    silent: vi.fn(),
-    child: () => logger,
-  };
-  return logger as unknown as FastifyBaseLogger;
 }
 
 function asyncResolver(

@@ -67,7 +67,7 @@ export function registerErrorHandler(app: FastifyInstance): void {
 
     if (request.url.startsWith('/api/v1/auth/')) {
       request.log.error(
-        { errorName: safeErrorName(error) },
+        { errorName: safeAuthenticationErrorName(error) },
         'Unhandled authentication request error',
       );
     } else {
@@ -77,7 +77,7 @@ export function registerErrorHandler(app: FastifyInstance): void {
   });
 }
 
-function safeErrorName(error: unknown): string {
+export function safeAuthenticationErrorName(error: unknown): string {
   return error instanceof Error && /^[A-Za-z][A-Za-z0-9]*$/.test(error.name)
     ? error.name
     : 'UnknownError';

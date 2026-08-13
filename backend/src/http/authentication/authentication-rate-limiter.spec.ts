@@ -11,6 +11,8 @@ describe('AuthenticationRateLimiter', () => {
       repository,
       [{ hash: () => 'a'.repeat(64) }, { hash: () => 'b'.repeat(64) }],
       60_000,
+      2_000_000,
+      () => 1_000_000,
     );
 
     await limiter.consume('login-account', 'person@example.com', 5);
@@ -30,11 +32,27 @@ describe('AuthenticationRateLimiter', () => {
       repository,
       [{ hash: () => 'a'.repeat(64) }, { hash: () => 'b'.repeat(64) }],
       60_000,
+      2_000_000,
+      () => 1_000_000,
     );
 
     await expect(limiter.consume('registration-account', 'identifier', 5)).rejects.toMatchObject({
       retryAfterSeconds: 19,
     });
     await expect(Promise.reject(new RateLimitedError(19))).rejects.toBeInstanceOf(RateLimitedError);
+  });
+
+  it('stops consulting the previous limiter identity after the bounded overlap', async () => {
+    const consume = vi.fn(async () => ({ allowed: true, retryAfterSeconds: 0 }));
+    const limiter = new AuthenticationRateLimiter(
+      { consume },
+      [{ hash: () => 'a'.repeat(64) }, { hash: () => 'b'.repeat(64) }],
+      60_000,
+      999_999,
+      () => 1_000_000,
+    );
+
+    await limiter.consume('login-account', 'identifier', 5);
+    expect(consume).toHaveBeenCalledOnce();
   });
 });

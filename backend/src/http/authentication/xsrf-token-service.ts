@@ -4,6 +4,7 @@ export class XsrfTokenService {
   constructor(
     private readonly currentSecret: string,
     private readonly previousSecret: string | undefined,
+    private readonly previousSecretValidUntilMilliseconds: number | undefined,
     private readonly lifetimeMilliseconds: number,
     private readonly now: () => number = Date.now,
   ) {}
@@ -47,7 +48,14 @@ export class XsrfTokenService {
 
   private verifySignature(payload: string, signature: string | undefined): boolean {
     if (!signature) return false;
-    return [this.currentSecret, this.previousSecret]
+    return [
+      this.currentSecret,
+      ...(this.previousSecret &&
+      this.previousSecretValidUntilMilliseconds !== undefined &&
+      this.now() < this.previousSecretValidUntilMilliseconds
+        ? [this.previousSecret]
+        : []),
+    ]
       .filter((secret): secret is string => secret !== undefined)
       .some((secret) => sameValue(this.sign(payload, secret), signature));
   }

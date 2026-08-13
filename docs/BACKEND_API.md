@@ -28,6 +28,8 @@ revokes a presented credential, clears both cookies, and returns `204`. Authenti
 `Cache-Control: no-store`. Generic failures are `401 invalid_credentials`, `401 unauthenticated`, `403
 forbidden`, or `429 rate_limited` with a safe `Retry-After`; submitted identifiers and credentials are never
 returned or logged. Durable source and normalized-account rate limits use independently keyed HMAC identities.
+Previous XSRF and limiter keys are accepted only until one validated rotation deadline, limited to a maximum
+24-hour overlap; current keys are always used for new tokens and identities.
 
 ## Get a form definition
 

@@ -23,6 +23,7 @@ describe('loadBackendConfig', () => {
         xsrfPreviousSecret: undefined,
         rateLimitCurrentSecret: 'development-only-rate-secret-change-me',
         rateLimitPreviousSecret: undefined,
+        previousSecretValidUntilMilliseconds: undefined,
         registrationRateLimit: 5,
         loginRateLimit: 10,
         rateLimitWindowMilliseconds: 900_000,
@@ -63,6 +64,7 @@ describe('loadBackendConfig', () => {
         xsrfPreviousSecret: undefined,
         rateLimitCurrentSecret: 'AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI',
         rateLimitPreviousSecret: undefined,
+        previousSecretValidUntilMilliseconds: undefined,
         registrationRateLimit: 5,
         loginRateLimit: 10,
         rateLimitWindowMilliseconds: 900_000,
@@ -124,5 +126,27 @@ describe('loadBackendConfig', () => {
         AUTH_SECURE_COOKIES: 'false',
       }),
     ).toThrow(BackendConfigurationError);
+  });
+
+  it('requires a bounded future deadline whenever previous auth secrets are configured', () => {
+    const base = {
+      DATABASE_URL: 'postgresql://localhost/form_farm',
+      XSRF_PREVIOUS_HMAC_SECRET: 'previous-xsrf-secret-that-is-at-least-32-bytes',
+    };
+    expect(() => loadBackendConfig(base)).toThrow(BackendConfigurationError);
+    expect(() =>
+      loadBackendConfig({
+        ...base,
+        AUTH_PREVIOUS_SECRET_VALID_UNTIL: new Date(Date.now() + 25 * 60 * 60_000).toISOString(),
+      }),
+    ).toThrow(BackendConfigurationError);
+
+    const validUntil = Date.now() + 60 * 60_000;
+    expect(
+      loadBackendConfig({
+        ...base,
+        AUTH_PREVIOUS_SECRET_VALID_UNTIL: new Date(validUntil).toISOString(),
+      }).auth.previousSecretValidUntilMilliseconds,
+    ).toBe(validUntil);
   });
 });

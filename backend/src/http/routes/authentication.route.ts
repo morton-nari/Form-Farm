@@ -164,10 +164,27 @@ function assertUnsafeRequest(request: FastifyRequest, publicOrigin: string): voi
   const fetchSite = headerValue(request, 'sec-fetch-site');
   if (
     contentType?.split(';', 1)[0]?.trim() !== 'application/json' ||
-    origin !== publicOrigin ||
+    !originsMatch(origin, publicOrigin) ||
     fetchSite === 'cross-site'
   ) {
     throw new ForbiddenAuthenticationRequestError();
+  }
+}
+
+function originsMatch(candidate: string | undefined, configured: string): boolean {
+  if (!candidate) return false;
+  try {
+    const parsed = new URL(candidate);
+    return (
+      parsed.pathname === '/' &&
+      parsed.search === '' &&
+      parsed.hash === '' &&
+      parsed.username === '' &&
+      parsed.password === '' &&
+      parsed.origin === new URL(configured).origin
+    );
+  } catch {
+    return false;
   }
 }
 

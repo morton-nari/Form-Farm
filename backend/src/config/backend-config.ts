@@ -17,6 +17,7 @@ const authConfigSchema = z
     xsrfPreviousSecret: secretSchema.optional(),
     rateLimitCurrentSecret: secretSchema,
     rateLimitPreviousSecret: secretSchema.optional(),
+    previousSecretValidUntilMilliseconds: z.number().int().positive().optional(),
     registrationRateLimit: z.number().int().positive(),
     loginRateLimit: z.number().int().positive(),
     rateLimitWindowMilliseconds: z.number().int().positive(),
@@ -36,6 +37,14 @@ const authConfigSchema = z
         code: 'custom',
         path: ['sessionIdleTimeoutMilliseconds'],
         message: 'timeout',
+      });
+    }
+    const hasPreviousSecret = Boolean(value.xsrfPreviousSecret || value.rateLimitPreviousSecret);
+    if (hasPreviousSecret !== (value.previousSecretValidUntilMilliseconds !== undefined)) {
+      context.addIssue({
+        code: 'custom',
+        path: ['previousSecretValidUntilMilliseconds'],
+        message: 'rotation',
       });
     }
   });
@@ -97,6 +106,9 @@ export function loadBackendConfig(environment: NodeJS.ProcessEnv = process.env):
         environment['RATE_LIMIT_HMAC_SECRET'] ??
         (development ? 'development-only-rate-secret-change-me' : undefined),
       rateLimitPreviousSecret: environment['RATE_LIMIT_PREVIOUS_HMAC_SECRET'],
+      previousSecretValidUntilMilliseconds: parseOptionalTimestamp(
+        environment['AUTH_PREVIOUS_SECRET_VALID_UNTIL'],
+      ),
       registrationRateLimit: parsePositiveInteger(environment['REGISTRATION_RATE_LIMIT'], 5),
       loginRateLimit: parsePositiveInteger(environment['LOGIN_RATE_LIMIT'], 10),
       rateLimitWindowMilliseconds: parsePositiveInteger(
@@ -145,6 +157,13 @@ export function loadBackendConfig(environment: NodeJS.ProcessEnv = process.env):
     result.data.auth.rateLimitPreviousSecret,
   ].filter((value): value is string => value !== undefined);
   if (new Set(secrets).size !== secrets.length) throw new BackendConfigurationError(['auth']);
+  const previousValidUntil = result.data.auth.previousSecretValidUntilMilliseconds;
+  if (
+    previousValidUntil !== undefined &&
+    (previousValidUntil <= Date.now() || previousValidUntil > Date.now() + 24 * 60 * 60_000)
+  ) {
+    throw new BackendConfigurationError(['auth']);
+  }
 
   Object.freeze(result.data.auth);
   return Object.freeze(result.data);
@@ -189,4 +208,10 @@ function parseBoolean(value: string | undefined, fallback: boolean): boolean | n
   if (value === 'true') return true;
   if (value === 'false') return false;
   return Number.NaN;
+}
+
+function parseOptionalTimestamp(value: string | undefined): number | undefined {
+  if (value === undefined) return undefined;
+  const timestamp = Date.parse(value);
+  return Number.isNaN(timestamp) ? Number.NaN : timestamp;
 }

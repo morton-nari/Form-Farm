@@ -47,10 +47,12 @@ export function createAuthenticationServices(
       new PostgresAuthenticationRateLimitRepository(database),
       rateLimitKeyGenerators,
       config.rateLimitWindowMilliseconds,
+      config.previousSecretValidUntilMilliseconds,
     ),
     xsrfTokens: new XsrfTokenService(
       config.xsrfCurrentSecret,
       config.xsrfPreviousSecret,
+      config.previousSecretValidUntilMilliseconds,
       config.xsrfLifetimeMilliseconds,
     ),
   };

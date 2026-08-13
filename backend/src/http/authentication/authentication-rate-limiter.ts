@@ -17,6 +17,8 @@ export class AuthenticationRateLimiter {
     private readonly repository: AuthenticationRateLimitRepository,
     private readonly keyGenerators: readonly AuthenticationRateLimitKeyGenerator[],
     private readonly windowMilliseconds: number,
+    private readonly previousKeyValidUntilMilliseconds: number | undefined = undefined,
+    private readonly now: () => number = Date.now,
   ) {}
 
   async consume(
@@ -28,7 +30,13 @@ export class AuthenticationRateLimiter {
       throw new Error('Authentication rate limiting is not configured.');
     }
     let retryAfterSeconds = 0;
-    for (const generator of this.keyGenerators) {
+    const activeGenerators = this.keyGenerators.filter(
+      (_generator, index) =>
+        index === 0 ||
+        (this.previousKeyValidUntilMilliseconds !== undefined &&
+          this.now() < this.previousKeyValidUntilMilliseconds),
+    );
+    for (const generator of activeGenerators) {
       const result = await this.repository.consume({
         scope,
         keyHash: generator.hash(identifier),

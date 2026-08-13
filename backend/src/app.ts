@@ -1,5 +1,5 @@
 import Fastify from 'fastify';
-import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
+import type { FastifyInstance } from 'fastify';
 import fastifyCookie from '@fastify/cookie';
 
 import { GetFormDefinition } from './application/forms/get-form-definition.js';
@@ -38,28 +38,23 @@ export interface CreateApplicationOptions {
   readonly formDefinitionSource: FormDefinitionSource;
   readonly formSubmissionTransaction: FormSubmissionTransaction;
   readonly authentication?: AuthenticationApplicationServices;
-  readonly loggerInstance?: FastifyBaseLogger;
   readonly closeInfrastructure?: () => Promise<void>;
 }
 
 export function createApplication(options: CreateApplicationOptions): FastifyInstance {
   const app = Fastify({
-    ...(options.loggerInstance
-      ? { loggerInstance: options.loggerInstance }
-      : {
-          logger:
-            options.config.logLevel === 'silent'
-              ? false
-              : {
-                  level: options.config.logLevel,
-                  redact: [
-                    'req.headers.cookie',
-                    'req.headers.authorization',
-                    'req.headers.x-xsrf-token',
-                    'res.headers.set-cookie',
-                  ],
-                },
-        }),
+    logger:
+      options.config.logLevel === 'silent'
+        ? false
+        : {
+            level: options.config.logLevel,
+            redact: [
+              'req.headers.cookie',
+              'req.headers.authorization',
+              'req.headers.x-xsrf-token',
+              'res.headers.set-cookie',
+            ],
+          },
     trustProxy: options.config.auth.trustedProxyHops || false,
   });
 

@@ -236,3 +236,5 @@ and relational user/system form ownership. The Fastify authentication boundary i
 routes, exact-origin and XSRF enforcement,
 opaque host-only cookies, durable source/account throttling, safe error mapping, and centralized startup
 configuration. Angular authentication and owner authorization remain separate consumers of this boundary.
+Immediately previous XSRF and limiter keys require an explicit future deadline no more than 24 hours away;
+validation stops consulting them at that deadline even if a process has not restarted.
