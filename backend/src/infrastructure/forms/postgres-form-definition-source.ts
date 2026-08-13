@@ -1,4 +1,5 @@
 import { and, eq } from 'drizzle-orm';
+import { validateFormDefinition } from '@form-farm/form-domain';
 
 import type { FormDefinitionSource } from '../../application/ports/form-definition-source.js';
 import type { FormFarmDatabase } from '../database/create-database.js';
@@ -8,45 +9,57 @@ export class PostgresFormDefinitionSource implements FormDefinitionSource {
   constructor(private readonly database: FormFarmDatabase) {}
 
   async findById(formId: string): Promise<unknown | undefined> {
-    const rows = await this.database
-      .select({
-        definition: formVersions.definition,
-        rowFormId: formVersions.formId,
-        rowVersion: formVersions.version,
-        rowSchemaVersion: formVersions.schemaVersion,
-      })
-      .from(forms)
-      .innerJoin(
-        formVersions,
-        and(
-          eq(formVersions.formId, forms.id),
-          eq(formVersions.version, forms.currentPublishedVersion),
-        ),
-      )
-      .where(eq(forms.id, formId))
-      .limit(1);
+    let rows;
+    try {
+      rows = await this.database
+        .select({
+          definition: formVersions.definition,
+          rowFormId: formVersions.formId,
+          rowVersion: formVersions.version,
+          rowSchemaVersion: formVersions.schemaVersion,
+        })
+        .from(forms)
+        .innerJoin(
+          formVersions,
+          and(
+            eq(formVersions.formId, forms.id),
+            eq(formVersions.version, forms.currentPublishedVersion),
+          ),
+        )
+        .where(eq(forms.id, formId))
+        .limit(1);
+    } catch {
+      throw new FormDefinitionPersistenceError(formId);
+    }
 
     const row = rows[0];
     if (!row) return undefined;
 
-    if (!matchesRelationalIdentity(row.definition, row)) {
+    const validation = validateFormDefinition(row.definition);
+    if (validation.success && !matchesRelationalIdentity(validation.value, row)) {
       return invalidIdentitySentinel(row);
     }
 
-    return row.definition;
+    return validation.success ? validation.value : row.definition;
+  }
+}
+
+export class FormDefinitionPersistenceError extends Error {
+  override readonly name = 'FormDefinitionPersistenceError';
+
+  constructor(readonly formId: string) {
+    super(`Unable to read persisted form definition "${formId}".`);
   }
 }
 
 function matchesRelationalIdentity(
-  definition: unknown,
+  definition: { readonly id: string; readonly formVersion: number; readonly schemaVersion: number },
   row: { rowFormId: string; rowVersion: number; rowSchemaVersion: number },
 ): boolean {
-  if (typeof definition !== 'object' || definition === null) return false;
-  const value = definition as Record<string, unknown>;
   return (
-    value['id'] === row.rowFormId &&
-    value['formVersion'] === row.rowVersion &&
-    value['schemaVersion'] === row.rowSchemaVersion
+    definition.id === row.rowFormId &&
+    definition.formVersion === row.rowVersion &&
+    definition.schemaVersion === row.rowSchemaVersion
   );
 }
 

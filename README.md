@@ -77,12 +77,15 @@ Before starting the backend, run PostgreSQL and apply the committed migration an
 docker compose up -d postgres
 $env:DATABASE_URL = 'postgresql://form_farm:form_farm_local@127.0.0.1:5432/form_farm'
 npm run db:migrate
+$env:ALLOW_DATABASE_SEED = 'true'
 npm run db:seed
 npm run backend:dev
 ```
 
 It listens on `http://127.0.0.1:3000` by default. `GET /health` returns `{ "status": "ok" }`, and
 `GET /api/v1/forms/customer-feedback` reads the current published version from PostgreSQL.
+The Compose credentials are development examples only and must never be reused in a hosted environment.
+The seed command requires `ALLOW_DATABASE_SEED=true` and refuses to run when `NODE_ENV=production`.
 
 For a clean, lockfile-based installation, such as in CI, use:
 

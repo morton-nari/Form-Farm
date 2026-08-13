@@ -56,3 +56,8 @@ source, but production composition does not use it.
 
 This read capability does not imply authorization or privileged workflow execution. Version creation,
 publishing operations, submissions, ownership, and dashboard queries remain planned work.
+
+An existing form with no current published version is intentionally indistinguishable from an unknown
+form at this public endpoint: both return `404 not_found`. This avoids exposing draft existence. A future
+authenticated management API may distinguish those states through a separate use case and authorization
+policy.

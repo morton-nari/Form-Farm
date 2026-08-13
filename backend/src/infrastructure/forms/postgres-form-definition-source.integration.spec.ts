@@ -6,6 +6,7 @@ import { Pool } from 'pg';
 
 import { GetFormDefinition } from '../../application/forms/get-form-definition.js';
 import { createDatabase } from '../database/create-database.js';
+import type { FormFarmDatabase } from '../database/create-database.js';
 import { CUSTOMER_FEEDBACK_FORM } from './customer-feedback.form.js';
 import { PostgresFormDefinitionSource } from './postgres-form-definition-source.js';
 
@@ -53,6 +54,7 @@ describe('PostgresFormDefinitionSource', () => {
   }, 60_000);
 
   afterAll(async () => {
+    await closeDatabase?.();
     await closeDatabase?.();
     await pool?.end();
     await container?.stop();
@@ -104,6 +106,28 @@ describe('PostgresFormDefinitionSource', () => {
 
     await expect(useCase.execute('malformed-form')).rejects.toMatchObject({
       name: 'InvalidStoredFormDefinitionError',
+    });
+
+    await pool.query(
+      `update form_versions set definition = $1::jsonb where form_id = 'malformed-form'`,
+      [JSON.stringify(CUSTOMER_FEEDBACK_FORM)],
+    );
+    await expect(useCase.execute('malformed-form')).rejects.toMatchObject({
+      name: 'InvalidStoredFormDefinitionError',
+    });
+  });
+
+  it('wraps query failures without exposing database details', async () => {
+    const failingDatabase = {
+      select: () => {
+        throw new Error('postgresql://secret@host query details');
+      },
+    } as unknown as FormFarmDatabase;
+    const source = new PostgresFormDefinitionSource(failingDatabase);
+
+    await expect(source.findById('customer-feedback')).rejects.toMatchObject({
+      name: 'FormDefinitionPersistenceError',
+      message: 'Unable to read persisted form definition "customer-feedback".',
     });
   });
 

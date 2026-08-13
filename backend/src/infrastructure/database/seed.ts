@@ -1,7 +1,9 @@
 import { Pool } from 'pg';
 
 import { CUSTOMER_FEEDBACK_FORM } from '../forms/customer-feedback.form.js';
+import { assertDatabaseSeedAllowed } from './seed-policy.js';
 
+assertDatabaseSeedAllowed(process.env);
 const databaseUrl = process.env['DATABASE_URL'];
 if (!databaseUrl) throw new Error('DATABASE_URL is required to seed the database.');
 

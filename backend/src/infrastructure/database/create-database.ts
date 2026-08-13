@@ -11,10 +11,14 @@ export function createDatabase(config: BackendConfig) {
     min: 0,
     connectionTimeoutMillis: 5_000,
   });
+  let closePromise: Promise<void> | undefined;
 
   return {
     database: drizzle(pool, { schema }),
-    close: async (): Promise<void> => pool.end(),
+    close: (): Promise<void> => {
+      closePromise ??= pool.end();
+      return closePromise;
+    },
   };
 }
 
