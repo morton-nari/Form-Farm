@@ -19,6 +19,7 @@
     "node": "^22.22.3 || >=24.15.0 <25 || >=26.0.0"
   },
   "dependencies": {
+    "@fastify/cookie": "11.0.2",
     "@form-farm/form-domain": "0.0.0",
     "argon2": "0.45.1",
     "drizzle-orm": "0.45.2",

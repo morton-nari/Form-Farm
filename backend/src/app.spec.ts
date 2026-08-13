@@ -7,6 +7,21 @@ import type { FormDefinitionSource } from './application/ports/form-definition-s
 import type { FormSubmissionTransaction } from './application/ports/form-submission-transaction.js';
 import { SeededFormDefinitionSource } from './infrastructure/forms/seeded-form-definition-source.js';
 
+const testAuthConfig = {
+  publicOrigin: 'http://localhost:4200',
+  secureCookies: false,
+  trustedProxyHops: 0,
+  sessionIdleTimeoutMilliseconds: 30 * 60_000,
+  sessionAbsoluteTimeoutMilliseconds: 7 * 24 * 60 * 60_000,
+  sessionActivityWriteCadenceMilliseconds: 5 * 60_000,
+  xsrfLifetimeMilliseconds: 10 * 60_000,
+  xsrfCurrentSecret: 'test-xsrf-secret-that-is-at-least-32-bytes',
+  rateLimitCurrentSecret: 'test-rate-secret-that-is-at-least-32-bytes',
+  registrationRateLimit: 5,
+  loginRateLimit: 10,
+  rateLimitWindowMilliseconds: 15 * 60_000,
+} as const;
+
 const applications: FastifyInstance[] = [];
 
 function createTestApplication(
@@ -21,6 +36,7 @@ function createTestApplication(
       logLevel: 'silent',
       databaseUrl: 'postgresql://localhost/test',
       databasePoolMax: 1,
+      auth: testAuthConfig,
     },
     formDefinitionSource: formDefinitionSource ?? new SeededFormDefinitionSource(),
     formSubmissionTransaction,
@@ -51,6 +67,7 @@ describe('createApplication', () => {
         logLevel: 'silent',
         databaseUrl: 'postgresql://localhost/test',
         databasePoolMax: 1,
+        auth: testAuthConfig,
       },
       formDefinitionSource: new SeededFormDefinitionSource(),
       formSubmissionTransaction: successfulSubmissionTransaction(),

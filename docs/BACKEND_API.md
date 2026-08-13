@@ -1,7 +1,33 @@
 # Form Farm AI Backend API
 
-This document describes implemented HTTP behavior. Authentication, form writes/publishing, and AI
-operations are not part of the current API. The Angular form viewer consumes both generic form endpoints.
+This document describes implemented HTTP behavior. Form writes/publishing and AI operations are not part of
+the current API. The Angular form viewer consumes the generic form endpoints; Angular authentication wiring is
+a separate follow-up.
+
+## Authentication
+
+The backend exposes fixed trusted routes; form definitions cannot select or alter them:
+
+```text
+GET  /api/v1/auth/xsrf
+POST /api/v1/auth/register
+POST /api/v1/auth/login
+GET  /api/v1/auth/session
+POST /api/v1/auth/logout
+```
+
+`GET /xsrf` returns `204` and issues a readable, host-only XSRF cookie. Every unsafe authentication request
+requires JSON, the exact configured `Origin`, and a matching `X-XSRF-TOKEN` header. Registration returns the
+same `202 { "accepted": true }` contract whether a normalized account identifier was newly stored or already
+existed. Login returns `200 { "authenticated": true }` and replaces the bootstrap token with a session-bound
+XSRF token plus an opaque HttpOnly session cookie. Production cookies use `__Host-` names, `Secure`,
+`SameSite=Lax`, `Path=/`, and no `Domain`; explicit loopback development configuration uses non-secure names.
+
+`GET /session` returns `200` only for an active, unexpired, unrevoked PostgreSQL session. Logout is idempotent,
+revokes a presented credential, clears both cookies, and returns `204`. Authentication responses use
+`Cache-Control: no-store`. Generic failures are `401 invalid_credentials`, `401 unauthenticated`, `403
+forbidden`, or `429 rate_limited` with a safe `Retry-After`; submitted identifiers and credentials are never
+returned or logged. Durable source and normalized-account rate limits use independently keyed HMAC identities.
 
 ## Get a form definition
 
