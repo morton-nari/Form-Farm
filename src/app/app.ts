@@ -1,10 +1,10 @@
 import { Component } from '@angular/core';
 
-import { QuoteJourneyPage } from './features/quote-journey/pages/quote-journey-page/quote-journey-page';
+import { FormViewerPage } from './features/form-viewer/pages/form-viewer-page/form-viewer-page';
 
 @Component({
   selector: 'app-root',
-  imports: [QuoteJourneyPage],
+  imports: [FormViewerPage],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })

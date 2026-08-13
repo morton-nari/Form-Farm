@@ -1,10 +1,7 @@
 {
   "/api": {
-    "target": "https://insurance-quote-api-f4h7ebg2hrg8f3gh.australiasoutheast-01.azurewebsites.net",
-    "secure": true,
-    "changeOrigin": true,
-    "pathRewrite": {
-      "^/api": ""
-    }
+    "target": "http://127.0.0.1:3000",
+    "secure": false,
+    "changeOrigin": true
   }
 }
