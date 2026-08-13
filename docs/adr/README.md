@@ -27,3 +27,4 @@ Do not create ADRs for minor implementation details or decisions that have not y
 - [ADR 0002: Backend framework](0002-backend-framework.md)
 - [ADR 0003: PostgreSQL persistence tooling and data model](0003-postgresql-persistence.md)
 - [ADR 0004: Version-bound form submissions](0004-versioned-form-submissions.md)
+- [ADR 0005: Authentication, sessions, and form ownership](0005-authentication-sessions-and-ownership.md)

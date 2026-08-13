@@ -224,8 +224,11 @@ Users preview and approve generated forms before persistence or publication.
 ## Decisions still required
 
 - PostgreSQL persistence implementation
-- Authentication strategy
 - Hosting architecture
 - AI provider and provider-abstraction boundary
 
 Each significant decision will be evaluated when its milestone begins and recorded in an ADR.
+
+The proposed authentication, opaque-session, CSRF, and form-ownership boundaries are recorded in
+[`ADR 0005`](adr/0005-authentication-sessions-and-ownership.md). Authentication remains unimplemented;
+the ADR separates backend accounts/sessions, Angular navigation, and the owner dashboard into focused slices.

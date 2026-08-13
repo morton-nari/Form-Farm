@@ -59,6 +59,7 @@ Status: **in progress**
 
 ## Phase 5 — Authentication and authorization
 
+- [x] Define authentication, session, CSRF, and ownership architecture in ADR 0005
 - Implement sign-up, login, logout, and session handling
 - Protect frontend routes and backend operations
 - Add user form ownership and authorization, with organizations deferred until justified
