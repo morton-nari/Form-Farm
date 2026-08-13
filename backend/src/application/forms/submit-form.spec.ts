@@ -6,7 +6,10 @@ import { fingerprintRequest, SubmitForm } from './submit-form.js';
 describe('SubmitForm', () => {
   it('validates through the exact stored version and returns creation identity', async () => {
     const transaction: FormSubmissionTransaction = {
-      execute: vi.fn(async (_request, validate) => {
+      execute: vi.fn(async (transactionRequest, validate) => {
+        expect(transactionRequest.requestFingerprint).toBe(
+          fingerprintRequest('customer-feedback', 1, { overallRating: 'good' }),
+        );
         expect(validate(stored())).toEqual({ overallRating: 'good' });
         return { status: 'created', submissionId: 'id' };
       }),
@@ -42,6 +45,34 @@ describe('SubmitForm', () => {
     expect(() => fingerprintRequest('form', 1, { value: '\ud800' })).toThrowError(
       expect.objectContaining({ code: 'invalid_input' }),
     );
+  });
+
+  it('rejects a password form even when the password answer is omitted', async () => {
+    const transaction: FormSubmissionTransaction = {
+      execute: async (_request, validate) => {
+        validate({
+          ...stored(),
+          definition: {
+            ...CUSTOMER_FEEDBACK_FORM,
+            sections: [
+              {
+                id: 'credentials',
+                title: 'Credentials',
+                fields: [{ id: 'password', type: 'password', label: 'Password' }],
+              },
+            ],
+          },
+        });
+        return { status: 'created', submissionId: 'must-not-be-created' };
+      },
+    };
+
+    await expect(
+      new SubmitForm(transaction).execute({ ...request(), answers: {} }),
+    ).rejects.toMatchObject({
+      name: 'InvalidFormSubmissionError',
+      issues: [{ path: ['answers', 'password'], code: 'unsupported_field' }],
+    });
   });
 });
 

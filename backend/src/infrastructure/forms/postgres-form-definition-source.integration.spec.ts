@@ -204,6 +204,36 @@ describe('PostgresFormDefinitionSource', () => {
     ).rejects.toMatchObject({ code: 'not_found' });
   });
 
+  it('rejects an unpublished version of an otherwise published form', async () => {
+    await insertPublishedForm('unpublished-version-form', {
+      ...CUSTOMER_FEEDBACK_FORM,
+      id: 'unpublished-version-form',
+    });
+    await pool.query(
+      `insert into form_versions (form_id, version, schema_version, definition)
+       values ('unpublished-version-form', 2, 1, $1::jsonb)`,
+      [
+        JSON.stringify({
+          ...CUSTOMER_FEEDBACK_FORM,
+          id: 'unpublished-version-form',
+          formVersion: 2,
+        }),
+      ],
+    );
+    await pool.query(
+      `update forms set latest_version = 2 where id = 'unpublished-version-form'`,
+    );
+
+    await expect(
+      submitForm.execute({
+        formId: 'unpublished-version-form',
+        formVersion: 2,
+        answers: { overallRating: 'good' },
+        idempotencyKey: '550e8400-e29b-41d4-a716-446655440006',
+      }),
+    ).rejects.toMatchObject({ code: 'not_found' });
+  });
+
   it('fails closed when persisted data becomes malformed', async () => {
     await insertPublishedForm('malformed-form', {
       ...CUSTOMER_FEEDBACK_FORM,
@@ -229,6 +259,19 @@ describe('PostgresFormDefinitionSource', () => {
     await expect(useCase.execute('malformed-form')).rejects.toMatchObject({
       name: 'InvalidStoredFormDefinitionError',
     });
+
+    await expect(
+      submitForm.execute({
+        formId: 'malformed-form',
+        formVersion: 1,
+        answers: { overallRating: 'good' },
+        idempotencyKey: '550e8400-e29b-41d4-a716-446655440007',
+      }),
+    ).rejects.toMatchObject({ name: 'FormSubmissionPersistenceError' });
+    const inserted = await pool.query(
+      `select count(*)::integer as count from form_submissions where form_id = 'malformed-form'`,
+    );
+    expect(inserted.rows[0].count).toBe(0);
   });
 
   it('wraps query failures without exposing database details', async () => {
