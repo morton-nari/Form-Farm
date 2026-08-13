@@ -49,10 +49,13 @@ Registration returns `202 accepted` after a syntactically and policy-valid reque
 inserted or already existed. It performs the same normalization, password-policy checks, and Argon2id work
 before the conflict-safe insert path so an existing identifier does not take an obviously cheaper route. Weak
 or compromised passwords may return a policy error because that result is independent of account existence.
+The Angular confirmation says only that the request was accepted and directs the user to login; it must not
+claim that a new account was definitely created.
 
-Successful login creates a fresh session. Authentication responses and timing cannot be perfectly identical
-over a network, but implementation tests must avoid obvious status, body, database-path, and password-hash
-discrepancies.
+Successful login always creates a new opaque session token. It never upgrades, adopts, or reuses the
+pre-authentication XSRF credential or any caller-supplied session identifier. Authentication responses and
+timing cannot be perfectly identical over a network, but implementation tests must avoid obvious status,
+body, database-path, and password-hash discrepancies.
 
 ### Email and password policy
 
@@ -60,23 +63,29 @@ Email is an account identifier, not proof that a mailbox is controlled. Store th
 and a separately normalized value for uniqueness. The backend trims, applies Unicode NFC, and lowercases
 with a locale-independent operation before validation and lookup. The initial maximum is 254 Unicode code
 points. A database unique constraint is the final concurrency guarantee. Registration and login share tests
-for the normalization algorithm.
+for the normalization algorithm. Treating the complete address, including its local part, as
+case-insensitive is an intentional Form Farm account-identity policy for predictable login and uniqueness;
+it is not asserted to be a universal email-delivery rule.
 
 Passwords:
 
 - are accepted only by dedicated auth models and are never `FormAnswers`;
 - require 15 to 1,024 Unicode code points inside a 16 KiB auth request limit;
 - accept spaces and Unicode, with no composition rules or forced periodic rotation;
-- use Unicode NFC before hashing, with that behavior stated to users;
+- are hashed and verified exactly as entered, without trimming, case folding, or Unicode normalization;
 - are checked as a whole against a maintained local/offline common-password blocklist, never sent to a
   third-party service;
 - have a bounded request size and documented maximum to prevent resource exhaustion;
 - are hashed with Argon2id and a unique library-generated salt.
 
 The Argon2id floor is 19 MiB memory, two iterations, and parallelism one. Production must benchmark a
-higher work factor without falling below it. Parameters remain encoded in each hash so successful login can
-rehash when policy increases. Passwords, candidate hashes, and blocklist matches never enter logs. A pepper
-is deferred because its rotation and recovery lifecycle is not yet designed.
+higher work factor without falling below it. Before release, benchmark the configured parameters under the
+deployment's expected concurrent-login load and record a target authentication-latency budget; the OWASP
+floor is not the final production tuning decision. Parameters remain encoded in each hash so successful login
+can rehash when policy increases. Exact password preservation and length boundaries must have shared
+registration/login tests, including canonically equivalent but byte-distinct Unicode strings. Passwords,
+candidate hashes, and blocklist matches never enter logs. A pepper is deferred because its rotation and
+recovery lifecycle is not yet designed.
 
 ### Session credential and storage
 
@@ -97,9 +106,15 @@ configuration; production startup rejects insecure cookie configuration. Credent
 Session rows contain a PostgreSQL-owned UUID, `user_id` foreign key, unique `token_hash`, database-owned
 `created_at`, `last_seen_at`, `idle_expires_at`, and `absolute_expires_at`, plus nullable `revoked_at`.
 Initial configurable defaults are a 30-minute idle timeout and seven-day absolute timeout. Every request
-enforces both server-side and confirms the related user remains active. `last_seen_at` may advance at a bounded cadence to avoid writes on every request,
-but that cadence is included in expiry semantics. Logout sets `revoked_at`. Cleanup is explicit. Renewal
-beyond login rotation is deferred until measured UX or threat requirements justify its race complexity.
+enforces both server-side and confirms the related user remains active. The initial activity-write cadence is
+five minutes: a successful authenticated request updates `last_seen_at` and sets `idle_expires_at` to 30
+minutes after the database's current time only when at least five minutes have elapsed since the previous
+write. The persisted `idle_expires_at` remains authoritative, so a request at or after it is expired rather
+than revived. Configuration must require the write cadence to be positive and shorter than the idle timeout.
+Logout sets `revoked_at`. A daily deployment job deletes sessions whose revocation or final expiry is older
+than 30 days; the first schema supports this indexed cleanup even if job scheduling lands in a later
+operational slice. Renewal beyond login rotation is deferred until measured UX or threat requirements justify
+its race complexity.
 
 ### CSRF and browser boundary
 
@@ -115,9 +130,13 @@ Every unsafe browser request, including registration and login, requires:
 
 Angular's built-in XSRF support uses owned cookie/header names. The readable XSRF cookie is host-only,
 `Secure`, `SameSite=Lax`, and never contains the session credential. For authenticated sessions its value is
-derived with a backend HMAC secret from the opaque credential. The unauthenticated bootstrap/login flow gets
-an equivalent short-lived pre-authentication token. Tokens never appear in URLs or logs. Missing, malformed,
-expired, or mismatched origin/XSRF evidence fails closed with generic `403 forbidden`.
+derived with a backend HMAC secret from the opaque credential. The unauthenticated bootstrap is deliberately
+stateless rather than a second session: `/api/v1/auth/xsrf` issues a random nonce plus issued-at and expiry
+(ten minutes) authenticated by the XSRF HMAC key. The signed value is stored only in the readable host-only
+XSRF cookie and must be echoed unchanged in the header. It carries no user identity, grants no authentication,
+cannot be renewed by unsafe requests, and is replaced when login creates the session-bound XSRF value. Tokens
+never appear in URLs or logs. Missing, malformed, expired, or mismatched origin/XSRF evidence fails closed
+with generic `403 forbidden`.
 
 Fetch Metadata may reject obvious cross-site unsafe requests as defence in depth, but does not replace origin
 and XSRF validation. Client code keeps fixed endpoints so attacker-controlled URL data cannot make Angular a
@@ -126,7 +145,9 @@ confused request deputy.
 ### Rate limiting and enumeration resistance
 
 Registration and login use both a coarse trusted source-IP/network limit and an account-keyed limit derived
-from an HMAC of the normalized identifier. Raw email is not a limiter key or log field. Limits are atomic and
+from an HMAC of the normalized identifier. The rate-limit HMAC uses its own current/previous rotation keys,
+separate from session-token hashing and XSRF secrets, and rotates without resetting all active counters. Raw
+email is not a limiter key or log field. Limits are atomic and
 shared across instances before horizontal scaling. An in-memory Fastify limiter is local-development or
 coarse single-instance protection, not the production account-guessing boundary.
 
@@ -143,7 +164,9 @@ than hard-deleted initially. Session and ownership foreign keys use `on delete r
 
 Add nullable `forms.owner_user_id` referencing `users.id` plus `ownership_kind` constrained to `user` or
 `system`. A check requires a user owner exactly when kind is `user`; the existing seeded demo form is
-explicitly backfilled as `system`. Every owner-created form is user-owned. Index
+explicitly backfilled as `system`. The database check is exactly `(ownership_kind = 'user' and
+owner_user_id is not null) or (ownership_kind = 'system' and owner_user_id is null)`, so no ownerless user
+row can be inserted through application defects or direct SQL. Every owner-created form is user-owned. Index
 `(owner_user_id, updated_at desc)` for dashboard queries.
 
 Protected form reads and writes query by form ID and authenticated owner ID. Another user's form returns
@@ -170,10 +193,14 @@ UUIDs after authentication, routes, and safe categories. They never contain emai
 XSRF tokens, token/password hashes, cookies, authorization/XSRF headers, definitions, or answers. Header
 redaction covers `cookie`, `set-cookie`, authorization, and XSRF headers.
 
-Central startup configuration adds the public origin, cookie mode, timeouts, rate limits, trusted-proxy policy,
-and current/previous XSRF HMAC secrets. Production secrets come from hosting secret management or injected
+Central startup configuration adds the exact public application origin, cookie mode, timeouts, rate limits,
+trusted-proxy policy, and independent current/previous XSRF and limiter HMAC secrets. The public origin is
+never inferred from `Host`, `Forwarded`, or `X-Forwarded-*`. Proxy-derived client IP and protocol are accepted
+only from an explicit deployment-specific proxy IP/CIDR allowlist or exact hop count; forwarded headers from
+direct/untrusted peers are ignored. Production secrets come from hosting secret management or injected
 environment, are entropy-validated, and are never logged. Application code receives typed configuration.
-Rotation accepts the current and immediately previous XSRF key for a bounded overlap and issues with current.
+Rotation accepts each purpose's immediately previous key for a bounded overlap and always issues with its
+current key.
 
 ## Integration and security test strategy
 
@@ -183,10 +210,16 @@ Implementation issues must cover:
 - normalization parity, password boundaries/blocklist, Argon2id parameters, dummy verification, and rehash;
 - cookie name plus `Secure`, `HttpOnly`, `SameSite`, `Path`, and absent `Domain` attributes;
 - valid, malformed, expired, absolute-expired, and revoked sessions, login rotation, and logout;
+- successful login replacing rather than upgrading every pre-authentication credential;
+- deterministic five-minute activity writes, the idle-expiry boundary, and cleanup eligibility/index use;
 - positive and negative origin, JSON content, XSRF, Fetch Metadata, and trusted-proxy cases;
+- pre-authentication XSRF expiry, tampering, header/cookie mismatch, lack of user binding, and replacement on
+  login;
 - atomic multi-dimensional throttling and enumeration-safe bodies/statuses;
 - owner A accessing only A's forms, owner B receiving not-found, the system seed staying non-user-owned, and
   public published reads remaining available;
+- a valid active session for owner B remaining insufficient to list, read, update, publish, or archive owner
+  A's resources, keeping authentication success distinct from authorization success;
 - foreign keys, uniqueness, ownership checks, deletion restrictions, indexes, and migration on PostgreSQL 18;
 - logging and error mapping without credential, email, definition, or answer leakage;
 - Angular registration-to-login, session bootstrap, dashboard guard, logout, focus, retry, and safe errors.
