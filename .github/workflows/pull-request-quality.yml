@@ -1,0 +1,67 @@
+name: Pull request quality
+
+on:
+  pull_request:
+    branches: [dev]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pull-request-quality-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  frontend-and-domain:
+    name: Frontend and domain
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: npm
+
+      - name: Set up npm
+        run: npm install --global npm@12.0.2
+
+      - name: Install dependencies from lockfile
+        run: npm ci
+
+      - name: Run frontend and domain tests
+        run: npm test
+
+      - name: Build frontend and domain
+        run: npm run build
+
+  backend:
+    name: Backend
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: npm
+
+      - name: Set up npm
+        run: npm install --global npm@12.0.2
+
+      - name: Install dependencies from lockfile
+        run: npm ci
+
+      - name: Run backend tests
+        run: npm run backend:test
+
+      - name: Build backend
+        run: npm run backend:build

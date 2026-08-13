@@ -24,13 +24,9 @@ describe('PostgresFormDefinitionSource', () => {
         POSTGRES_PASSWORD: 'form_farm_test',
       })
       .withExposedPorts(5432)
-      .withHealthCheck({
-        test: ['CMD-SHELL', 'pg_isready -U form_farm -d form_farm_test'],
-        interval: 1_000,
-        timeout: 5_000,
-        retries: 20,
-      })
-      .withWaitStrategy(Wait.forHealthCheck())
+      // The image starts a temporary initialization server before the final server.
+      // Waiting for the second ready message avoids connecting during that restart window.
+      .withWaitStrategy(Wait.forLogMessage(/database system is ready to accept connections/, 2))
       .start();
 
     const databaseUrl = `postgresql://form_farm:form_farm_test@${container.getHost()}:${container.getMappedPort(5432)}/form_farm_test`;
