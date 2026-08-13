@@ -1,4 +1,9 @@
-import { provideHttpClient, withInterceptors, withNoXsrfProtection } from '@angular/common/http';
+import {
+  HttpClient,
+  provideHttpClient,
+  withInterceptors,
+  withNoXsrfProtection,
+} from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import type { TestRequest } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
@@ -8,6 +13,7 @@ import { vi } from 'vitest';
 
 import { routes } from './app.routes';
 import { formFarmXsrfInterceptor } from './core/api/xsrf.interceptor';
+import { AuthenticationStore } from './core/auth/authentication.store';
 
 describe('authentication navigation', () => {
   let http: HttpTestingController;
@@ -55,16 +61,16 @@ describe('authentication navigation', () => {
     element.querySelector<HTMLButtonElement>('button[type="submit"]')!.click();
 
     http.expectOne('/api/v1/auth/xsrf').flush(null);
-    await Promise.resolve();
-    const registration = http.expectOne('/api/v1/auth/register');
+    const registration = await waitForRequest('/api/v1/auth/register');
     expect(registration.request.body).toEqual({
       email: 'person@example.com',
       password: 'a sufficiently long password',
     });
     registration.flush({ accepted: true });
-    await harness.fixture.whenStable();
-
-    expect(TestBed.inject(Router).url).toBe('/login?registration=accepted');
+    await vi.waitFor(() =>
+      expect(TestBed.inject(Router).url).toBe('/login?registration=accepted'),
+    );
+    harness.fixture.detectChanges();
     expect(harness.routeNativeElement?.textContent).toContain('registration request was accepted');
   });
 
@@ -77,13 +83,12 @@ describe('authentication navigation', () => {
     setInput(element, '#login-password', 'wrong password');
     element.querySelector<HTMLButtonElement>('button[type="submit"]')!.click();
     http.expectOne('/api/v1/auth/xsrf').flush(null);
-    await Promise.resolve();
-    http
-      .expectOne('/api/v1/auth/login')
+    (await waitForRequest('/api/v1/auth/login'))
       .flush('database details', { status: 401, statusText: 'Unauthorized' });
-    await harness.fixture.whenStable();
-
-    expect(element.textContent).toContain('The email or password is incorrect.');
+    await vi.waitFor(() => {
+      harness.fixture.detectChanges();
+      expect(element.textContent).toContain('The email or password is incorrect.');
+    });
     expect(element.textContent).not.toContain('database details');
     await vi.waitFor(() => expect(document.activeElement?.getAttribute('role')).toBe('alert'));
   });
@@ -97,11 +102,9 @@ describe('authentication navigation', () => {
     setInput(element, '#login-password', 'a sufficiently long password');
     element.querySelector<HTMLButtonElement>('button[type="submit"]')!.click();
     http.expectOne('/api/v1/auth/xsrf').flush(null);
-    await Promise.resolve();
-    http.expectOne('/api/v1/auth/login').flush({ authenticated: true });
-    await harness.fixture.whenStable();
-
-    expect(TestBed.inject(Router).url).toBe('/forms');
+    (await waitForRequest('/api/v1/auth/login')).flush({ authenticated: true });
+    await vi.waitFor(() => expect(TestBed.inject(Router).url).toBe('/forms'));
+    harness.fixture.detectChanges();
     expect(harness.routeNativeElement?.textContent).toContain('Your forms');
   });
 
@@ -142,6 +145,35 @@ describe('authentication navigation', () => {
     expect(harness.routeNativeElement?.textContent).toContain('Sign in');
   });
 
+  it('shares a simultaneous pre-authentication XSRF bootstrap request', async () => {
+    const store = TestBed.inject(AuthenticationStore);
+    const login = store.login('person@example.com', 'password');
+    const registration = store.register('another@example.com', 'a sufficiently long password');
+
+    const bootstrap = http.expectOne('/api/v1/auth/xsrf');
+    bootstrap.flush(null);
+    (await waitForRequest('/api/v1/auth/login')).flush({ authenticated: true });
+    (await waitForRequest('/api/v1/auth/register')).flush({ accepted: true });
+
+    await expect(login).resolves.toBe('authenticated');
+    await expect(registration).resolves.toBe('accepted');
+  });
+
+  it('clears authenticated client state when a later owned API request returns 401', async () => {
+    const store = TestBed.inject(AuthenticationStore);
+    const bootstrap = store.bootstrap();
+    await flushSession(200);
+    await bootstrap;
+    expect(store.status()).toBe('authenticated');
+
+    TestBed.inject(HttpClient).get('/api/v1/forms').subscribe({ error: () => undefined });
+    http
+      .expectOne('/api/v1/forms')
+      .flush({}, { status: 401, statusText: 'Unauthorized' });
+
+    expect(store.status()).toBe('anonymous');
+  });
+
   async function flushSession(status: 200 | 401): Promise<void> {
     let request: TestRequest | undefined;
     await vi.waitFor(() => {
@@ -153,6 +185,17 @@ describe('authentication navigation', () => {
     status === 200
       ? request.flush({ authenticated: true })
       : request.flush({}, { status: 401, statusText: 'Unauthorized' });
+  }
+
+  async function waitForRequest(url: string): Promise<TestRequest> {
+    let request: TestRequest | undefined;
+    await vi.waitFor(() => {
+      const requests = http.match(url);
+      expect(requests).toHaveLength(1);
+      request = requests[0];
+    });
+    if (!request) throw new Error(`Expected request: ${url}`);
+    return request;
   }
 });
 

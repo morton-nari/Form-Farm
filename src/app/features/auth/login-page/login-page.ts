@@ -62,6 +62,17 @@ export class LoginPage {
   }
 }
 
-function safeReturnUrl(value: string | null): string {
-  return value === '/forms' || value?.startsWith('/forms/') ? value : '/forms';
+export function safeReturnUrl(value: string | null): string {
+  if (!value || !value.startsWith('/') || value.startsWith('//') || value.includes('\\')) {
+    return '/forms';
+  }
+  try {
+    const parsed = new URL(value, 'https://form-farm.invalid');
+    return parsed.origin === 'https://form-farm.invalid' &&
+      (parsed.pathname === '/forms' || parsed.pathname.startsWith('/forms/'))
+      ? `${parsed.pathname}${parsed.search}${parsed.hash}`
+      : '/forms';
+  } catch {
+    return '/forms';
+  }
 }

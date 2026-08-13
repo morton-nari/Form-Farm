@@ -1,5 +1,10 @@
 import { DOCUMENT } from '@angular/common';
-import { provideHttpClient, withInterceptors, withNoXsrfProtection } from '@angular/common/http';
+import {
+  HttpClient,
+  provideHttpClient,
+  withInterceptors,
+  withNoXsrfProtection,
+} from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 
@@ -33,6 +38,29 @@ describe('readXsrfToken', () => {
     expect(request.request.headers.get('X-XSRF-TOKEN')).toBe('owned-xsrf-token');
     expect(request.request.headers.has('Authorization')).toBe(false);
     request.flush({ authenticated: true });
+    http.verify();
+  });
+
+  it('never adds the token to safe methods or external and non-API URLs', () => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideHttpClient(withNoXsrfProtection(), withInterceptors([formFarmXsrfInterceptor])),
+        provideHttpClientTesting(),
+      ],
+    });
+    TestBed.inject(DOCUMENT).cookie = 'ff_xsrf=owned-xsrf-token; Path=/';
+    const client = TestBed.inject(HttpClient);
+    const http = TestBed.inject(HttpTestingController);
+
+    client.get('/api/v1/forms').subscribe();
+    client.head('/api/v1/forms').subscribe();
+    client.post('https://example.com/api/v1/forms', {}).subscribe();
+    client.post('/not-api/forms', {}).subscribe();
+
+    for (const request of http.match(() => true)) {
+      expect(request.request.headers.has('X-XSRF-TOKEN')).toBe(false);
+      request.flush(null);
+    }
     http.verify();
   });
 });

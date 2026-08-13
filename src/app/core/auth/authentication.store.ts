@@ -10,6 +10,7 @@ export type AuthenticationStatus = 'loading' | 'anonymous' | 'authenticated' | '
 export class AuthenticationStore {
   private readonly statusState = signal<AuthenticationStatus>('loading');
   private bootstrapPromise: Promise<AuthenticationStatus> | undefined;
+  private xsrfBootstrapPromise: Promise<void> | undefined;
 
   readonly status = this.statusState.asReadonly();
   readonly authenticated = computed(() => this.statusState() === 'authenticated');
@@ -23,7 +24,7 @@ export class AuthenticationStore {
 
   async login(email: string, password: string): Promise<'authenticated' | 'invalid' | 'error'> {
     try {
-      await firstValueFrom(this.api.bootstrapXsrf());
+      await this.ensureXsrfCookie();
       const response = await firstValueFrom(this.api.login(email, password));
       if (!isExactBooleanResponse(response, 'authenticated')) throw new InvalidAuthResponseError();
       this.statusState.set('authenticated');
@@ -37,7 +38,7 @@ export class AuthenticationStore {
 
   async register(email: string, password: string): Promise<'accepted' | 'invalid' | 'error'> {
     try {
-      await firstValueFrom(this.api.bootstrapXsrf());
+      await this.ensureXsrfCookie();
       const response = await firstValueFrom(this.api.register(email, password));
       if (!isExactBooleanResponse(response, 'accepted')) throw new InvalidAuthResponseError();
       return 'accepted';
@@ -57,6 +58,11 @@ export class AuthenticationStore {
     }
   }
 
+  invalidateSession(): void {
+    this.statusState.set('anonymous');
+    this.bootstrapPromise = Promise.resolve('anonymous');
+  }
+
   private async loadSession(): Promise<AuthenticationStatus> {
     this.statusState.set('loading');
     try {
@@ -69,6 +75,15 @@ export class AuthenticationStore {
       );
     }
     return this.statusState();
+  }
+
+  private async ensureXsrfCookie(): Promise<void> {
+    this.xsrfBootstrapPromise ??= firstValueFrom(this.api.bootstrapXsrf());
+    try {
+      await this.xsrfBootstrapPromise;
+    } finally {
+      this.xsrfBootstrapPromise = undefined;
+    }
   }
 }
 
