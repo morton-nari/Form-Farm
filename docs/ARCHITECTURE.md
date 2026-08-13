@@ -42,8 +42,9 @@ without changing the provider-neutral engine.
 
 The repository also contains an initial Fastify 5 backend workspace. Its current implemented scope is
 deliberately limited to a testable application factory, startup configuration validation, `GET /health`,
-safe HTTP error mapping, graceful shutdown, and a PostgreSQL-backed form-definition read endpoint. It has
-no form writes, authentication, submissions, or AI integration yet.
+safe HTTP error mapping, graceful shutdown, a PostgreSQL-backed form-definition read endpoint, and an
+exact-version generic submission endpoint. It has no form-definition writes, authentication, or AI
+integration yet.
 
 ## Target architecture
 
@@ -146,8 +147,8 @@ build output must be reviewed when domain capabilities change.
 The Angular `shared/form-runner` maps validated domain fields into Reactive Form controls and accessible
 UI. It does not import legacy API models or encode quote, registration, payment, publishing, or other
 workflow behavior. The current frontend supports validation and answer review; it explicitly does not
-claim to submit or persist answers before an owned submission use case and endpoint exist.
-`DynamicFormFactory.getAnswers` extracts a provider-neutral `FormAnswers` map; future submission code
+claim to submit answers because frontend submission wiring remains a separate issue.
+`DynamicFormFactory.getAnswers` extracts a provider-neutral `FormAnswers` map; frontend submission code
 must pass that map to a trusted generic endpoint, never Angular controls or schema-defined actions.
 
 The version-one domain contract is defined in `packages/form-domain` and documented in
@@ -164,7 +165,7 @@ Submission button text and success text are versioned with the immutable form de
 version 1 because they are API-driven presentation content. They do not select a route, redirect,
 handler, or workflow outcome. That separation must be preserved as publishing capabilities evolve.
 
-The proposed submission boundary is recorded in
+The submission boundary is recorded in
 [`ADR 0004`](adr/0004-versioned-form-submissions.md). A client submits the form version it rendered and a
 provider-neutral answer map. The backend validates and persists those answers against that exact immutable
 version in one transaction-oriented application boundary. Generic submission persistence rejects

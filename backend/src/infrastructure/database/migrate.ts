@@ -5,10 +5,7 @@ import { Pool } from 'pg';
 const databaseUrl = process.env['DATABASE_URL'];
 if (!databaseUrl) throw new Error('DATABASE_URL is required to run migrations.');
 
-const migrationPath = fileURLToPath(
-  new URL('../../../drizzle/0000_initial_form_read.sql', import.meta.url),
-);
-const sql = await readFile(migrationPath, 'utf8');
+const migrations = ['0000_initial_form_read.sql', '0001_versioned_form_submissions.sql'] as const;
 const pool = new Pool({ connectionString: databaseUrl, max: 1 });
 
 try {
@@ -19,15 +16,16 @@ try {
       applied_at timestamptz not null default now()
     )
   `);
-  const applied = await pool.query<{ name: string }>(
-    'select name from form_farm_migrations where name = $1',
-    ['0000_initial_form_read.sql'],
-  );
-  if (applied.rowCount === 0) {
-    await pool.query(sql);
-    await pool.query('insert into form_farm_migrations (name) values ($1)', [
-      '0000_initial_form_read.sql',
-    ]);
+  for (const name of migrations) {
+    const applied = await pool.query<{ name: string }>(
+      'select name from form_farm_migrations where name = $1',
+      [name],
+    );
+    if (applied.rowCount === 0) {
+      const path = fileURLToPath(new URL(`../../../drizzle/${name}`, import.meta.url));
+      await pool.query(await readFile(path, 'utf8'));
+      await pool.query('insert into form_farm_migrations (name) values ($1)', [name]);
+    }
   }
   await pool.query('commit');
 } catch (error) {

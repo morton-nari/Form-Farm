@@ -156,7 +156,8 @@ Backend configuration is read and validated once at startup. Invalid configurati
 
 Fastify remains an HTTP adapter. Application and domain code do not depend on Fastify or database types.
 The backend reads the current published definition through an application-owned port and validates JSONB
-as untrusted data before returning it. It does not yet write forms or accept submissions.
+as untrusted data before returning it. It accepts validated, idempotent submissions against exact
+published versions but does not yet write form definitions.
 
 ## API development
 
@@ -170,7 +171,7 @@ Browser → /api/v1/forms/customer-feedback → Angular proxy → Fastify → Po
 The client receives `unknown`, and the feature store calls `validateFormDefinition` before exposing a
 definition to the renderer. The Angular development proxy is only active with `npm start`; a production
 host must provide equivalent same-origin `/api` forwarding. There is intentionally no frontend
-submission call until the owned submission use case is designed.
+submission call until the dedicated Angular submission issue is implemented.
 
 ## Quality and verification
 

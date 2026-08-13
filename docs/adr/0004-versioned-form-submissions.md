@@ -70,7 +70,9 @@ One application-owned transaction port coordinates the operation. Its infrastruc
 6. commits, or rolls back on every validation, eligibility, idempotency, or database failure.
 
 The callback and port use application/domain values only; transaction clients, Drizzle rows, and SQL
-types remain infrastructure details. Form publication and archival must use compatible row locking so a
+types remain infrastructure details. The callback is synchronous, deterministic, and CPU-only: it must
+never perform network calls, AI calls, or unrelated I/O while lifecycle rows are locked. Form publication
+and archival must use compatible row locking so a
 lifecycle change cannot interleave between the eligibility decision and insert. The existing composite
 foreign key remains the final exact-version integrity guarantee.
 
