@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Accepted
 
 ## Context
 
@@ -84,6 +84,9 @@ validateFormAnswers(definition: FormDefinition, input: unknown): FormAnswersVali
 
 Like `validateFormDefinition`, it hides Zod and returns deterministic, side-effect-free, provider-neutral
 issues. It performs no coercion, trimming, default application, or field-name inference.
+This validator defines answer semantics for the product. Angular maps those same domain semantics into
+Reactive Forms for early feedback; backend validation must not be implemented by copying Angular
+validator behavior or importing frontend code. Shared domain test vectors keep the two consumers aligned.
 
 The answer payload must be a plain JSON object. Keys are globally unique field IDs from the exact
 definition. Unknown keys, `null`, nested objects, non-JSON values, and values of the wrong discriminated
@@ -107,6 +110,9 @@ Field semantics are exhaustive:
 An empty string is still a string; `required` rejects it, while an optional field may contain it. No
 whitespace normalization occurs because password-like and free-text semantics make implicit trimming
 unsafe. Clients should omit unanswered optional fields, as the current Angular factory already does.
+Persistence and later analytics intentionally distinguish an omitted answer (the user supplied no value)
+from a present empty string (the user supplied an empty value). The first slice stores the validated map
+as received and does not normalize one representation into the other.
 
 Validation rules retain their schema meaning:
 
@@ -144,6 +150,16 @@ details, definitions, answers, credentials, and connection strings never enter c
 Operational logs may include a submission ID, form ID, form version, safe error category, and request
 correlation ID.
 
+The `422` issue shape, path segments, and owned issue-code vocabulary are a versioned application
+contract. Paths use `['answers', fieldId]` plus a stable rule segment only when needed. Codes describe
+Form Farm semantics such as missing, unknown field, invalid type, invalid format, invalid option, or rule
+violation; they never expose Zod issue names. Adding or changing codes requires contract tests and API
+version compatibility review.
+
+The 256 KiB body limit is an initial HTTP/operational default, not a form-domain invariant. Deployments
+may lower it, and raising it requires measured need and abuse/memory review; `FormDefinition` cannot
+override it.
+
 ### Idempotency
 
 Require an `Idempotency-Key` header for submission creation. The first Angular client generates a UUID,
@@ -151,13 +167,34 @@ retains it while retrying the same logical submission, and replaces it only afte
 submission succeeds.
 
 Persist the opaque key and a server-computed fingerprint of the canonical request alongside the
-submission. A database unique constraint enforces one result per key. Repeating the same key and
+submission. Version 1 intentionally uses a globally unique key. UUID keys make accidental cross-client
+collisions negligible, and global scope is the only honest boundary before actors or tenants exist. It
+also prevents one anonymous retry from creating duplicates across route instances. After authentication,
+a migration may scope uniqueness to a durable actor/tenant plus key, but the API must not promise that
+change until ownership exists.
+
+A database unique constraint is the final arbiter for one result per key. Repeating the same key and
 fingerprint returns the original submission identity without inserting another row. Reusing the key for
 a different form, version, or answer map returns `409 conflict`.
 
 The key is not authentication and grants no read access to answers. PostgreSQL continues to generate the
-submission UUID; the idempotency key is a separate operation identity. Fingerprint construction and
-canonical JSON serialization must be deterministic and tested before implementation.
+submission UUID; the idempotency key is a separate operation identity.
+
+The request fingerprint is SHA-256 over UTF-8 bytes of a canonical JSON serialization of an object with
+exactly `formId`, `formVersion`, and `answers`. Canonicalization follows RFC 8785 JSON Canonicalization
+Scheme: object keys are recursively sorted by UTF-16 code units, arrays retain order, strings retain their
+Unicode code points without normalization, and finite numbers use ECMAScript JSON number serialization.
+The validator rejects non-finite numbers and non-JSON values before fingerprinting. Semantically similar
+but byte-distinct strings (including different Unicode normalization forms) intentionally produce
+different fingerprints. The implementation must use a reviewed RFC 8785-compatible function or
+exhaustive conformance tests; ad hoc top-level key sorting is insufficient.
+
+Two concurrent identical requests may both pass the initial lookup. Both attempt the insert, and the
+database unique constraint selects the winner. After the winner commits, the loser catches only the named
+idempotency constraint, reads the committed row in a new statement/transaction, compares the fingerprint,
+and returns the original success response. A different fingerprint returns `409 conflict`. The loser must
+never map this expected race to `500`; bounded retry handles the brief case where the winner has not yet
+become visible. Other constraint or database failures remain internal errors.
 
 ### Persistence changes
 
@@ -184,6 +221,12 @@ credentials, payment data, medical records, or other high-risk information. Auth
 authorization, abuse controls, retention/deletion policy, encryption/key management, consent, and data
 classification remain separate release requirements. Their absence must be documented rather than hidden
 behind the generic schema.
+
+Sensitivity is determined by form meaning and answers, not only field discriminants. Text, email,
+telephone, date, number, and choice fields can all collect personal, health, financial, or other sensitive
+data. Password is technically blocked because its safe handling is unambiguous, but that is not a general
+data-classification system. Public release of any high-risk form remains prohibited until authentication,
+authorization, retention/deletion, consent, access controls, and operational governance are implemented.
 
 No answer payload or definition is logged. Integration-test failure diagnostics may include container
 state and safe PostgreSQL lifecycle logs, but never connection strings, passwords, query parameters, or
@@ -243,3 +286,9 @@ correct boundary.
 - Generic password collection is explicitly unsupported rather than insecurely persisted.
 - Public high-risk data collection remains blocked at the product-release level until security and data
   governance work exists.
+
+Required integration cases include submitting the current published version, accepting a previously
+published non-current version, rejecting every version after archival, rejecting never-published and
+unknown versions without existence leakage, publication/archive races under compatible locks, identical
+concurrent idempotent requests resolving to one stored result, conflicting key reuse, and exact
+submission-to-version foreign-key integrity.
