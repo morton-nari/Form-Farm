@@ -1,7 +1,7 @@
 # Form Farm AI Backend API
 
-This document describes implemented HTTP behavior. Authentication, form writes/publishing, frontend
-submission wiring, and AI operations are not part of the current API.
+This document describes implemented HTTP behavior. Authentication, form writes/publishing, and AI
+operations are not part of the current API. The Angular form viewer consumes both generic form endpoints.
 
 ## Get a form definition
 

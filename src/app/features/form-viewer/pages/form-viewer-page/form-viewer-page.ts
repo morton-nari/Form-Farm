@@ -40,6 +40,12 @@ export class FormViewerPage implements OnInit {
         this.reviewing.set(false);
       }
     });
+    effect(() => {
+      const status = this.store.submissionStatus();
+      if (status === 'success' || status === 'error') {
+        queueMicrotask(() => this.document.getElementById('submission-status')?.focus());
+      }
+    });
   }
 
   ngOnInit(): void {
@@ -80,8 +86,16 @@ export class FormViewerPage implements OnInit {
   }
 
   protected edit(): void {
+    this.store.resetSubmissionView();
     this.reviewing.set(false);
     this.focusHeading();
+  }
+
+  protected submit(): void {
+    const definition = this.store.definition();
+    const form = this.formState();
+    if (!definition || !form) return;
+    this.store.submit(definition, this.formFactory.getAnswers(form));
   }
 
   protected answerFor(fieldId: string): FormAnswerValue | '' {
