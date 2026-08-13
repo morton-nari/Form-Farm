@@ -1,6 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { ComponentFixture } from '@angular/core/testing';
 
 import { FormDefinition } from '@form-farm/form-domain';
 import { App } from './app';
@@ -90,10 +91,95 @@ describe('App', () => {
     fixture.detectChanges();
     await Promise.resolve();
     expect(compiled.textContent).toContain('Review your answers');
-    expect(compiled.textContent).toContain('This preview does not send or store answers yet.');
+    expect(compiled.textContent).toContain('Send feedback');
+    httpTesting.expectNone('/api/v1/forms/customer-feedback/submissions');
     expect(document.activeElement).toBe(compiled.querySelector('#form-title'));
   });
+
+  it('submits provider-neutral answers once and retries safely with the same key', async () => {
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    httpTesting.expectOne('/api/v1/forms/customer-feedback').flush(createFormDefinition());
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+    selectRatingAndReview(fixture, compiled, 0);
+
+    const submit = primaryButton(compiled);
+    submit.click();
+    fixture.detectChanges();
+    expect(submit.disabled).toBe(true);
+    submit.click();
+
+    const first = httpTesting.expectOne('/api/v1/forms/customer-feedback/submissions');
+    expect(first.request.body).toEqual({ formVersion: 1, answers: { overallRating: 'good' } });
+    const idempotencyKey = first.request.headers.get('Idempotency-Key');
+    expect(idempotencyKey).toMatch(/^[0-9a-f-]{36}$/);
+    first.flush(
+      {
+        error: { code: 'invalid_submission', message: 'safe' },
+        issues: [{ path: ['answers', 'overallRating'], code: 'invalid_option' }],
+        secret: 'database details',
+      },
+      { status: 422, statusText: 'Unprocessable Content' },
+    );
+    fixture.detectChanges();
+    await Promise.resolve();
+
+    expect(compiled.textContent).toContain('We could not submit your answers. Please try again.');
+    expect(compiled.textContent).not.toContain('database details');
+    expect(document.activeElement).toBe(compiled.querySelector('#submission-status'));
+
+    primaryButton(compiled).click();
+    const retry = httpTesting.expectOne('/api/v1/forms/customer-feedback/submissions');
+    expect(retry.request.headers.get('Idempotency-Key')).toBe(idempotencyKey);
+    retry.flush({ submissionId: '550e8400-e29b-41d4-a716-446655440000', replayed: true });
+    fixture.detectChanges();
+    await Promise.resolve();
+
+    expect(compiled.textContent).toContain('Response received');
+    expect(compiled.textContent).toContain('Thank you.');
+    expect(document.activeElement).toBe(compiled.querySelector('#submission-status'));
+  });
+
+  it('uses a new idempotency key after the reviewed answers change', () => {
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    httpTesting.expectOne('/api/v1/forms/customer-feedback').flush(createFormDefinition());
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+    selectRatingAndReview(fixture, compiled, 0);
+    primaryButton(compiled).click();
+    const first = httpTesting.expectOne('/api/v1/forms/customer-feedback/submissions');
+    const firstKey = first.request.headers.get('Idempotency-Key');
+    first.flush('failure', { status: 500, statusText: 'Internal Server Error' });
+    fixture.detectChanges();
+
+    compiled.querySelector<HTMLButtonElement>('.btn-outline-secondary')!.click();
+    fixture.detectChanges();
+    selectRatingAndReview(fixture, compiled, 1);
+    primaryButton(compiled).click();
+    const changed = httpTesting.expectOne('/api/v1/forms/customer-feedback/submissions');
+    expect(changed.request.body).toEqual({ formVersion: 1, answers: { overallRating: 'bad' } });
+    expect(changed.request.headers.get('Idempotency-Key')).not.toBe(firstKey);
+    changed.flush({ submissionId: '550e8400-e29b-41d4-a716-446655440001', replayed: false });
+  });
 });
+
+function primaryButton(compiled: HTMLElement): HTMLButtonElement {
+  return compiled.querySelector<HTMLButtonElement>('.btn-primary')!;
+}
+
+function selectRatingAndReview(
+  fixture: ComponentFixture<App>,
+  compiled: HTMLElement,
+  optionIndex: number,
+): void {
+  const rating = compiled.querySelectorAll<HTMLInputElement>('input[type="radio"]')[optionIndex];
+  rating.checked = true;
+  rating.dispatchEvent(new Event('change'));
+  primaryButton(compiled).click();
+  fixture.detectChanges();
+}
 
 function createFormDefinition(): FormDefinition {
   return {
@@ -110,7 +196,10 @@ function createFormDefinition(): FormDefinition {
             id: 'overallRating',
             label: 'Overall rating',
             type: 'radio',
-            options: [{ label: 'Good', value: 'good' }],
+            options: [
+              { label: 'Good', value: 'good' },
+              { label: 'Bad', value: 'bad' },
+            ],
             validation: [{ type: 'required' }],
           },
         ],

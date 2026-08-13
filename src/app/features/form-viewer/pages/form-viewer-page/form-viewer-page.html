@@ -25,14 +25,30 @@
           <div class="content-card">
             <p class="eyebrow">Form</p>
             <h1 id="form-title" class="h2 mb-2" tabindex="-1">
-              {{ reviewing() ? 'Review your answers' : definition.title }}
+              {{
+                reviewing()
+                  ? store.submissionStatus() === 'success'
+                    ? 'Response received'
+                    : 'Review your answers'
+                  : definition.title
+              }}
             </h1>
             @if (!reviewing() && definition.description) {
               <p class="text-body-secondary mb-4">{{ definition.description }}</p>
             }
 
             @if (reviewing()) {
-              <dl class="review-list mt-4">
+              @if (store.submissionStatus() === 'success') {
+                <div
+                  id="submission-status"
+                  class="alert alert-success mt-4 mb-0"
+                  role="status"
+                  tabindex="-1"
+                >
+                  {{ definition.submission.successMessage }}
+                </div>
+              } @else {
+                <dl class="review-list mt-4">
                 @for (section of definition.sections; track section.id) {
                   <div class="review-section">
                     <h2 class="h5">{{ section.title }}</h2>
@@ -44,15 +60,40 @@
                     }
                   </div>
                 }
-              </dl>
-              <div class="alert alert-info mt-4 mb-0" role="status">
-                This preview does not send or store answers yet.
-              </div>
-              <div class="border-top pt-4 mt-4">
-                <button class="btn btn-outline-secondary" type="button" (click)="edit()">
-                  Edit answers
-                </button>
-              </div>
+                </dl>
+                @if (store.submissionStatus() === 'error') {
+                  <div
+                    id="submission-status"
+                    class="alert alert-danger mt-4 mb-0"
+                    role="alert"
+                    tabindex="-1"
+                  >
+                    {{ store.submissionErrorMessage() }}
+                  </div>
+                }
+                <div class="border-top pt-4 mt-4 d-flex gap-2 justify-content-between">
+                  <button
+                    class="btn btn-outline-secondary"
+                    type="button"
+                    [disabled]="store.submissionStatus() === 'submitting'"
+                    (click)="edit()"
+                  >
+                    Edit answers
+                  </button>
+                  <button
+                    class="btn btn-primary"
+                    type="button"
+                    [disabled]="store.submissionStatus() === 'submitting'"
+                    (click)="submit()"
+                  >
+                    {{
+                      store.submissionStatus() === 'submitting'
+                        ? 'Submitting…'
+                        : definition.submission.submitLabel
+                    }}
+                  </button>
+                </div>
+              }
             } @else {
               <form [formGroup]="currentForm" novalidate (ngSubmit)="review()">
                 @for (section of definition.sections; track section.id) {

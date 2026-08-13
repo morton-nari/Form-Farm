@@ -53,6 +53,7 @@ Status: **in progress**
 - Persist owner-created forms and immutable versions
 - Publish form versions
 - [x] Store submissions against the submitted version
+- [x] Submit provider-neutral Angular answers with safe idempotent retry
 - Support dashboard-friendly form and submission queries
 - Add database integration tests
 

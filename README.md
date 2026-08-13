@@ -170,8 +170,9 @@ Browser → /api/v1/forms/customer-feedback → Angular proxy → Fastify → Po
 
 The client receives `unknown`, and the feature store calls `validateFormDefinition` before exposing a
 definition to the renderer. The Angular development proxy is only active with `npm start`; a production
-host must provide equivalent same-origin `/api` forwarding. There is intentionally no frontend
-submission call until the dedicated Angular submission issue is implemented.
+host must provide equivalent same-origin `/api` forwarding. After local validation and answer review,
+Angular submits only the provider-neutral answer map and exact rendered version to the owned generic
+endpoint. Failed attempts retain their idempotency key for safe retry; changed answers use a new key.
 
 ## Quality and verification
 
