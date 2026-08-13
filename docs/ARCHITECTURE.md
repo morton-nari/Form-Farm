@@ -32,6 +32,13 @@ The running frontend loads `GET /api/v1/forms/:formId` through a client that ret
 `FormViewerStore` applies `validateFormDefinition` before exposing readonly state to `FormViewerPage`.
 The shared form runner then maps the validated definition into accessible Reactive Forms controls. It
 has explicit rendering and validation behavior for all 15 schema-version-1 field discriminants.
+Backend and frontend validation are intentional independent trust boundaries: backend validation
+protects what the API serves, while Angular must still treat every HTTP payload as external input.
+Validation issue details are not rendered to users; invalid payloads produce a stable product error.
+
+`customer-feedback` is selected only at the current demo composition edge. The API client, store, and
+runner all accept arbitrary valid form IDs, so a future route or dashboard selection can supply the ID
+without changing the provider-neutral engine.
 
 The repository also contains an initial Fastify 5 backend workspace. Its current implemented scope is
 deliberately limited to a testable application factory, startup configuration validation, `GET /health`,
@@ -140,6 +147,8 @@ The Angular `shared/form-runner` maps validated domain fields into Reactive Form
 UI. It does not import legacy API models or encode quote, registration, payment, publishing, or other
 workflow behavior. The current frontend supports validation and answer review; it explicitly does not
 claim to submit or persist answers before an owned submission use case and endpoint exist.
+`DynamicFormFactory.getAnswers` extracts a provider-neutral `FormAnswers` map; future submission code
+must pass that map to a trusted generic endpoint, never Angular controls or schema-defined actions.
 
 The version-one domain contract is defined in `packages/form-domain` and documented in
 [`FORM_SCHEMA.md`](FORM_SCHEMA.md). It supports a controlled set of standard form fields through a
