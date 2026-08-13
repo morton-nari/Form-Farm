@@ -35,8 +35,8 @@ field discriminants.
 
 The repository also contains an initial Fastify 5 backend workspace. Its current implemented scope is
 deliberately limited to a testable application factory, startup configuration validation, `GET /health`,
-safe HTTP error mapping, graceful shutdown, and a persistence-free seeded form-definition endpoint. It
-has no database, authentication, submissions, or AI integration yet.
+safe HTTP error mapping, graceful shutdown, and a PostgreSQL-backed form-definition read endpoint. It has
+no form writes, authentication, submissions, or AI integration yet.
 
 ## Target architecture
 
@@ -81,7 +81,7 @@ GET /api/v1/forms/:formId
         â†“
 Fastify route â†’ GetFormDefinition use case â†’ FormDefinitionSource port
                          â†“                         â†‘
-              validateFormDefinition      seeded in-memory adapter
+              validateFormDefinition      PostgreSQL adapter
 ```
 
 ## Form API direction

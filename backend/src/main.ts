@@ -1,9 +1,16 @@
 import { createApplication } from './app.js';
 import { loadBackendConfig } from './config/backend-config.js';
 import { installGracefulShutdown } from './lifecycle/graceful-shutdown.js';
+import { createDatabase } from './infrastructure/database/create-database.js';
+import { PostgresFormDefinitionSource } from './infrastructure/forms/postgres-form-definition-source.js';
 
 const config = loadBackendConfig();
-const app = createApplication({ config });
+const database = createDatabase(config);
+const app = createApplication({
+  config,
+  formDefinitionSource: new PostgresFormDefinitionSource(database.database),
+  closeInfrastructure: database.close,
+});
 const removeShutdownHandlers = installGracefulShutdown(app);
 
 try {

@@ -4,6 +4,7 @@ import type { FastifyInstance } from 'fastify';
 import { createApplication } from './app.js';
 import { ApplicationError } from './application/errors/application-error.js';
 import type { FormDefinitionSource } from './application/ports/form-definition-source.js';
+import { SeededFormDefinitionSource } from './infrastructure/forms/seeded-form-definition-source.js';
 
 const applications: FastifyInstance[] = [];
 
@@ -14,8 +15,10 @@ function createTestApplication(formDefinitionSource?: FormDefinitionSource): Fas
       host: '127.0.0.1',
       port: 3000,
       logLevel: 'silent',
+      databaseUrl: 'postgresql://localhost/test',
+      databasePoolMax: 1,
     },
-    ...(formDefinitionSource === undefined ? {} : { formDefinitionSource }),
+    formDefinitionSource: formDefinitionSource ?? new SeededFormDefinitionSource(),
   });
   applications.push(app);
   return app;
@@ -31,6 +34,28 @@ describe('createApplication', () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({ status: 'ok' });
+  });
+
+  it('closes composed infrastructure with the application', async () => {
+    let closed = false;
+    const app = createApplication({
+      config: {
+        environment: 'test',
+        host: '127.0.0.1',
+        port: 3000,
+        logLevel: 'silent',
+        databaseUrl: 'postgresql://localhost/test',
+        databasePoolMax: 1,
+      },
+      formDefinitionSource: new SeededFormDefinitionSource(),
+      closeInfrastructure: async () => {
+        closed = true;
+      },
+    });
+
+    await app.close();
+
+    expect(closed).toBe(true);
   });
 
   it('returns a consistent safe response for unknown routes', async () => {

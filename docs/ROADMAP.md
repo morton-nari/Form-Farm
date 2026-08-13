@@ -47,7 +47,8 @@ Status: **in progress**
 ## Phase 4 — PostgreSQL persistence and versioning
 
 - [x] Select database access and migration tooling in ADR 0003
-- Persist owned forms and immutable versions
+- [x] Persist and read the seeded published form/version from PostgreSQL
+- Persist owner-created forms and immutable versions
 - Publish form versions
 - Store submissions against the submitted version
 - Support dashboard-friendly form and submission queries

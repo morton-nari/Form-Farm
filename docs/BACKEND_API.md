@@ -38,17 +38,21 @@ Errors use a stable envelope:
 }
 ```
 
-| Situation | Status | Code |
-| --- | ---: | --- |
-| Malformed `formId` | `400` | `invalid_request` |
-| Unknown form | `404` | `not_found` |
-| Invalid source definition or unexpected server failure | `500` | `internal_error` |
+| Situation                                              | Status | Code              |
+| ------------------------------------------------------ | -----: | ----------------- |
+| Malformed `formId`                                     |  `400` | `invalid_request` |
+| Unknown form                                           |  `404` | `not_found`       |
+| Invalid source definition or unexpected server failure |  `500` | `internal_error`  |
 
 Invalid source definitions are logged internally and are never returned as form data. Validation details
 and internal exception messages are not exposed to clients.
 
 ## Current source and lifecycle
 
-The endpoint uses a seeded in-memory source. It does not imply that the form is published, authorized,
-or executable as a privileged workflow. PostgreSQL persistence, immutable stored versions, ownership,
-and dashboard queries remain planned work.
+The runtime endpoint uses PostgreSQL and selects only the current published version. The JSONB definition
+remains `unknown` until it passes `validateFormDefinition`; Drizzle inference is never treated as domain
+trust. A deterministic development seed supplies `customer-feedback`. Unit tests may inject the in-memory
+source, but production composition does not use it.
+
+This read capability does not imply authorization or privileged workflow execution. Version creation,
+publishing operations, submissions, ownership, and dashboard queries remain planned work.
