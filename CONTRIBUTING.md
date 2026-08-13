@@ -72,6 +72,17 @@ npm run domain:build
 
 The frontend and backend commands build the shared form-domain package when required. Use `npm run test:all` and `npm run build:all` to validate all current workspaces. Add or update tests for changed behaviour.
 
+Pull requests into `dev` run the same frontend/domain and backend test and build commands in separate
+GitHub Actions jobs. CI installs the committed root lockfile with `npm ci`; backend integration tests use
+the runner's Docker daemon through Testcontainers. Dependency caching stores npm's download cache only,
+not `node_modules`, so the lockfile remains the installation source of truth.
+
+The frontend/domain job also enforces `git diff --check` and audits production dependencies with
+`npm audit --omit=dev`. The shared domain currently has no standalone test script: `npm test` exercises
+its public models and validator through the Angular compatibility tests, and both jobs compile the
+package through workspace pre-scripts. If domain tests move into the package, CI must invoke that test
+script explicitly rather than relying on this transitional arrangement.
+
 ## Documentation and ADRs
 
 Update documentation when a change affects architecture, APIs, domain concepts, setup, workflow, deployment, security, or major dependencies.
@@ -90,6 +101,8 @@ A pull request into `dev` should include:
 - screenshots for meaningful visual changes.
 
 Keep PRs small enough to review. Address review feedback on the same branch, rerun affected checks, and merge only when required checks pass.
+Repository branch protection should require both `Frontend and domain` and `Backend` before merging into
+`dev`. The workflow supplies these checks; enabling the protection rule remains a repository setting.
 
 ## AI-assisted contributions
 
