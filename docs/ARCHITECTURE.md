@@ -238,3 +238,9 @@ opaque host-only cookies, durable source/account throttling, safe error mapping,
 configuration. Angular authentication and owner authorization remain separate consumers of this boundary.
 Immediately previous XSRF and limiter keys require an explicit future deadline no more than 24 hours away;
 validation stops consulting them at that deadline even if a process has not restarted.
+
+Angular now bootstraps session state through the backend, routes anonymous users to explicit account UI, and
+protects the `/forms` area with backend-derived session state. A custom same-origin interceptor reads only the
+owned development or production XSRF cookie and adds it to unsafe `/api` requests; it never reads the HttpOnly
+session credential. Registration remains explicit account behavior rather than a generic form workflow. The
+current forms landing is a navigation placeholder, not the owner-scoped dashboard planned in the next slice.

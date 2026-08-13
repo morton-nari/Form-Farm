@@ -1,11 +1,14 @@
 import { Component } from '@angular/core';
+import { RouterOutlet } from '@angular/router';
 
-import { FormViewerPage } from './features/form-viewer/pages/form-viewer-page/form-viewer-page';
+import { AuthenticationStore } from './core/auth/authentication.store';
 
 @Component({
   selector: 'app-root',
-  imports: [FormViewerPage],
+  imports: [RouterOutlet],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })
-export class App {}
+export class App {
+  constructor(readonly authentication: AuthenticationStore) {}
+}

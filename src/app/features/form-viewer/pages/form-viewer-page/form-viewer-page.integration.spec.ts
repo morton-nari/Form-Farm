@@ -4,14 +4,14 @@ import { TestBed } from '@angular/core/testing';
 import { ComponentFixture } from '@angular/core/testing';
 
 import { FormDefinition } from '@form-farm/form-domain';
-import { App } from './app';
+import { FormViewerPage } from './form-viewer-page';
 
-describe('App', () => {
+describe('FormViewerPage integration', () => {
   let httpTesting: HttpTestingController;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [App],
+      imports: [FormViewerPage],
       providers: [provideHttpClient(), provideHttpClientTesting()],
     }).compileComponents();
 
@@ -23,7 +23,7 @@ describe('App', () => {
   });
 
   it('creates the app', () => {
-    const fixture = TestBed.createComponent(App);
+    const fixture = TestBed.createComponent(FormViewerPage);
 
     fixture.detectChanges();
     httpTesting.expectOne('/api/v1/forms/customer-feedback');
@@ -32,7 +32,7 @@ describe('App', () => {
   });
 
   it('renders a validated form definition from the owned API', () => {
-    const fixture = TestBed.createComponent(App);
+    const fixture = TestBed.createComponent(FormViewerPage);
 
     fixture.detectChanges();
     httpTesting.expectOne('/api/v1/forms/customer-feedback').flush(createFormDefinition());
@@ -44,7 +44,7 @@ describe('App', () => {
   });
 
   it('rejects an invalid definition and retries the owned API', () => {
-    const fixture = TestBed.createComponent(App);
+    const fixture = TestBed.createComponent(FormViewerPage);
     fixture.detectChanges();
     httpTesting.expectOne('/api/v1/forms/customer-feedback').flush({ title: 'Not valid' });
     fixture.detectChanges();
@@ -59,7 +59,7 @@ describe('App', () => {
   });
 
   it('shows a safe retry state when the owned API fails', () => {
-    const fixture = TestBed.createComponent(App);
+    const fixture = TestBed.createComponent(FormViewerPage);
     fixture.detectChanges();
     httpTesting
       .expectOne('/api/v1/forms/customer-feedback')
@@ -72,7 +72,7 @@ describe('App', () => {
   });
 
   it('validates required fields, moves focus, and shows the review accessibly', async () => {
-    const fixture = TestBed.createComponent(App);
+    const fixture = TestBed.createComponent(FormViewerPage);
     fixture.detectChanges();
     httpTesting.expectOne('/api/v1/forms/customer-feedback').flush(createFormDefinition());
     fixture.detectChanges();
@@ -97,7 +97,7 @@ describe('App', () => {
   });
 
   it('submits provider-neutral answers once and retries safely with the same key', async () => {
-    const fixture = TestBed.createComponent(App);
+    const fixture = TestBed.createComponent(FormViewerPage);
     fixture.detectChanges();
     httpTesting.expectOne('/api/v1/forms/customer-feedback').flush(createFormDefinition());
     fixture.detectChanges();
@@ -142,7 +142,7 @@ describe('App', () => {
   });
 
   it('uses a new idempotency key after the reviewed answers change', () => {
-    const fixture = TestBed.createComponent(App);
+    const fixture = TestBed.createComponent(FormViewerPage);
     fixture.detectChanges();
     httpTesting.expectOne('/api/v1/forms/customer-feedback').flush(createFormDefinition());
     fixture.detectChanges();
@@ -170,7 +170,7 @@ function primaryButton(compiled: HTMLElement): HTMLButtonElement {
 }
 
 function selectRatingAndReview(
-  fixture: ComponentFixture<App>,
+  fixture: ComponentFixture<FormViewerPage>,
   compiled: HTMLElement,
   optionIndex: number,
 ): void {

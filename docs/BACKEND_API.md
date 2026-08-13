@@ -1,8 +1,8 @@
 # Form Farm AI Backend API
 
 This document describes implemented HTTP behavior. Form writes/publishing and AI operations are not part of
-the current API. The Angular form viewer consumes the generic form endpoints; Angular authentication wiring is
-a separate follow-up.
+the current API. Angular consumes both the generic form endpoints and this authentication boundary; owner
+dashboard queries remain a separate follow-up.
 
 ## Authentication
 

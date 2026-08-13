@@ -1,0 +1,54 @@
+<main class="auth-page" id="main-content">
+  <section class="card shadow-sm auth-card" aria-labelledby="login-title">
+    <div class="card-body p-4 p-md-5">
+      <p class="text-primary fw-semibold mb-2">Form Farm AI</p>
+      <h1 class="h2 mb-2" id="login-title">Sign in</h1>
+      <p class="text-body-secondary mb-4">Access your forms and responses.</p>
+      @if (registrationAccepted) {
+        <p class="alert alert-success" role="status">
+          Your registration request was accepted. You can now try to sign in.
+        </p>
+      }
+
+      <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+        <div class="mb-3">
+          <label class="form-label" for="login-email">Email address</label>
+          <input
+            class="form-control"
+            id="login-email"
+            type="email"
+            formControlName="email"
+            autocomplete="email"
+          />
+          @if (form.controls.email.touched && form.controls.email.invalid) {
+            <p class="text-danger small mt-1 mb-0">Enter a valid email address.</p>
+          }
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="login-password">Password</label>
+          <input
+            class="form-control"
+            id="login-password"
+            type="password"
+            formControlName="password"
+            autocomplete="current-password"
+          />
+          @if (form.controls.password.touched && form.controls.password.invalid) {
+            <p class="text-danger small mt-1 mb-0">Enter your password.</p>
+          }
+        </div>
+        @if (message()) {
+          <p #statusMessage class="alert alert-danger" role="alert" tabindex="-1">
+            {{ message() }}
+          </p>
+        }
+        <button class="btn btn-primary w-100" type="submit" [disabled]="submitting()">
+          {{ submitting() ? 'Signing in…' : 'Sign in' }}
+        </button>
+      </form>
+      <p class="text-center mt-4 mb-0">
+        New to Form Farm AI? <a routerLink="/register">Register now</a>
+      </p>
+    </div>
+  </section>
+</main>

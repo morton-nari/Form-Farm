@@ -1,1 +1,15 @@
-<app-form-viewer-page />
+<a class="visually-hidden-focusable position-absolute m-2 btn btn-light" href="#main-content"
+  >Skip to main content</a
+>
+@if (authentication.status() === 'loading') {
+  <main class="container py-5" id="main-content" aria-live="polite">
+    <p>Checking your session…</p>
+  </main>
+} @else if (authentication.status() === 'error') {
+  <div class="container pt-3">
+    <p class="alert alert-warning" role="status">
+      We could not check your session. You can try signing in.
+    </p>
+  </div>
+}
+<router-outlet />
