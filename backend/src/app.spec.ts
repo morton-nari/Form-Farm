@@ -4,11 +4,15 @@ import type { FastifyInstance } from 'fastify';
 import { createApplication } from './app.js';
 import { ApplicationError } from './application/errors/application-error.js';
 import type { FormDefinitionSource } from './application/ports/form-definition-source.js';
+import type { FormSubmissionTransaction } from './application/ports/form-submission-transaction.js';
 import { SeededFormDefinitionSource } from './infrastructure/forms/seeded-form-definition-source.js';
 
 const applications: FastifyInstance[] = [];
 
-function createTestApplication(formDefinitionSource?: FormDefinitionSource): FastifyInstance {
+function createTestApplication(
+  formDefinitionSource?: FormDefinitionSource,
+  formSubmissionTransaction: FormSubmissionTransaction = successfulSubmissionTransaction(),
+): FastifyInstance {
   const app = createApplication({
     config: {
       environment: 'test',
@@ -19,6 +23,7 @@ function createTestApplication(formDefinitionSource?: FormDefinitionSource): Fas
       databasePoolMax: 1,
     },
     formDefinitionSource: formDefinitionSource ?? new SeededFormDefinitionSource(),
+    formSubmissionTransaction,
   });
   applications.push(app);
   return app;
@@ -48,6 +53,7 @@ describe('createApplication', () => {
         databasePoolMax: 1,
       },
       formDefinitionSource: new SeededFormDefinitionSource(),
+      formSubmissionTransaction: successfulSubmissionTransaction(),
       closeInfrastructure: async () => {
         closed = true;
       },
@@ -172,4 +178,92 @@ describe('createApplication', () => {
       error: { code: 'internal_error', message: 'An unexpected error occurred.' },
     });
   });
+
+  it('creates a version-bound provider-neutral submission', async () => {
+    const response = await createTestApplication().inject({
+      method: 'POST',
+      url: '/api/v1/forms/customer-feedback/submissions',
+      headers: { 'idempotency-key': '550e8400-e29b-41d4-a716-446655440000' },
+      payload: { formVersion: 1, answers: { overallRating: 'good' } },
+    });
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toEqual({ submissionId: 'submission-id', replayed: false });
+  });
+
+  it('returns safe provider-neutral issues for invalid answers', async () => {
+    const response = await createTestApplication().inject({
+      method: 'POST',
+      url: '/api/v1/forms/customer-feedback/submissions',
+      headers: { 'idempotency-key': '550e8400-e29b-41d4-a716-446655440000' },
+      payload: { formVersion: 1, answers: { overallRating: 'secret-value' } },
+    });
+    expect(response.statusCode).toBe(422);
+    expect(response.body).not.toContain('secret-value');
+    expect(response.json()).toMatchObject({
+      error: { code: 'invalid_submission' },
+      issues: [{ path: ['answers', 'overallRating'], code: 'invalid_option' }],
+    });
+  });
+
+  it('returns the original submission for an idempotent replay', async () => {
+    const transaction: FormSubmissionTransaction = {
+      execute: async () => ({ status: 'replayed', submissionId: 'original-id' }),
+    };
+    const response = await createTestApplication(undefined, transaction).inject({
+      method: 'POST',
+      url: '/api/v1/forms/customer-feedback/submissions',
+      headers: { 'idempotency-key': '550e8400-e29b-41d4-a716-446655440000' },
+      payload: { formVersion: 1, answers: { overallRating: 'good' } },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ submissionId: 'original-id', replayed: true });
+  });
+
+  it('rejects malformed envelopes and oversized payloads at the HTTP edge', async () => {
+    const app = createTestApplication();
+    const malformed = await app.inject({
+      method: 'POST',
+      url: '/api/v1/forms/customer-feedback/submissions',
+      headers: { 'idempotency-key': 'not-a-uuid' },
+      payload: { formVersion: 0, answers: {} },
+    });
+    expect(malformed.statusCode).toBe(400);
+    expect(malformed.json()).toEqual({
+      error: { code: 'invalid_request', message: 'The request is invalid.' },
+    });
+
+    const malformedKey = await app.inject({
+      method: 'POST',
+      url: '/api/v1/forms/customer-feedback/submissions',
+      headers: { 'idempotency-key': 'not-a-uuid' },
+      payload: { formVersion: 1, answers: { overallRating: 'good' } },
+    });
+    expect(malformedKey.statusCode).toBe(400);
+    expect(malformedKey.json()).toEqual({
+      error: { code: 'invalid_request', message: 'The request is invalid.' },
+    });
+
+    const oversized = await app.inject({
+      method: 'POST',
+      url: '/api/v1/forms/customer-feedback/submissions',
+      headers: { 'idempotency-key': '550e8400-e29b-41d4-a716-446655440000' },
+      payload: { formVersion: 1, answers: { text: 'x'.repeat(257 * 1024) } },
+    });
+    expect(oversized.statusCode).toBe(413);
+    expect(oversized.body).not.toContain('xxx');
+  });
 });
+
+function successfulSubmissionTransaction(): FormSubmissionTransaction {
+  return {
+    execute: async (request, validate) => {
+      validate({
+        rowFormId: 'customer-feedback',
+        rowVersion: 1,
+        rowSchemaVersion: 1,
+        definition: (await new SeededFormDefinitionSource().findById('customer-feedback'))!,
+      });
+      return { status: 'created', submissionId: 'submission-id' };
+    },
+  };
+}

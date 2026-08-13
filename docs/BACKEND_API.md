@@ -1,7 +1,7 @@
 # Form Farm AI Backend API
 
-This document describes implemented HTTP behavior. Planned persistence, submission, authentication,
-publishing, and AI operations are not part of the current API.
+This document describes implemented HTTP behavior. Authentication, form writes/publishing, frontend
+submission wiring, and AI operations are not part of the current API.
 
 ## Get a form definition
 
@@ -55,12 +55,36 @@ trust. A deterministic development seed supplies `customer-feedback`. Unit tests
 source, but production composition does not use it.
 
 This read capability does not imply authorization or privileged workflow execution. Version creation,
-publishing operations, submissions, ownership, and dashboard queries remain planned work.
+publishing operations, ownership, and dashboard queries remain planned work.
 
-Submission behavior remains unimplemented. Its proposed version-bound HTTP, validation, transaction,
-idempotency, and security boundaries are documented in
-[`ADR 0004`](adr/0004-versioned-form-submissions.md); documenting that route does not make it part of the
-current API.
+## Submit a form response
+
+```http
+POST /api/v1/forms/:formId/submissions
+Idempotency-Key: 550e8400-e29b-41d4-a716-446655440000
+Content-Type: application/json
+
+{
+  "formVersion": 1,
+  "answers": {
+    "overallRating": "good"
+  }
+}
+```
+
+The exact rendered version is required and remains the version used for validation and persistence.
+Creation returns `201`; an identical idempotent replay returns `200` and the original PostgreSQL-owned
+submission ID. The route body limit is currently 256 KiB.
+
+Answers pass through `validateFormAnswers` against the validated persisted definition. Unknown fields,
+wrong types, unavailable options, missing required values, and rule violations fail with `422
+invalid_submission` and safe provider-neutral issues that never echo values. Draft/unknown versions
+return `404`, archived forms and conflicting idempotency reuse return `409`, oversized bodies return
+`413`, and unexpected persistence failures return a safe `500`.
+
+Previously published non-current versions remain eligible while the logical form is published. Archival
+stops all versions. Generic password fields are not submittable. Full boundaries are in
+[`ADR 0004`](adr/0004-versioned-form-submissions.md).
 
 An existing form with no current published version is intentionally indistinguishable from an unknown
 form at this public endpoint: both return `404 not_found`. This avoids exposing draft existence. A future

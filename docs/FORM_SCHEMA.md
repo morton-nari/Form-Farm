@@ -4,7 +4,7 @@
 
 The Form Farm schema is the provider-neutral contract used to describe a form. A form definition can come from a deterministic backend endpoint, persisted data, a form builder, or validated AI structured output. The Angular renderer must not need feature-specific knowledge to display it.
 
-The TypeScript domain vocabulary lives in `packages/form-domain/src/form-definition.models.ts`. Untrusted input enters through `validateFormDefinition` in `form-definition.validator.ts`, which applies strict structural parsing followed by domain invariant validation. The framework-independent package is shared by Angular and the owned backend. The validation approach is recorded in [ADR 0001](adr/0001-runtime-schema-validation.md).
+The TypeScript domain vocabulary lives in `packages/form-domain/src/form-definition.models.ts`. Untrusted definitions enter through `validateFormDefinition` in `form-definition.validator.ts`, which applies strict structural parsing followed by domain invariant validation. Submitted answer maps enter through `validateFormAnswers` in `form-answers.validator.ts`, which validates values against one already-validated, exact form version. Both validators are deterministic, side-effect-free domain boundaries and return provider-neutral issues without submitted values or validator-library details. The framework-independent package is shared by Angular and the owned backend. The validation approach is recorded in [ADR 0001](adr/0001-runtime-schema-validation.md).
 
 `FORM_IDENTIFIER_PATTERN` is the public source of the machine-safe identifier invariant used by form,
 section, and field validation and by compatible HTTP boundary schemas. Consumers must not maintain a
@@ -116,7 +116,7 @@ The example does not authorize account creation by itself. A trusted backend rou
 
 ### Backend API
 
-The backend returns a validated `FormDefinition` from `GET /api/v1/forms/:formId`. The API version, schema version, and form content version are distinct. A future controlled submission endpoint will accept answers for an exact form version; it is not implemented yet.
+The backend returns a validated `FormDefinition` from `GET /api/v1/forms/:formId`. The API version, schema version, and form content version are distinct. `POST /api/v1/forms/:formId/submissions` accepts an answer map for the exact immutable form version rendered by the client. The application reloads that version, applies lifecycle policy, runs `validateFormAnswers`, and persists the validated answers atomically with idempotency handling. This generic collection endpoint does not execute account creation, payment, or another privileged workflow.
 
 ### Persistence
 

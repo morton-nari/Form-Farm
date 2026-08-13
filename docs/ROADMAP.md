@@ -52,7 +52,7 @@ Status: **in progress**
 - [x] Persist and read the seeded published form/version from PostgreSQL
 - Persist owner-created forms and immutable versions
 - Publish form versions
-- Store submissions against the submitted version
+- [x] Store submissions against the submitted version
 - Support dashboard-friendly form and submission queries
 - Add database integration tests
 
