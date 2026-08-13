@@ -77,6 +77,12 @@ GitHub Actions jobs. CI installs the committed root lockfile with `npm ci`; back
 the runner's Docker daemon through Testcontainers. Dependency caching stores npm's download cache only,
 not `node_modules`, so the lockfile remains the installation source of truth.
 
+The frontend/domain job also enforces `git diff --check` and audits production dependencies with
+`npm audit --omit=dev`. The shared domain currently has no standalone test script: `npm test` exercises
+its public models and validator through the Angular compatibility tests, and both jobs compile the
+package through workspace pre-scripts. If domain tests move into the package, CI must invoke that test
+script explicitly rather than relying on this transitional arrangement.
+
 ## Documentation and ADRs
 
 Update documentation when a change affects architecture, APIs, domain concepts, setup, workflow, deployment, security, or major dependencies.
