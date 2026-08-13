@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FormControl } from '@angular/forms';
 
-import { FormField } from '../../../../domain/forms/form-definition.models';
+import { FormField } from '@form-farm/form-domain';
 import { DynamicFormControl } from '../../forms/dynamic-form.factory';
 import { DynamicField } from './dynamic-field';
 

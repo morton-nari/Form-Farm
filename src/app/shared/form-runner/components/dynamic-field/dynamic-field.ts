@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { ReactiveFormsModule } from '@angular/forms';
 
-import { FormField } from '../../../../domain/forms/form-definition.models';
+import { FormField } from '@form-farm/form-domain';
 import { DynamicFormControl } from '../../forms/dynamic-form.factory';
 
 @Component({

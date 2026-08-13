@@ -80,8 +80,8 @@ Infrastructure implementations satisfy ports required by application use cases. 
 code do not import Fastify request/reply types or concrete persistence and AI adapters.
 
 The provider-neutral form contract and runtime validator live in the `@form-farm/form-domain` workspace.
-Angular compatibility exports preserve existing frontend imports while both applications consume the same
-compiled package. The first owned form read follows this dependency flow:
+Angular and the backend both import the public exports of the same compiled package directly. The first
+owned form read follows this dependency flow:
 
 ```text
 GET /api/v1/forms/:formId
@@ -157,8 +157,8 @@ choice labels are separate from their stable submitted values.
 
 The schema contains renderable form content and safe submission presentation only. Lifecycle,
 ownership, persistence metadata, AI generation metadata, HTTP destinations, and privileged backend
-operations remain outside the form definition. Legacy insurance files remain temporarily as reference
-code, but they no longer feed the running application and do not define the new domain.
+operations remain outside the form definition. Retired provider-specific API and workflow code has been
+removed; it does not define the domain or the running application.
 
 Submission button text and success text are versioned with the immutable form definition in schema
 version 1 because they are API-driven presentation content. They do not select a route, redirect,

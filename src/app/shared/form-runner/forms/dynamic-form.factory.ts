@@ -8,12 +8,7 @@ import {
   Validators,
 } from '@angular/forms';
 
-import {
-  FormAnswers,
-  FormAnswerValue,
-  FormField,
-  FormSection,
-} from '../../../domain/forms/form-definition.models';
+import { FormAnswers, FormAnswerValue, FormField, FormSection } from '@form-farm/form-domain';
 
 export type DynamicFormControl = FormControl<FormAnswerValue | null>;
 export type DynamicForm = FormRecord<DynamicFormControl>;

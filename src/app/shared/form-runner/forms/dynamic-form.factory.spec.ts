@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 
-import { FormField, FormSection } from '../../../domain/forms/form-definition.models';
+import { FormField, FormSection } from '@form-farm/form-domain';
 import { DynamicFormFactory } from './dynamic-form.factory';
 
 describe('DynamicFormFactory', () => {

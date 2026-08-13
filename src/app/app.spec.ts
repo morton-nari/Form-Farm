@@ -2,7 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 
-import { FormDefinition } from './domain/forms/form-definition.models';
+import { FormDefinition } from '@form-farm/form-domain';
 import { App } from './app';
 
 describe('App', () => {
@@ -70,7 +70,7 @@ describe('App', () => {
     expect(compiled.textContent).not.toContain('database details');
   });
 
-  it('validates required fields before showing the review', () => {
+  it('validates required fields, moves focus, and shows the review accessibly', async () => {
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
     httpTesting.expectOne('/api/v1/forms/customer-feedback').flush(createFormDefinition());
@@ -79,15 +79,19 @@ describe('App', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     compiled.querySelector<HTMLButtonElement>('button[type="submit"]')?.click();
     fixture.detectChanges();
+    await Promise.resolve();
     expect(compiled.textContent).toContain('Overall rating is required.');
 
     const rating = compiled.querySelector<HTMLInputElement>('input[type="radio"]')!;
+    expect(document.activeElement).toBe(rating);
     rating.checked = true;
     rating.dispatchEvent(new Event('change'));
     compiled.querySelector<HTMLButtonElement>('button[type="submit"]')?.click();
     fixture.detectChanges();
+    await Promise.resolve();
     expect(compiled.textContent).toContain('Review your answers');
     expect(compiled.textContent).toContain('This preview does not send or store answers yet.');
+    expect(document.activeElement).toBe(compiled.querySelector('#form-title'));
   });
 });
 

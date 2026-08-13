@@ -3,8 +3,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subscription, take } from 'rxjs';
 
 import { FormDefinitionApiService } from '../../../core/api/form-definition-api.service';
-import { FormDefinition } from '../../../domain/forms/form-definition.models';
-import { validateFormDefinition } from '../../../domain/forms/form-definition.validator';
+import { FormDefinition, validateFormDefinition } from '@form-farm/form-domain';
 
 export type FormLoadStatus = 'idle' | 'loading' | 'loaded' | 'error';
 

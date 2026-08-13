@@ -1,8 +1,5 @@
-import { USER_REGISTRATION_FORM } from './examples/user-registration.form';
-import {
-  FormDefinitionValidationIssueCode,
-  validateFormDefinition,
-} from './form-definition.validator';
+import { USER_REGISTRATION_FORM } from '@form-farm/form-domain/examples/user-registration';
+import { FormDefinitionValidationIssueCode, validateFormDefinition } from '@form-farm/form-domain';
 
 describe('form-definition validation rules', () => {
   it.each([

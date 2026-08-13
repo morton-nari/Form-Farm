@@ -4,7 +4,8 @@
 
 Form Farm AI is an AI-powered dynamic form platform. It will enable people to create, manage, publish, complete, and analyse forms without requiring a developer to build each form by hand.
 
-The existing Angular insurance journey is the first working form runner. It is the foundation of the product, not a disposable prototype.
+The existing Angular form runner is reusable foundation code. The product evolves it incrementally
+rather than replacing proven rendering, validation, accessibility, and state-management behavior.
 
 ## Problem
 

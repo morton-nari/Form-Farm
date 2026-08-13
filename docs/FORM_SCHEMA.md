@@ -128,24 +128,13 @@ AI produces candidate structured data on the backend, never Angular source code.
 
 ### Frontend
 
-The frontend validates the API response, creates Reactive Form controls from the rules, renders fields by their discriminant, and submits typed answers. It does not infer behavior from field IDs or from names such as “registration.”
+The frontend validates the API response, creates Reactive Form controls from the rules, renders fields
+by their discriminant, and extracts provider-neutral typed answers. It does not infer behavior from
+field IDs or names such as “registration.” Submission remains a separate trusted application use case.
 
-The reusable Angular implementation lives under `src/app/shared/form-runner`. It explicitly renders every schema-version-1 field discriminant and maps each validation-rule family to Reactive Forms. The current insurance integration is isolated in a feature adapter and is not part of the reusable engine.
-
-## Legacy migration
-
-The existing insurance API is an external legacy contract, not part of the Form Farm domain. During migration:
-
-| Legacy API       | Form Farm domain                                     |
-| ---------------- | ---------------------------------------------------- |
-| application      | form definition                                      |
-| page             | section                                              |
-| question         | field                                                |
-| required boolean | `required` rule                                      |
-| string option    | separate label/value option                          |
-| quote answers    | generic form answers adapted at the feature boundary |
-
-Existing loading, retry, validation, accessibility, navigation, review, and focus behavior should be preserved. Quote outcomes and server-requested follow-up pages are workflow behavior and do not belong in the general schema.
+The reusable Angular implementation lives under `src/app/shared/form-runner`. It explicitly renders
+every schema-version-1 field discriminant and maps each validation-rule family to Reactive Forms. It
+depends on the Form Farm domain rather than provider-specific HTTP or workflow contracts.
 
 ## Deferred concepts
 
