@@ -80,8 +80,8 @@ Infrastructure implementations satisfy ports required by application use cases. 
 code do not import Fastify request/reply types or concrete persistence and AI adapters.
 
 The provider-neutral form contract and runtime validator live in the `@form-farm/form-domain` workspace.
-Angular compatibility exports preserve existing frontend imports while both applications consume the same
-compiled package. The first owned form read follows this dependency flow:
+Angular and the backend both import the public exports of the same compiled package directly. The first
+owned form read follows this dependency flow:
 
 ```text
 GET /api/v1/forms/:formId

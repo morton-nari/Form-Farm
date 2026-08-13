@@ -2,7 +2,9 @@
 
 ## Product
 
-Form Farm AI is evolving from an Angular insurance assessment into an AI-powered dynamic form platform. Treat the existing form runner as reusable foundation code. Do not rewrite working behaviour without a documented reason.
+Form Farm AI is an API-driven dynamic form platform evolving toward carefully controlled AI-assisted
+form creation. Treat the existing form runner as reusable foundation code. Do not rewrite working
+behaviour without a documented reason.
 
 Read `docs/PRODUCT_VISION.md`, `docs/ARCHITECTURE.md`, `docs/ROADMAP.md`, and `CONTRIBUTING.md` before making architectural changes.
 

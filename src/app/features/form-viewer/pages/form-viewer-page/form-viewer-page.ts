@@ -2,7 +2,7 @@ import { DOCUMENT } from '@angular/common';
 import { ChangeDetectionStrategy, Component, effect, inject, OnInit, signal } from '@angular/core';
 import { ReactiveFormsModule } from '@angular/forms';
 
-import { FormAnswerValue } from '../../../../domain/forms/form-definition.models';
+import { FormAnswerValue } from '@form-farm/form-domain';
 import { DynamicField } from '../../../../shared/form-runner/components/dynamic-field/dynamic-field';
 import {
   DynamicForm,
@@ -66,7 +66,11 @@ export class FormViewerPage implements OnInit {
     form.updateValueAndValidity();
     if (form.invalid) {
       queueMicrotask(() =>
-        this.document.querySelector<HTMLElement>('.form-content .ng-invalid')?.focus(),
+        this.document
+          .querySelector<HTMLElement>(
+            '.form-content input.ng-invalid, .form-content select.ng-invalid, .form-content textarea.ng-invalid',
+          )
+          ?.focus(),
       );
       return;
     }

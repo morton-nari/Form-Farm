@@ -1,5 +1,5 @@
-import { USER_REGISTRATION_FORM } from './examples/user-registration.form';
-import { FormField } from './form-definition.models';
+import { FormField } from '@form-farm/form-domain';
+import { USER_REGISTRATION_FORM } from '@form-farm/form-domain/examples/user-registration';
 
 describe('provider-neutral form definition', () => {
   it('represents a complete form without feature or provider metadata', () => {

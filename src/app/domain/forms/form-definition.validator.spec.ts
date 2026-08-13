@@ -1,5 +1,5 @@
-import { USER_REGISTRATION_FORM } from './examples/user-registration.form';
-import { validateFormDefinition } from './form-definition.validator';
+import { validateFormDefinition } from '@form-farm/form-domain';
+import { USER_REGISTRATION_FORM } from '@form-farm/form-domain/examples/user-registration';
 
 describe('validateFormDefinition', () => {
   it('accepts the complete provider-neutral example', () => {
