@@ -11,6 +11,7 @@ import type { FormFarmDatabase } from '../database/create-database.js';
 import { CUSTOMER_FEEDBACK_FORM } from './customer-feedback.form.js';
 import { PostgresFormDefinitionSource } from './postgres-form-definition-source.js';
 import { PostgresFormSubmissionTransaction } from './postgres-form-submission-transaction.js';
+import { PostgresAccessibleFormSource } from './postgres-accessible-form-source.js';
 
 describe('PostgresFormDefinitionSource', () => {
   let container: StartedTestContainer;
@@ -18,6 +19,7 @@ describe('PostgresFormDefinitionSource', () => {
   let closeDatabase: () => Promise<void>;
   let useCase: GetFormDefinition;
   let submitForm: SubmitForm;
+  let accessibleSource: PostgresAccessibleFormSource;
 
   beforeAll(async () => {
     container = await new GenericContainer('postgres:18-alpine')
@@ -57,6 +59,7 @@ describe('PostgresFormDefinitionSource', () => {
     closeDatabase = database.close;
     useCase = new GetFormDefinition(new PostgresFormDefinitionSource(database.database));
     submitForm = new SubmitForm(new PostgresFormSubmissionTransaction(database.database));
+    accessibleSource = new PostgresAccessibleFormSource(database.database);
   }, 60_000);
 
   afterAll(async () => {
@@ -317,6 +320,30 @@ describe('PostgresFormDefinitionSource', () => {
     expect(JSON.stringify(failure)).not.toContain('secret');
   });
 
+  it('lists and loads only system forms and forms owned by the authenticated user', async () => {
+    const ownerId = '10000000-0000-4000-8000-000000000001';
+    const otherId = '10000000-0000-4000-8000-000000000002';
+    await pool.query(
+      `insert into users (id, email, normalized_email, password_hash) values
+       ($1, 'owner@example.com', 'owner@example.com', 'hash'),
+       ($2, 'other@example.com', 'other@example.com', 'hash')
+       on conflict (id) do nothing`,
+      [ownerId, otherId],
+    );
+    await insertOwnedPublishedForm('owned-dashboard-form', ownerId);
+    await insertOwnedPublishedForm('other-dashboard-form', otherId);
+
+    const listed = await accessibleSource.listPublishedForUser(ownerId);
+    expect(listed.map((row) => row.rowFormId)).toContain('owned-dashboard-form');
+    expect(listed.map((row) => row.rowFormId)).not.toContain('other-dashboard-form');
+    await expect(
+      accessibleSource.findPublishedByIdForUser('other-dashboard-form', ownerId),
+    ).resolves.toBeUndefined();
+    await expect(
+      accessibleSource.findPublishedByIdForUser('owned-dashboard-form', ownerId),
+    ).resolves.toMatchObject({ rowFormId: 'owned-dashboard-form' });
+  });
+
   async function insertPublishedForm(formId: string, definition: unknown): Promise<void> {
     await pool.query('begin');
     try {
@@ -324,6 +351,31 @@ describe('PostgresFormDefinitionSource', () => {
         `insert into forms (id, status, latest_version, ownership_kind)
          values ($1, 'draft', 1, 'system')`,
         [formId],
+      );
+      await pool.query(
+        `insert into form_versions (form_id, version, schema_version, definition, published_at)
+         values ($1, 1, 1, $2::jsonb, now())`,
+        [formId, JSON.stringify(definition)],
+      );
+      await pool.query(
+        `update forms set status = 'published', current_published_version = 1 where id = $1`,
+        [formId],
+      );
+      await pool.query('commit');
+    } catch (error) {
+      await pool.query('rollback');
+      throw error;
+    }
+  }
+
+  async function insertOwnedPublishedForm(formId: string, ownerUserId: string): Promise<void> {
+    const definition = { ...CUSTOMER_FEEDBACK_FORM, id: formId, title: formId };
+    await pool.query('begin');
+    try {
+      await pool.query(
+        `insert into forms (id, status, latest_version, ownership_kind, owner_user_id)
+         values ($1, 'draft', 1, 'user', $2)`,
+        [formId, ownerUserId],
       );
       await pool.query(
         `insert into form_versions (form_id, version, schema_version, definition, published_at)

@@ -2,7 +2,7 @@
 
 This document describes implemented HTTP behavior. Form writes/publishing and AI operations are not part of
 the current API. Angular consumes both the generic form endpoints and this authentication boundary; owner
-dashboard queries remain a separate follow-up.
+dashboard queries use the same opaque-session boundary.
 
 ## Authentication
 
@@ -31,16 +31,28 @@ returned or logged. Durable source and normalized-account rate limits use indepe
 Previous XSRF and limiter keys are accepted only until one validated rotation deadline, limited to a maximum
 24-hour overlap; current keys are always used for new tokens and identities.
 
-## Get a form definition
+## List and get forms
+
+```http
+GET /api/v1/forms
+```
+
+An authenticated request returns `{ "forms": [...] }` containing only dashboard summaries: stable ID,
+title, current form version, and update timestamp. It does not return definitions, persistence rows, owner
+identities, or submission data. Published system forms are available to every authenticated user; published
+user forms are available only to their exact owner. Draft, archived, and another user's forms are excluded.
 
 ```http
 GET /api/v1/forms/:formId
 ```
 
+This read also requires a valid session and applies the same ownership policy in the backend use case and
+PostgreSQL query. Missing and inaccessible IDs both return `404`, preventing ownership discovery.
+
 `v1` is the HTTP API version. It is separate from both `schemaVersion`, which versions the shape of the
 Form Farm contract, and `formVersion`, which identifies a content revision of one logical form.
 
-The initial deterministic form is available at:
+The deterministic development form is available to authenticated users at:
 
 ```http
 GET /api/v1/forms/customer-feedback
@@ -48,8 +60,8 @@ GET /api/v1/forms/customer-feedback
 
 A successful response is the validated provider-neutral `FormDefinition` JSON with status `200`. The
 current fixture has `schemaVersion: 1`, `id: "customer-feedback"`, and `formVersion: 1`. The endpoint
-passes source data through `validateFormDefinition` before returning it, even though its current source
-is owned in-memory data.
+passes persisted source data through `validateFormDefinition` and checks JSON/relational identity before
+returning it.
 
 Valid identifiers begin with a letter and contain only letters, digits, `_`, or `-`.
 
@@ -82,8 +94,8 @@ remains `unknown` until it passes `validateFormDefinition`; Drizzle inference is
 trust. A deterministic development seed supplies `customer-feedback`. Unit tests may inject the in-memory
 source, but production composition does not use it.
 
-This read capability does not imply authorization or privileged workflow execution. Version creation,
-publishing operations, ownership, and dashboard queries remain planned work.
+Dashboard and definition reads are owner-authorized. This does not grant form creation, publishing, or other
+privileged workflow capabilities, which remain planned work.
 
 ## Submit a form response
 

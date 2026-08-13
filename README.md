@@ -11,9 +11,9 @@ The owned HTTP endpoints are documented in [Backend API](docs/BACKEND_API.md).
 
 > **Current status:** PostgreSQL stores immutable form definitions, Fastify serves the current published
 > version, and Angular validates and renders it with loading, retry, validation, answer-review, and persisted
-> submission states. Angular provides login, registration, session bootstrap, protected navigation, and logout
-> against the secure backend boundary. The owner-scoped dashboard, form builder, and AI capabilities are not
-> implemented yet.
+> submission states. Angular provides login, registration, session bootstrap, protected navigation, logout,
+> and an owner-scoped forms dashboard against the secure backend boundary. Form writes, the form builder, and
+> AI capabilities are not implemented yet.
 
 ## Technical baseline
 
@@ -87,6 +87,7 @@ npm run backend:dev
 ```
 
 It listens on `http://127.0.0.1:3000` by default. `GET /health` returns `{ "status": "ok" }`, and
+authenticated `GET /api/v1/forms` lists accessible forms, and authenticated
 `GET /api/v1/forms/customer-feedback` reads the current published version from PostgreSQL.
 The Compose credentials are development examples only and must never be reused in a hosted environment.
 The seed command requires `ALLOW_DATABASE_SEED=true` and refuses to run when `NODE_ENV=production`.
