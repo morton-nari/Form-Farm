@@ -13,6 +13,82 @@ import {
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
+export const users = pgTable(
+  'users',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    email: text('email').notNull(),
+    normalizedEmail: text('normalized_email').notNull(),
+    passwordHash: text('password_hash').notNull(),
+    status: text('status').notNull().default('active'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check('users_email_length_check', sql`char_length(${table.email}) between 3 and 254`),
+    check(
+      'users_normalized_email_length_check',
+      sql`char_length(${table.normalizedEmail}) between 3 and 254`,
+    ),
+    check('users_password_hash_check', sql`char_length(${table.passwordHash}) > 0`),
+    check('users_status_check', sql`${table.status} in ('active', 'disabled')`),
+    uniqueIndex('users_normalized_email_uidx').on(table.normalizedEmail),
+  ],
+);
+
+export const userSessions = pgTable(
+  'user_sessions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id').notNull(),
+    tokenHash: text('token_hash').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
+    idleExpiresAt: timestamp('idle_expires_at', { withTimezone: true }).notNull(),
+    absoluteExpiresAt: timestamp('absolute_expires_at', { withTimezone: true }).notNull(),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  },
+  (table) => [
+    foreignKey({ columns: [table.userId], foreignColumns: [users.id] })
+      .onDelete('restrict')
+      .onUpdate('restrict'),
+    check('user_sessions_token_hash_check', sql`${table.tokenHash} ~ '^[0-9a-f]{64}$'`),
+    check(
+      'user_sessions_expiry_check',
+      sql`${table.lastSeenAt} >= ${table.createdAt}
+        and ${table.idleExpiresAt} > ${table.lastSeenAt}
+        and ${table.absoluteExpiresAt} > ${table.createdAt}`,
+    ),
+    uniqueIndex('user_sessions_token_hash_uidx').on(table.tokenHash),
+    index('user_sessions_user_active_idx')
+      .on(table.userId, table.absoluteExpiresAt)
+      .where(sql`${table.revokedAt} is null`),
+    index('user_sessions_cleanup_idx').on(
+      table.revokedAt,
+      table.idleExpiresAt,
+      table.absoluteExpiresAt,
+    ),
+  ],
+);
+
+export const authRateLimits = pgTable(
+  'auth_rate_limits',
+  {
+    scope: text('scope').notNull(),
+    keyHash: text('key_hash').notNull(),
+    windowStartedAt: timestamp('window_started_at', { withTimezone: true }).notNull(),
+    attemptCount: integer('attempt_count').notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.scope, table.keyHash] }),
+    check('auth_rate_limits_scope_check', sql`char_length(${table.scope}) between 1 and 64`),
+    check('auth_rate_limits_key_hash_check', sql`${table.keyHash} ~ '^[0-9a-f]{64}$'`),
+    check('auth_rate_limits_attempt_count_check', sql`${table.attemptCount} > 0`),
+    index('auth_rate_limits_cleanup_idx').on(table.updatedAt),
+  ],
+);
+
 export const forms = pgTable(
   'forms',
   {
@@ -23,6 +99,8 @@ export const forms = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     archivedAt: timestamp('archived_at', { withTimezone: true }),
+    ownerUserId: uuid('owner_user_id'),
+    ownershipKind: text('ownership_kind').notNull(),
   },
   (table) => [
     check('forms_id_format_check', sql`${table.id} ~ '^[A-Za-z][A-Za-z0-9_-]*$'`),
@@ -40,6 +118,17 @@ export const forms = pgTable(
       or (${table.status} = 'archived' and ${table.archivedAt} is not null)
     )`,
     ),
+    foreignKey({ columns: [table.ownerUserId], foreignColumns: [users.id] })
+      .onDelete('restrict')
+      .onUpdate('restrict'),
+    check(
+      'forms_ownership_check',
+      sql`(${table.ownershipKind} = 'user' and ${table.ownerUserId} is not null)
+        or (${table.ownershipKind} = 'system' and ${table.ownerUserId} is null)`,
+    ),
+    index('forms_owner_updated_at_idx')
+      .on(table.ownerUserId, table.updatedAt.desc())
+      .where(sql`${table.ownershipKind} = 'user'`),
   ],
 );
 

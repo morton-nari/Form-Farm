@@ -3,8 +3,9 @@
 ## Current status
 
 The Angular form runner is functional and tested. It consumes a runtime-validated provider-neutral form
-definition from the owned Fastify and PostgreSQL path. Submission persistence, authentication, the form
-builder, and AI generation are not implemented yet.
+definition from the owned Fastify and PostgreSQL path, and exact-version submissions are persisted. The
+framework-independent account/session persistence core exists, but authentication is not exposed through HTTP
+or Angular yet. The form builder and AI generation are not implemented.
 
 ## Phase 0 — Product foundation
 
@@ -60,6 +61,7 @@ Status: **in progress**
 ## Phase 5 — Authentication and authorization
 
 - [x] Define authentication, session, CSRF, and ownership architecture in ADR 0005
+- [x] Add the framework-independent account, opaque-session, rate-limit, and ownership persistence core
 - Implement sign-up, login, logout, and session handling
 - Protect frontend routes and backend operations
 - Add user form ownership and authorization, with organizations deferred until justified

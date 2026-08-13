@@ -11,8 +11,8 @@ const pool = new Pool({ connectionString: databaseUrl, max: 1 });
 try {
   await pool.query('begin');
   await pool.query(
-    `insert into forms (id, status, latest_version, current_published_version)
-     values ($1, 'draft', $2, null)
+    `insert into forms (id, status, latest_version, current_published_version, ownership_kind)
+     values ($1, 'draft', $2, null, 'system')
      on conflict (id) do nothing`,
     [CUSTOMER_FEEDBACK_FORM.id, CUSTOMER_FEEDBACK_FORM.formVersion],
   );
