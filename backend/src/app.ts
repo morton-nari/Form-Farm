@@ -7,11 +7,11 @@ import type { BackendConfig } from './config/backend-config.js';
 import { registerErrorHandler } from './http/errors/register-error-handler.js';
 import { registerFormDefinitionRoute } from './http/routes/form-definition.route.js';
 import { registerHealthRoute } from './http/routes/health.route.js';
-import { SeededFormDefinitionSource } from './infrastructure/forms/seeded-form-definition-source.js';
 
 export interface CreateApplicationOptions {
   readonly config: BackendConfig;
-  readonly formDefinitionSource?: FormDefinitionSource;
+  readonly formDefinitionSource: FormDefinitionSource;
+  readonly closeInfrastructure?: () => Promise<void>;
 }
 
 export function createApplication(options: CreateApplicationOptions): FastifyInstance {
@@ -26,10 +26,12 @@ export function createApplication(options: CreateApplicationOptions): FastifyIns
     }),
   );
   void app.register(registerHealthRoute);
-  const formDefinitionSource = options.formDefinitionSource ?? new SeededFormDefinitionSource();
   void app.register(registerFormDefinitionRoute, {
-    getFormDefinition: new GetFormDefinition(formDefinitionSource),
+    getFormDefinition: new GetFormDefinition(options.formDefinitionSource),
   });
+  if (options.closeInfrastructure) {
+    app.addHook('onClose', options.closeInfrastructure);
+  }
 
   return app;
 }

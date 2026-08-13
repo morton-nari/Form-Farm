@@ -71,7 +71,21 @@ Run the backend separately with:
 npm run backend:dev
 ```
 
-It listens on `http://127.0.0.1:3000` by default. `GET /health` returns `{ "status": "ok" }`.
+Before starting the backend, run PostgreSQL and apply the committed migration and development seed:
+
+```powershell
+docker compose up -d postgres
+$env:DATABASE_URL = 'postgresql://form_farm:form_farm_local@127.0.0.1:5432/form_farm'
+npm run db:migrate
+$env:ALLOW_DATABASE_SEED = 'true'
+npm run db:seed
+npm run backend:dev
+```
+
+It listens on `http://127.0.0.1:3000` by default. `GET /health` returns `{ "status": "ok" }`, and
+`GET /api/v1/forms/customer-feedback` reads the current published version from PostgreSQL.
+The Compose credentials are development examples only and must never be reused in a hosted environment.
+The seed command requires `ALLOW_DATABASE_SEED=true` and refuses to run when `NODE_ENV=production`.
 
 For a clean, lockfile-based installation, such as in CI, use:
 
@@ -81,18 +95,18 @@ npm ci
 
 ## Available commands
 
-| Command                   | Purpose                                                   |
-| ------------------------- | --------------------------------------------------------- |
-| `npm start`               | Start the Angular development server                      |
-| `npm run backend:dev`     | Start the backend with file watching                      |
-| `npm run backend:start`   | Run the compiled backend                                  |
-| `npm run build`           | Create the Angular production build                       |
-| `npm run backend:build`   | Strictly compile the backend                              |
-| `npm run build:all`       | Build the frontend and backend                            |
-| `npm test`                | Run the Angular unit tests once                           |
-| `npm run backend:test`    | Run the backend tests once                                |
-| `npm run test:all`        | Run frontend and backend tests                            |
-| `npm run watch`           | Build Angular continuously in development mode            |
+| Command                 | Purpose                                        |
+| ----------------------- | ---------------------------------------------- |
+| `npm start`             | Start the Angular development server           |
+| `npm run backend:dev`   | Start the backend with file watching           |
+| `npm run backend:start` | Run the compiled backend                       |
+| `npm run build`         | Create the Angular production build            |
+| `npm run backend:build` | Strictly compile the backend                   |
+| `npm run build:all`     | Build the frontend and backend                 |
+| `npm test`              | Run the Angular unit tests once                |
+| `npm run backend:test`  | Run the backend tests once                     |
+| `npm run test:all`      | Run frontend and backend tests                 |
+| `npm run watch`         | Build Angular continuously in development mode |
 
 ## Current project structure
 
@@ -135,14 +149,18 @@ Bootstrap's minified CSS is included through the `styles` array in `angular.json
 
 Backend configuration is read and validated once at startup. Invalid configuration stops startup without including environment values in the error.
 
-| Variable    | Default       | Accepted values                              |
-| ----------- | ------------- | -------------------------------------------- |
-| `NODE_ENV`  | `development` | `development`, `test`, `production`          |
-| `HOST`      | `127.0.0.1`   | Any non-empty host                           |
-| `PORT`      | `3000`        | Integer from 1 through 65535                  |
-| `LOG_LEVEL` | `info`        | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent` |
+| Variable            | Default       | Accepted values                                              |
+| ------------------- | ------------- | ------------------------------------------------------------ |
+| `NODE_ENV`          | `development` | `development`, `test`, `production`                          |
+| `HOST`              | `127.0.0.1`   | Any non-empty host                                           |
+| `PORT`              | `3000`        | Integer from 1 through 65535                                 |
+| `LOG_LEVEL`         | `info`        | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent` |
+| `DATABASE_URL`      | none          | PostgreSQL connection URL; required and never logged         |
+| `DATABASE_POOL_MAX` | `10`          | Integer from 1 through 100; deployment-specific pool limit   |
 
-Fastify remains an HTTP adapter. Application and domain code do not depend on Fastify types. The backend exposes one persistence-free seeded form-definition endpoint and does not yet accept submissions.
+Fastify remains an HTTP adapter. Application and domain code do not depend on Fastify or database types.
+The backend reads the current published definition through an application-owned port and validates JSONB
+as untrusted data before returning it. It does not yet write forms or accept submissions.
 
 ## API development
 
@@ -186,7 +204,7 @@ The UI includes native labelled controls, required/error announcements, visible 
 
 - Production hosting must provide the documented same-origin `/api` forwarding rule because the external API does not enable CORS.
 - The current quote is presented for assessment purposes only; purchasing or persisting a policy is outside the supplied API contract.
-- `npm audit` currently reports three moderate development-tooling advisories through the latest Angular CLI's MCP dependencies. There are no high or critical advisories and no production-runtime dependency is affected; npm's suggested remediation is an Angular CLI downgrade, which has intentionally not been applied.
+- `npm audit` currently reports four moderate development-tooling advisories through Drizzle Kit's legacy esbuild loader chain. `npm audit --omit=dev` reports no production dependency vulnerabilities. npm's suggested remediation downgrades Drizzle Kit across a breaking boundary, so it has not been applied; Drizzle dependencies remain exactly pinned and will be upgraded through a focused review.
 
 ## Time spent
 

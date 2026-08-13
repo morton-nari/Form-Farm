@@ -10,18 +10,26 @@
     "prebuild": "npm run build --workspace @form-farm/form-domain",
     "build": "tsc --project tsconfig.json",
     "pretest": "npm run build --workspace @form-farm/form-domain",
-    "test": "vitest run"
+    "test": "vitest run",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx src/infrastructure/database/migrate.ts",
+    "db:seed": "tsx src/infrastructure/database/seed.ts"
   },
   "engines": {
     "node": "^22.22.3 || >=24.15.0 <25 || >=26.0.0"
   },
   "dependencies": {
     "@form-farm/form-domain": "0.0.0",
+    "drizzle-orm": "0.45.2",
     "fastify": "^5.6.2",
+    "pg": "8.23.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^24.10.0",
+    "@types/pg": "8.21.0",
+    "drizzle-kit": "0.31.10",
+    "testcontainers": "12.1.0",
     "tsx": "^4.20.6",
     "typescript": "~6.0.2",
     "vitest": "^4.0.8"
