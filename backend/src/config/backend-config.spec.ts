@@ -11,6 +11,23 @@ describe('loadBackendConfig', () => {
       logLevel: 'info',
       databaseUrl: 'postgresql://localhost/form_farm',
       databasePoolMax: 10,
+      auth: {
+        publicOrigin: 'http://localhost:4200',
+        secureCookies: false,
+        trustedProxyHops: 0,
+        sessionIdleTimeoutMilliseconds: 1_800_000,
+        sessionAbsoluteTimeoutMilliseconds: 604_800_000,
+        sessionActivityWriteCadenceMilliseconds: 300_000,
+        xsrfLifetimeMilliseconds: 600_000,
+        xsrfCurrentSecret: 'development-only-xsrf-secret-change-me',
+        xsrfPreviousSecret: undefined,
+        rateLimitCurrentSecret: 'development-only-rate-secret-change-me',
+        rateLimitPreviousSecret: undefined,
+        previousSecretValidUntilMilliseconds: undefined,
+        registrationRateLimit: 5,
+        loginRateLimit: 10,
+        rateLimitWindowMilliseconds: 900_000,
+      },
     });
   });
 
@@ -22,6 +39,10 @@ describe('loadBackendConfig', () => {
       LOG_LEVEL: 'warn',
       DATABASE_URL: 'postgresql://db.example/form_farm',
       DATABASE_POOL_MAX: '3',
+      PUBLIC_APP_ORIGIN: 'https://forms.example.com',
+      AUTH_SECURE_COOKIES: 'true',
+      XSRF_HMAC_SECRET: 'AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE',
+      RATE_LIMIT_HMAC_SECRET: 'AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI',
     });
 
     expect(config).toEqual({
@@ -31,6 +52,23 @@ describe('loadBackendConfig', () => {
       logLevel: 'warn',
       databaseUrl: 'postgresql://db.example/form_farm',
       databasePoolMax: 3,
+      auth: {
+        publicOrigin: 'https://forms.example.com',
+        secureCookies: true,
+        trustedProxyHops: 0,
+        sessionIdleTimeoutMilliseconds: 1_800_000,
+        sessionAbsoluteTimeoutMilliseconds: 604_800_000,
+        sessionActivityWriteCadenceMilliseconds: 300_000,
+        xsrfLifetimeMilliseconds: 600_000,
+        xsrfCurrentSecret: 'AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE',
+        xsrfPreviousSecret: undefined,
+        rateLimitCurrentSecret: 'AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI',
+        rateLimitPreviousSecret: undefined,
+        previousSecretValidUntilMilliseconds: undefined,
+        registrationRateLimit: 5,
+        loginRateLimit: 10,
+        rateLimitWindowMilliseconds: 900_000,
+      },
     });
     expect(Object.isFrozen(config)).toBe(true);
   });
@@ -66,5 +104,49 @@ describe('loadBackendConfig', () => {
       expect((error as Error).message).not.toContain(secretLikeValue);
       expect(error).not.toHaveProperty('issues');
     }
+  });
+
+  it('rejects insecure production cookies, non-origin URLs, weak or reused secrets, and invalid cadence', () => {
+    const production = {
+      NODE_ENV: 'production',
+      DATABASE_URL: 'postgresql://localhost/form_farm',
+      PUBLIC_APP_ORIGIN: 'http://forms.example.com/path',
+      AUTH_SECURE_COOKIES: 'false',
+      XSRF_HMAC_SECRET: 'same-secret-that-is-at-least-thirty-two-bytes',
+      RATE_LIMIT_HMAC_SECRET: 'same-secret-that-is-at-least-thirty-two-bytes',
+      SESSION_IDLE_TIMEOUT_MS: '1000',
+      SESSION_ACTIVITY_CADENCE_MS: '1000',
+    };
+
+    expect(() => loadBackendConfig(production)).toThrow(BackendConfigurationError);
+    expect(() =>
+      loadBackendConfig({
+        DATABASE_URL: 'postgresql://localhost/form_farm',
+        PUBLIC_APP_ORIGIN: 'http://non-loopback.example',
+        AUTH_SECURE_COOKIES: 'false',
+      }),
+    ).toThrow(BackendConfigurationError);
+  });
+
+  it('requires a bounded future deadline whenever previous auth secrets are configured', () => {
+    const base = {
+      DATABASE_URL: 'postgresql://localhost/form_farm',
+      XSRF_PREVIOUS_HMAC_SECRET: 'previous-xsrf-secret-that-is-at-least-32-bytes',
+    };
+    expect(() => loadBackendConfig(base)).toThrow(BackendConfigurationError);
+    expect(() =>
+      loadBackendConfig({
+        ...base,
+        AUTH_PREVIOUS_SECRET_VALID_UNTIL: new Date(Date.now() + 25 * 60 * 60_000).toISOString(),
+      }),
+    ).toThrow(BackendConfigurationError);
+
+    const validUntil = Date.now() + 60 * 60_000;
+    expect(
+      loadBackendConfig({
+        ...base,
+        AUTH_PREVIOUS_SECRET_VALID_UNTIL: new Date(validUntil).toISOString(),
+      }).auth.previousSecretValidUntilMilliseconds,
+    ).toBe(validUntil);
   });
 });

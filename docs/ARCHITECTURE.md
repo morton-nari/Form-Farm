@@ -232,5 +232,9 @@ Each significant decision will be evaluated when its milestone begins and record
 The accepted authentication, opaque-session, CSRF, and form-ownership boundaries are recorded in
 [`ADR 0005`](adr/0005-authentication-sessions-and-ownership.md). The framework-independent backend core now
 provides account policy, Argon2id credential hashing, opaque PostgreSQL sessions, durable rate-limit storage,
-and relational user/system form ownership. It is not exposed through HTTP or Angular yet; those remain focused
-follow-up slices so transport security and navigation do not leak into the application or persistence layers.
+and relational user/system form ownership. The Fastify authentication boundary is implemented with fixed
+routes, exact-origin and XSRF enforcement,
+opaque host-only cookies, durable source/account throttling, safe error mapping, and centralized startup
+configuration. Angular authentication and owner authorization remain separate consumers of this boundary.
+Immediately previous XSRF and limiter keys require an explicit future deadline no more than 24 hours away;
+validation stops consulting them at that deadline even if a process has not restarted.

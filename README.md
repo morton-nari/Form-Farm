@@ -10,8 +10,9 @@ The provider-neutral form contract and its supported version-one capabilities ar
 The owned HTTP endpoints are documented in [Backend API](docs/BACKEND_API.md).
 
 > **Current status:** PostgreSQL stores immutable form definitions, Fastify serves the current published
-> version, and Angular validates and renders it with loading, retry, validation, and answer-review states.
-> Submission persistence, authentication, the form builder, and AI capabilities are not implemented yet.
+> version, and Angular validates and renders it with loading, retry, validation, answer-review, and persisted
+> submission states. The backend exposes secure account/session endpoints; Angular authentication, the owner
+> dashboard, form builder, and AI capabilities are not implemented yet.
 
 ## Technical baseline
 
@@ -145,14 +146,24 @@ Bootstrap's minified CSS is included through the `styles` array in `angular.json
 
 Backend configuration is read and validated once at startup. Invalid configuration stops startup without including environment values in the error.
 
-| Variable            | Default       | Accepted values                                              |
-| ------------------- | ------------- | ------------------------------------------------------------ |
-| `NODE_ENV`          | `development` | `development`, `test`, `production`                          |
-| `HOST`              | `127.0.0.1`   | Any non-empty host                                           |
-| `PORT`              | `3000`        | Integer from 1 through 65535                                 |
-| `LOG_LEVEL`         | `info`        | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent` |
-| `DATABASE_URL`      | none          | PostgreSQL connection URL; required and never logged         |
-| `DATABASE_POOL_MAX` | `10`          | Integer from 1 through 100; deployment-specific pool limit   |
+| Variable                 | Default                  | Accepted values                                              |
+| ------------------------ | ------------------------ | ------------------------------------------------------------ |
+| `NODE_ENV`               | `development`            | `development`, `test`, `production`                          |
+| `HOST`                   | `127.0.0.1`              | Any non-empty host                                           |
+| `PORT`                   | `3000`                   | Integer from 1 through 65535                                 |
+| `LOG_LEVEL`              | `info`                   | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent` |
+| `DATABASE_URL`           | none                     | PostgreSQL connection URL; required and never logged         |
+| `DATABASE_POOL_MAX`      | `10`                     | Integer from 1 through 100; deployment-specific pool limit   |
+| `PUBLIC_APP_ORIGIN`      | local Angular            | Exact public origin; production requires HTTPS               |
+| `AUTH_SECURE_COOKIES`    | local `false`            | Boolean; production requires `true`                          |
+| `TRUSTED_PROXY_HOPS`     | `0`                      | Exact trusted reverse-proxy hop count                        |
+| `XSRF_HMAC_SECRET`       | development-only default | Production: independent 32-byte base64url secret             |
+| `RATE_LIMIT_HMAC_SECRET` | development-only default | Production: separate 32-byte base64url secret                |
+
+Session idle/absolute timeouts, bounded activity cadence, XSRF lifetime, registration/login limits, limiter
+window, and immediately previous rotation secrets also use validated environment configuration. See
+`.env.example` for local values and ADR 0005 for the security contract. Insecure cookies are accepted only for
+explicit HTTP loopback development origins; production requires HTTPS and secure cookies.
 
 Fastify remains an HTTP adapter. Application and domain code do not depend on Fastify or database types.
 The backend reads the current published definition through an application-owned port and validates JSONB
@@ -189,13 +200,13 @@ The UI includes native labelled controls, required/error announcements, visible 
 ## Assumptions
 
 - The seeded customer-feedback form is a deterministic first example, not a special product workflow.
-- Authentication is intentionally deferred; published form reads are currently public.
+- Angular authentication and owner workflows are deferred; published form reads remain public.
 - Bootstrap utilities may be supplemented with small, application-specific SCSS rules.
 
 ## Known limitations
 
 - Production hosting must provide the documented same-origin `/api` forwarding rule.
-- The frontend currently reviews answers but does not submit or persist them.
+- The frontend does not yet expose registration, login, logout, or protected owner navigation.
 - `npm audit` currently reports four moderate development-tooling advisories through Drizzle Kit's legacy esbuild loader chain. `npm audit --omit=dev` reports no production dependency vulnerabilities. npm's suggested remediation downgrades Drizzle Kit across a breaking boundary, so it has not been applied; Drizzle dependencies remain exactly pinned and will be upgraded through a focused review.
 
 ## Time spent

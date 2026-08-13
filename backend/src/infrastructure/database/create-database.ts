@@ -4,7 +4,7 @@ import { Pool } from 'pg';
 import type { BackendConfig } from '../../config/backend-config.js';
 import * as schema from './schema.js';
 
-export function createDatabase(config: BackendConfig) {
+export function createDatabase(config: Pick<BackendConfig, 'databaseUrl' | 'databasePoolMax'>) {
   const pool = new Pool({
     connectionString: config.databaseUrl,
     max: config.databasePoolMax,
