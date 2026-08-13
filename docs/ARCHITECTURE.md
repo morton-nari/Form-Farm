@@ -164,6 +164,12 @@ Submission button text and success text are versioned with the immutable form de
 version 1 because they are API-driven presentation content. They do not select a route, redirect,
 handler, or workflow outcome. That separation must be preserved as publishing capabilities evolve.
 
+The proposed submission boundary is recorded in
+[`ADR 0004`](adr/0004-versioned-form-submissions.md). A client submits the form version it rendered and a
+provider-neutral answer map. The backend validates and persists those answers against that exact immutable
+version in one transaction-oriented application boundary. Generic submission persistence rejects
+password fields; account credentials remain dedicated trusted authentication behavior.
+
 ## Persistence direction
 
 PostgreSQL is the preferred candidate. The intended model combines relational lifecycle data with JSONB for the flexible schema:
