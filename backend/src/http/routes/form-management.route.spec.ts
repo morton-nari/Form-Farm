@@ -7,6 +7,7 @@ import type { CreateFormDraftTransaction } from '../../application/ports/create-
 import type { OwnerFormDraftStore } from '../../application/ports/owner-form-draft-store.js';
 import { GetOwnerFormDraft, SaveOwnerFormDraft } from '../../application/forms/owner-form-draft.js';
 import { PublishFormDraft } from '../../application/forms/publish-form-draft.js';
+import { BootstrapFormDraft } from '../../application/forms/bootstrap-form-draft.js';
 import type { BackendConfig } from '../../config/backend-config.js';
 import { CUSTOMER_FEEDBACK_FORM } from '../../infrastructure/forms/customer-feedback.form.js';
 import { XsrfTokenService } from '../authentication/xsrf-token-service.js';
@@ -169,6 +170,27 @@ describe('form management creation route', () => {
     });
     await app.close();
   });
+
+  it('starts editing a published form and returns the draft ETag', async () => {
+    const tokens = tokenService();
+    const xsrf = tokens.issueSessionToken('valid-session');
+    const app = createRoutes(vi.fn(), tokens);
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/management/forms/customer-feedback/draft',
+      headers: {
+        origin: 'http://localhost:4200',
+        'content-type': 'application/json',
+        'x-xsrf-token': xsrf,
+        cookie: `ff_session=valid-session; ff_xsrf=${xsrf}`,
+      },
+      payload: {},
+    });
+    expect(response.statusCode).toBe(201);
+    expect(response.headers.etag).toBe('"draft-1"');
+    expect(response.json()).toMatchObject({ created: true, draftRevision: 1 });
+    await app.close();
+  });
 });
 
 function createRoutes(
@@ -194,6 +216,26 @@ function createRoutes(
         status: 'published',
         version: 1,
         publishedAt: new Date('2026-08-14T00:00:00.000Z'),
+      }),
+    }),
+    bootstrapFormDraft: new BootstrapFormDraft({
+      execute: async (_input, prepare) => ({
+        status: 'ready',
+        created: true,
+        draft: {
+          definition: prepare({
+            definition: CUSTOMER_FEEDBACK_FORM,
+            rowFormId: CUSTOMER_FEEDBACK_FORM.id,
+            rowVersion: 1,
+            rowSchemaVersion: 1,
+            latestVersion: 1,
+          }),
+          rowFormId: CUSTOMER_FEEDBACK_FORM.id,
+          latestVersion: 1,
+          revision: 1,
+          createdAt: new Date('2026-08-14T00:00:00.000Z'),
+          updatedAt: new Date('2026-08-14T00:00:00.000Z'),
+        },
       }),
     }),
   });

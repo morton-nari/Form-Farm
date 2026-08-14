@@ -18,6 +18,8 @@ import { GetOwnerFormDraft, SaveOwnerFormDraft } from '../../application/forms/o
 import { PostgresOwnerFormDraftStore } from './postgres-owner-form-draft-store.js';
 import { PublishFormDraft } from '../../application/forms/publish-form-draft.js';
 import { PostgresPublishFormDraftTransaction } from './postgres-publish-form-draft-transaction.js';
+import { BootstrapFormDraft } from '../../application/forms/bootstrap-form-draft.js';
+import { PostgresBootstrapFormDraftTransaction } from './postgres-bootstrap-form-draft-transaction.js';
 
 describe('PostgresFormDefinitionSource', () => {
   let container: StartedTestContainer;
@@ -586,6 +588,34 @@ describe('PostgresFormDefinitionSource', () => {
         },
       ],
     });
+  });
+
+  it('bootstraps one next-version draft concurrently without replacing it', async () => {
+    const ownerId = '50000000-0000-4000-8000-000000000001';
+    await pool.query(
+      `insert into users (id, email, normalized_email, password_hash)
+       values ($1, 'editor@example.com', 'editor@example.com', 'hash')`,
+      [ownerId],
+    );
+    await insertOwnedPublishedForm('bootstrap-owner-form', ownerId);
+    const bootstrap = new BootstrapFormDraft(
+      new PostgresBootstrapFormDraftTransaction(formFarmDatabase),
+    );
+    const results = await Promise.all([
+      bootstrap.execute({ userId: ownerId }, 'bootstrap-owner-form'),
+      bootstrap.execute({ userId: ownerId }, 'bootstrap-owner-form'),
+    ]);
+    expect(results.map((result) => result.created).sort()).toEqual([false, true]);
+    expect(
+      results.every((result) => result.draftRevision === 1 && result.definition.formVersion === 2),
+    ).toBe(true);
+    expect(results[0].definition).toEqual(results[1].definition);
+    const stored = await pool.query(
+      `select count(*)::integer as count, min(revision)::text as revision,
+              min((definition->>'formVersion')::integer) as form_version
+       from form_drafts where form_id = 'bootstrap-owner-form'`,
+    );
+    expect(stored.rows[0]).toEqual({ count: 1, revision: '1', form_version: 2 });
   });
 
   async function insertPublishedForm(formId: string, definition: unknown): Promise<void> {

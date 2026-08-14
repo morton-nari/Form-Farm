@@ -302,3 +302,11 @@ outside this backend slice.
 Published-version arithmetic explicitly validates the relational value and treats PostgreSQL integer exhaustion as
 a conflict. Missing draft state after an owned form is locked is also a conflict because the expected working state
 was consumed or changed, rather than an ownership-disclosing not-found distinction.
+
+Published-form edit bootstrap locks the owner form and validates the current immutable definition before creating
+one revision-1 draft for `latest_version + 1`. Existing draft content wins unchanged, so concurrent tabs converge
+without replacement. The operation reuses the management session/origin/XSRF boundary and introduces no builder
+or AI behavior.
+It explicitly relies on `current_published_version = latest_version`. A future rollback should create a new
+immutable publication from historical content instead of moving the pointer backward. Bootstrap validates the
+relational version before arithmetic and treats PostgreSQL integer exhaustion as a conflict.

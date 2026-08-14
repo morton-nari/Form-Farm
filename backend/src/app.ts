@@ -25,6 +25,8 @@ import type { OwnerFormDraftStore } from './application/ports/owner-form-draft-s
 import { GetOwnerFormDraft, SaveOwnerFormDraft } from './application/forms/owner-form-draft.js';
 import type { PublishFormDraftTransaction } from './application/ports/publish-form-draft-transaction.js';
 import { PublishFormDraft } from './application/forms/publish-form-draft.js';
+import type { BootstrapFormDraftTransaction } from './application/ports/bootstrap-form-draft-transaction.js';
+import { BootstrapFormDraft } from './application/forms/bootstrap-form-draft.js';
 
 export interface AuthenticationApplicationServices {
   readonly registerAccount: {
@@ -53,6 +55,7 @@ export interface CreateApplicationOptions {
   readonly createFormDraftTransaction?: CreateFormDraftTransaction;
   readonly ownerFormDraftStore?: OwnerFormDraftStore;
   readonly publishFormDraftTransaction?: PublishFormDraftTransaction;
+  readonly bootstrapFormDraftTransaction?: BootstrapFormDraftTransaction;
   readonly closeInfrastructure?: () => Promise<void>;
 }
 
@@ -106,7 +109,8 @@ export function createApplication(options: CreateApplicationOptions): FastifyIns
     options.authentication &&
     options.createFormDraftTransaction &&
     options.ownerFormDraftStore &&
-    options.publishFormDraftTransaction
+    options.publishFormDraftTransaction &&
+    options.bootstrapFormDraftTransaction
   ) {
     void app.register(registerFormManagementRoutes, {
       config: options.config.auth,
@@ -116,6 +120,7 @@ export function createApplication(options: CreateApplicationOptions): FastifyIns
       getOwnerFormDraft: new GetOwnerFormDraft(options.ownerFormDraftStore),
       saveOwnerFormDraft: new SaveOwnerFormDraft(options.ownerFormDraftStore),
       publishFormDraft: new PublishFormDraft(options.publishFormDraftTransaction),
+      bootstrapFormDraft: new BootstrapFormDraft(options.bootstrapFormDraftTransaction),
     });
   }
   void app.register(registerFormSubmissionRoute, {
