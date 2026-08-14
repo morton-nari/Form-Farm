@@ -282,3 +282,11 @@ requires the existing origin/session-XSRF boundary. A per-owner advisory transac
 future advisory-lock families require distinct documented namespaces. The cap includes every lifecycle state of
 a user-owned form and excludes system-owned forms. Draft load/save, publication, and builder UI remain separate
 slices; no AI capability or dependency is present.
+
+The second ADR 0006 backend slice loads owner drafts through an application-owned store and saves complete
+validated snapshots with strong ETags. PostgreSQL locks the owner-scoped form/draft row, compares the expected
+revision, and increments it atomically; concurrent stale editors cannot overwrite the winner. Persisted JSONB
+remains `unknown`, exact relational identity and next-version invariants fail closed, and database `bigint`
+revisions are range-checked before entering application DTOs. Safe GET requests require the opaque session;
+PUT additionally reuses exact-origin and session-bound XSRF enforcement. Publication, Angular builder behavior,
+and AI remain outside this slice.

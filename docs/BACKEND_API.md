@@ -154,8 +154,40 @@ returns `401`; origin/XSRF failures return `403`. Every response is `Cache-Contr
 leave a normal owner form without its draft.
 
 The global client-chosen identifier and 100-form cap are controlled portfolio-release constraints, not the final
-multi-tenant namespace design. Draft load/save, ETags, publication, archive/restore, Angular builder behavior,
-and AI generation are not implemented by this endpoint.
+multi-tenant namespace design. Publication, archive/restore, Angular builder behavior, and AI generation are not
+implemented by this endpoint.
+
+### Load and save an owner draft
+
+```http
+GET /api/v1/management/forms/:formId/draft
+Cookie: <opaque session cookie>
+```
+
+An authenticated owner receives the complete validated draft with `ETag: "draft-<revision>"`. Missing,
+system-owned, archived, and differently owned forms all return the same `404 not_found`. JSONB remains
+`unknown` until runtime validation succeeds, and relational ID/version drift fails closed.
+
+```http
+PUT /api/v1/management/forms/:formId/draft
+If-Match: "draft-7"
+Origin: <configured exact origin>
+X-XSRF-TOKEN: <session-bound token>
+Content-Type: application/json
+
+{ "definition": { ...complete FormDefinition... } }
+```
+
+The save route accepts exactly one strong ETag using the grammar `"draft-<positive base-10 integer>"`, without
+leading zero and no greater than `9007199254740991`. Weak ETags, wildcards, lists, missing quotes, whitespace,
+zero, negatives, and overflow return `400 invalid_request`. The definition must be schema/domain valid, retain
+the route form ID, and use `formVersion = latest_version + 1`. One owner-scoped PostgreSQL transaction locks the
+draft, compares the expected revision, writes the complete validated definition, increments the revision, and
+updates database-owned timestamps. A stale/concurrent save returns `409 conflict` without the current
+definition; success returns the complete validated draft and its new ETag. Responses are `no-store`.
+
+Publication, edit bootstrap, draft history, Angular autosave/builder behavior, and AI generation remain separate
+slices.
 
 ## Submit a form response
 

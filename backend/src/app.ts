@@ -21,6 +21,8 @@ import { registerOwnedFormsRoutes } from './http/routes/owned-forms.route.js';
 import { CreateFormDraft } from './application/forms/create-form-draft.js';
 import type { CreateFormDraftTransaction } from './application/ports/create-form-draft-transaction.js';
 import { registerFormManagementRoutes } from './http/routes/form-management.route.js';
+import type { OwnerFormDraftStore } from './application/ports/owner-form-draft-store.js';
+import { GetOwnerFormDraft, SaveOwnerFormDraft } from './application/forms/owner-form-draft.js';
 
 export interface AuthenticationApplicationServices {
   readonly registerAccount: {
@@ -47,6 +49,7 @@ export interface CreateApplicationOptions {
   readonly authentication?: AuthenticationApplicationServices;
   readonly accessibleFormSource?: AccessibleFormSource;
   readonly createFormDraftTransaction?: CreateFormDraftTransaction;
+  readonly ownerFormDraftStore?: OwnerFormDraftStore;
   readonly closeInfrastructure?: () => Promise<void>;
 }
 
@@ -96,12 +99,14 @@ export function createApplication(options: CreateApplicationOptions): FastifyIns
       getFormDefinition: new GetFormDefinition(options.formDefinitionSource),
     });
   }
-  if (options.authentication && options.createFormDraftTransaction) {
+  if (options.authentication && options.createFormDraftTransaction && options.ownerFormDraftStore) {
     void app.register(registerFormManagementRoutes, {
       config: options.config.auth,
       resolveSession: options.authentication.resolveSession,
       xsrfTokens: options.authentication.xsrfTokens,
       createFormDraft: new CreateFormDraft(options.createFormDraftTransaction),
+      getOwnerFormDraft: new GetOwnerFormDraft(options.ownerFormDraftStore),
+      saveOwnerFormDraft: new SaveOwnerFormDraft(options.ownerFormDraftStore),
     });
   }
   void app.register(registerFormSubmissionRoute, {
