@@ -8,6 +8,7 @@ import {
 } from '@form-farm/form-domain';
 import { take } from 'rxjs';
 import { FormManagementApiService } from '../../core/api/form-management-api.service';
+import { HttpErrorResponse } from '@angular/common/http';
 
 @Component({
   selector: 'app-form-editor-page',
@@ -47,7 +48,7 @@ import { FormManagementApiService } from '../../core/api/form-management-api.ser
             <button
               class="btn btn-success"
               type="button"
-              [disabled]="status() === 'saving'"
+              [disabled]="status() === 'saving' || form.dirty"
               (click)="publish()"
             >
               Publish
@@ -90,14 +91,7 @@ export class FormEditorPage implements OnInit {
     private readonly api: FormManagementApiService,
   ) {}
   ngOnInit(): void {
-    if (this.formId)
-      this.api
-        .loadDraft(this.formId)
-        .pipe(take(1))
-        .subscribe({
-          next: (response) => this.acceptDraft(response.body, response.headers.get('etag')),
-          error: () => this.fail('We could not load this draft.'),
-        });
+    if (this.formId) this.loadDraft();
   }
   save(): void {
     if (this.form.invalid) return;
@@ -116,7 +110,7 @@ export class FormEditorPage implements OnInit {
       .pipe(take(1))
       .subscribe({
         next: (response) => {
-          this.acceptDraft(response.body, response.headers.get('etag'));
+          if (!this.acceptDraft(response.body, response.headers.get('etag'))) return;
           this.status.set('saved');
           this.message.set('Draft saved.');
         },
@@ -136,6 +130,9 @@ export class FormEditorPage implements OnInit {
             return this.fail('The server returned an invalid publication response.');
           this.status.set('saved');
           this.message.set('Form published.');
+          this.definition = undefined;
+          this.etag = undefined;
+          void this.router.navigate(['/manage/forms']);
         },
         error: () => this.fail('The form could not be published.'),
       });
@@ -170,7 +167,27 @@ export class FormEditorPage implements OnInit {
         error: () => this.fail('The draft could not be created. Check that the ID is available.'),
       });
   }
-  private acceptDraft(value: unknown, etag: string | null): void {
+  private loadDraft(): void {
+    this.api
+      .loadDraft(this.formId!)
+      .pipe(take(1))
+      .subscribe({
+        next: (response) => this.acceptDraft(response.body, response.headers.get('etag')),
+        error: (error: unknown) => {
+          if (error instanceof HttpErrorResponse && error.status === 404) {
+            this.api
+              .bootstrap(this.formId!)
+              .pipe(take(1))
+              .subscribe({
+                next: (response) => this.acceptDraft(response.body, response.headers.get('etag')),
+                error: () => this.fail('We could not start editing this form.'),
+              });
+          } else this.fail('We could not load this draft.');
+        },
+      });
+  }
+
+  private acceptDraft(value: unknown, etag: string | null): boolean {
     if (
       !exact(value, [
         'formId',
@@ -190,22 +207,24 @@ export class FormEditorPage implements OnInit {
         'created',
       ])
     )
-      return this.fail('The server returned an invalid draft.');
+      return this.rejectDraft();
+    if (!etag) return this.rejectDraft();
+    const match = /^"draft-([1-9][0-9]*)"$/.exec(etag);
+    const etagRevision = match ? Number(match[1]) : Number.NaN;
     if (
-      !etag ||
-      !/^"draft-[1-9][0-9]*"$/.test(etag) ||
+      !Number.isSafeInteger(etagRevision) ||
+      etagRevision < 1 ||
       value['formId'] !== this.formId ||
       value['status'] !== 'draft' ||
       !Number.isSafeInteger(value['draftRevision']) ||
-      etag !== `"draft-${value['draftRevision']}"` ||
+      etagRevision !== value['draftRevision'] ||
       !canonicalTimestamp(value['createdAt']) ||
       !canonicalTimestamp(value['updatedAt']) ||
       ('created' in value && typeof value['created'] !== 'boolean')
     )
-      return this.fail('The server returned an invalid draft.');
+      return this.rejectDraft();
     const result = validateFormDefinition(value['definition']);
-    if (!result.success || result.value.id !== this.formId)
-      return this.fail('The server returned an invalid draft.');
+    if (!result.success || result.value.id !== this.formId) return this.rejectDraft();
     this.definition = result.value;
     this.etag = etag;
     this.form.patchValue({
@@ -213,8 +232,14 @@ export class FormEditorPage implements OnInit {
       title: result.value.title,
       description: result.value.description ?? '',
     });
+    this.form.markAsPristine();
     this.status.set('ready');
     this.message.set('');
+    return true;
+  }
+  private rejectDraft(): false {
+    this.fail('The server returned an invalid draft.');
+    return false;
   }
   private fail(message: string): void {
     this.status.set('error');
@@ -246,7 +271,12 @@ function validCreatedDraft(value: unknown, definition: FormDefinition): boolean 
   )
     return false;
   const parsed = validateFormDefinition(value['definition']);
-  return parsed.success && parsed.value.id === definition.id && parsed.value.formVersion === 1;
+  return (
+    parsed.success &&
+    parsed.value.id === definition.id &&
+    parsed.value.formVersion === 1 &&
+    sameJson(parsed.value, definition)
+  );
 }
 function validPublication(value: unknown, formId: string): boolean {
   return (
@@ -257,4 +287,23 @@ function validPublication(value: unknown, formId: string): boolean {
     (value['formVersion'] as number) > 0 &&
     canonicalTimestamp(value['publishedAt'])
   );
+}
+
+function sameJson(left: unknown, right: unknown): boolean {
+  if (left === right) return true;
+  if (Array.isArray(left) || Array.isArray(right))
+    return (
+      Array.isArray(left) &&
+      Array.isArray(right) &&
+      left.length === right.length &&
+      left.every((item, index) => sameJson(item, right[index]))
+    );
+  if (typeof left !== 'object' || left === null || typeof right !== 'object' || right === null)
+    return false;
+  const leftRecord = left as Record<string, unknown>;
+  const rightRecord = right as Record<string, unknown>;
+  const keys = Object.keys(leftRecord).sort();
+  if (keys.length !== Object.keys(rightRecord).length || !keys.every((key) => key in rightRecord))
+    return false;
+  return keys.every((key) => sameJson(leftRecord[key], rightRecord[key]));
 }
