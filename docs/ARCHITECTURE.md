@@ -299,3 +299,6 @@ does infrastructure insert `form_versions`, update lifecycle pointers/status, an
 safe conflicts and any validation or persistence failure rolls back the entire state transition. Historical
 versions remain immutable and submission-eligible under ADR 0004. Angular builder and AI capabilities remain
 outside this backend slice.
+Published-version arithmetic explicitly validates the relational value and treats PostgreSQL integer exhaustion as
+a conflict. Missing draft state after an owned form is locked is also a conflict because the expected working state
+was consumed or changed, rather than an ownership-disclosing not-found distinction.

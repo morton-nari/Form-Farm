@@ -27,6 +27,7 @@ export class PostgresPublishFormDraftTransaction implements PublishFormDraftTran
           .limit(1)
           .for('update');
         if (!lockedForm) return { status: 'not_found' } as const;
+        const latestVersion = safeLatestVersion(lockedForm.latestVersion);
         const [draft] = await transaction
           .select({ definition: formDrafts.definition, revision: formDrafts.revision })
           .from(formDrafts)
@@ -36,10 +37,11 @@ export class PostgresPublishFormDraftTransaction implements PublishFormDraftTran
         if (!draft) return { status: 'conflict' } as const;
         const revision = safeRevision(draft.revision);
         if (revision !== input.expectedRevision) return { status: 'conflict' } as const;
-        const validated = validate({ ...lockedForm, ...draft, revision });
+        const validated = validate({ ...lockedForm, latestVersion, ...draft, revision });
         if (!validated.success)
           return { status: 'unpublishable', issues: validated.issues } as const;
-        const version = lockedForm.latestVersion + 1;
+        if (latestVersion === MAXIMUM_POSTGRES_INTEGER) return { status: 'conflict' } as const;
+        const version = latestVersion + 1;
         const [inserted] = await transaction
           .insert(formVersions)
           .values({
@@ -90,6 +92,22 @@ function safeRevision(value: unknown): number {
     throw new PublishFormDraftPersistenceError();
   }
   return revision;
+}
+
+const MAXIMUM_POSTGRES_INTEGER = 2_147_483_647;
+
+function safeLatestVersion(value: unknown): number {
+  const version =
+    typeof value === 'string' && /^(0|[1-9][0-9]*)$/.test(value) ? Number(value) : value;
+  if (
+    typeof version !== 'number' ||
+    !Number.isSafeInteger(version) ||
+    version < 0 ||
+    version > MAXIMUM_POSTGRES_INTEGER
+  ) {
+    throw new PublishFormDraftPersistenceError();
+  }
+  return version;
 }
 
 export class PublishFormDraftPersistenceError extends Error {

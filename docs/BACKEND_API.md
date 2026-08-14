@@ -210,11 +210,15 @@ JSONB as `unknown` to a synchronous runtime/domain validation and publishability
 immutable `form_versions` row, updates latest/current-published pointers and status, and deletes the consumed
 draft. Any failure rolls back every step. A concurrent or stale publication is `409 conflict`; missing,
 system-owned, archived, and non-owned forms remain `404 not_found`.
+After an owned form is locked, absence of the expected draft is intentionally `409 conflict`: the authenticated
+resource exists, but the ETag-described working state has changed or was already consumed.
 
 Schema-valid forms containing a password field return `422 unpublishable_form` with stable `unsupported_field`
 issue paths and no submitted or configured values. This is an explicit release policy separate from structural
 validity. Success returns `201` with the form ID, allocated version, published status, and database-owned
 publication timestamp. Older immutable versions remain submission-eligible while the logical form is published.
+`latest_version` is parsed and bounded before arithmetic. PostgreSQL integer version `2147483647` is exhausted and
+returns `409 conflict` rather than overflowing or relying on a failed insert.
 
 Edit bootstrap, archive/restore, Angular builder behavior, and AI generation remain separate slices.
 

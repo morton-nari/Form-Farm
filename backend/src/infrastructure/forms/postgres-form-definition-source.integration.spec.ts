@@ -513,6 +513,7 @@ describe('PostgresFormDefinitionSource', () => {
     });
     const stored = await pool.query(
       `select f.status, f.latest_version, f.current_published_version,
+              f.updated_at = max(v.published_at) as timestamps_match,
               count(v.*)::integer as version_count, count(d.*)::integer as draft_count
        from forms f left join form_versions v on v.form_id = f.id
        left join form_drafts d on d.form_id = f.id
@@ -526,6 +527,7 @@ describe('PostgresFormDefinitionSource', () => {
       current_published_version: 1,
       version_count: 1,
       draft_count: 0,
+      timestamps_match: true,
     });
     await expect(
       submitForm.execute({
@@ -535,6 +537,55 @@ describe('PostgresFormDefinitionSource', () => {
         idempotencyKey: '550e8400-e29b-41d4-a716-446655440099',
       }),
     ).resolves.toMatchObject({ replayed: false });
+  });
+
+  it('leaves an unpublishable password draft and lifecycle state untouched', async () => {
+    const ownerId = '40000000-0000-4000-8000-000000000002';
+    await pool.query(
+      `insert into users (id, email, normalized_email, password_hash)
+       values ($1, 'password-publisher@example.com', 'password-publisher@example.com', 'hash')`,
+      [ownerId],
+    );
+    const definition = {
+      ...CUSTOMER_FEEDBACK_FORM,
+      id: 'unpublishable-password-draft',
+      sections: [
+        {
+          ...CUSTOMER_FEEDBACK_FORM.sections[0],
+          fields: [{ id: 'secret', label: 'Secret', type: 'password' as const }],
+        },
+      ],
+    };
+    await new CreateFormDraft(new PostgresCreateFormDraftTransaction(formFarmDatabase)).execute(
+      { userId: ownerId },
+      definition,
+    );
+    await expect(
+      new PublishFormDraft(new PostgresPublishFormDraftTransaction(formFarmDatabase)).execute(
+        { userId: ownerId },
+        definition.id,
+        1,
+      ),
+    ).rejects.toMatchObject({ name: 'UnpublishableFormError' });
+    await expect(
+      pool.query(
+        `select f.status, f.latest_version, f.current_published_version,
+                count(v.*)::integer as versions, count(d.*)::integer as drafts
+         from forms f left join form_versions v on v.form_id = f.id
+         left join form_drafts d on d.form_id = f.id where f.id = $1 group by f.id`,
+        [definition.id],
+      ),
+    ).resolves.toMatchObject({
+      rows: [
+        {
+          status: 'draft',
+          latest_version: 0,
+          current_published_version: null,
+          versions: 0,
+          drafts: 1,
+        },
+      ],
+    });
   });
 
   async function insertPublishedForm(formId: string, definition: unknown): Promise<void> {
