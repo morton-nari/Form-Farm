@@ -84,6 +84,33 @@ describe('validateFormDefinition', () => {
       );
   });
 
+  it.each([
+    ['date', '2026-08-13', { type: 'earliest' as const, value: '2026-08-14' }],
+    ['datetime', '2026-08-15T10:00', { type: 'latest' as const, value: '2026-08-15T09:00' }],
+    ['time', '08:59', { type: 'earliest' as const, value: '09:00' }],
+  ])('rejects a %s default outside its temporal range', (type, defaultValue, rule) => {
+    const form = cloneForm();
+    form.sections[0]!.fields[0] = {
+      id: 'when',
+      type: type as 'date' | 'datetime' | 'time',
+      label: 'When',
+      defaultValue,
+      validation: [rule],
+    };
+
+    const result = validateFormDefinition(form);
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.issues).toContainEqual(
+        expect.objectContaining({
+          path: ['sections', 0, 'fields', 0, 'defaultValue'],
+          code: 'invalid_default',
+        }),
+      );
+    }
+  });
+
   it('rejects empty forms, sections, and presentation text', () => {
     const emptyForm = { ...cloneForm(), title: ' ', sections: [] };
     const result = validateFormDefinition(emptyForm);

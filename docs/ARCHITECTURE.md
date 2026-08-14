@@ -375,3 +375,13 @@ snapshot properties remain unchanged. The domain rejects a numeric default outsi
 with an integer rule, so the builder cannot silently retain an invalid default or rewrite it. An exhaustive
 number-rule policy forces a builder decision when the domain adds a new numeric rule. Full runtime definition
 validation still precedes persistence.
+
+Fixed date, datetime, and time fields expose the complete schema-version-1 temporal-rule family: `required`,
+`earliest`, and `latest`. The editor uses the matching native input shape for each immutable discriminant and
+retains the canonical schema value as a string; it does not perform timezone conversion. A nested field group
+rejects an earliest value later than its latest value, and candidate rules are rebuilt deterministically in
+required/earliest/latest order. Clearing every rule removes `validation`, while defaults and unrelated snapshot
+properties remain unchanged. The shared domain validator also rejects a temporal default outside its configured
+range, so the builder surfaces the inconsistency instead of deleting or rewriting the default. An exhaustive
+temporal-rule policy requires an explicit builder decision if the domain later gains another temporal rule, and
+the complete definition still passes runtime validation before persistence.

@@ -248,6 +248,10 @@ function validateDomainInvariants(
         validateNumberDefault(issues, field, fieldPath);
       }
 
+      if (field.type === 'date' || field.type === 'datetime' || field.type === 'time') {
+        validateTemporalDefault(issues, field, fieldPath);
+      }
+
       validateRuleRanges(issues, field.validation, [...fieldPath, 'validation']);
       validateTemporalRules(issues, field, [...fieldPath, 'validation']);
     });
@@ -282,6 +286,34 @@ function validateNumberDefault(
       path: [...fieldPath, 'defaultValue'],
       code: 'invalid_default',
       message: 'Number default does not satisfy its validation rules.',
+    });
+  }
+}
+
+function validateTemporalDefault(
+  issues: FormDefinitionValidationIssue[],
+  field: {
+    readonly defaultValue?: string | undefined;
+    readonly validation?:
+      | readonly (
+          | { readonly type: 'required' }
+          | { readonly type: 'earliest' | 'latest'; readonly value: string }
+        )[]
+      | undefined;
+  },
+  fieldPath: readonly (string | number)[],
+): void {
+  if (field.defaultValue === undefined) return;
+  const earliest = field.validation?.find((rule) => rule.type === 'earliest');
+  const latest = field.validation?.find((rule) => rule.type === 'latest');
+  if (
+    (earliest?.type === 'earliest' && field.defaultValue < earliest.value) ||
+    (latest?.type === 'latest' && field.defaultValue > latest.value)
+  ) {
+    issues.push({
+      path: [...fieldPath, 'defaultValue'],
+      code: 'invalid_default',
+      message: 'Temporal default does not satisfy its validation rules.',
     });
   }
 }
