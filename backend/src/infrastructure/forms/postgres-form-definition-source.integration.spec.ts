@@ -14,6 +14,8 @@ import { PostgresFormSubmissionTransaction } from './postgres-form-submission-tr
 import { PostgresAccessibleFormSource } from './postgres-accessible-form-source.js';
 import { PostgresCreateFormDraftTransaction } from './postgres-create-form-draft-transaction.js';
 import { CreateFormDraft } from '../../application/forms/create-form-draft.js';
+import { GetOwnerFormDraft, SaveOwnerFormDraft } from '../../application/forms/owner-form-draft.js';
+import { PostgresOwnerFormDraftStore } from './postgres-owner-form-draft-store.js';
 
 describe('PostgresFormDefinitionSource', () => {
   let container: StartedTestContainer;
@@ -23,6 +25,7 @@ describe('PostgresFormDefinitionSource', () => {
   let submitForm: SubmitForm;
   let accessibleSource: PostgresAccessibleFormSource;
   let formFarmDatabase: FormFarmDatabase;
+  let ownerDraftStore: PostgresOwnerFormDraftStore;
 
   beforeAll(async () => {
     container = await new GenericContainer('postgres:18-alpine')
@@ -62,6 +65,7 @@ describe('PostgresFormDefinitionSource', () => {
     });
     closeDatabase = database.close;
     formFarmDatabase = database.database;
+    ownerDraftStore = new PostgresOwnerFormDraftStore(database.database);
     useCase = new GetFormDefinition(new PostgresFormDefinitionSource(database.database));
     submitForm = new SubmitForm(new PostgresFormSubmissionTransaction(database.database));
     accessibleSource = new PostgresAccessibleFormSource(database.database);
@@ -356,9 +360,7 @@ describe('PostgresFormDefinitionSource', () => {
        values ($1, 'creator@example.com', 'creator@example.com', 'hash') on conflict (id) do nothing`,
       [ownerId],
     );
-    const useCase = new CreateFormDraft(
-      new PostgresCreateFormDraftTransaction(formFarmDatabase),
-    );
+    const useCase = new CreateFormDraft(new PostgresCreateFormDraftTransaction(formFarmDatabase));
     const definition = { ...CUSTOMER_FEEDBACK_FORM, id: 'concurrent-created-form' };
     const outcomes = await Promise.allSettled([
       useCase.execute({ userId: ownerId }, definition),
@@ -386,9 +388,7 @@ describe('PostgresFormDefinitionSource', () => {
   });
 
   it('rolls back without an orphan form when draft creation cannot complete', async () => {
-    const useCase = new CreateFormDraft(
-      new PostgresCreateFormDraftTransaction(formFarmDatabase),
-    );
+    const useCase = new CreateFormDraft(new PostgresCreateFormDraftTransaction(formFarmDatabase));
     const definition = { ...CUSTOMER_FEEDBACK_FORM, id: 'rolled-back-created-form' };
     await expect(
       useCase.execute({ userId: '20000000-0000-4000-8000-999999999999' }, definition),
@@ -396,6 +396,76 @@ describe('PostgresFormDefinitionSource', () => {
     await expect(
       pool.query('select id from forms where id = $1', [definition.id]),
     ).resolves.toMatchObject({ rowCount: 0 });
+  });
+
+  it('loads and saves only an owner draft and resolves concurrent saves without lost updates', async () => {
+    const ownerId = '30000000-0000-4000-8000-000000000001';
+    const otherId = '30000000-0000-4000-8000-000000000002';
+    await pool.query(
+      `insert into users (id, email, normalized_email, password_hash) values
+       ($1, 'draft-owner@example.com', 'draft-owner@example.com', 'hash'),
+       ($2, 'draft-other@example.com', 'draft-other@example.com', 'hash')`,
+      [ownerId, otherId],
+    );
+    const definition = { ...CUSTOMER_FEEDBACK_FORM, id: 'saved-owner-draft' };
+    await new CreateFormDraft(new PostgresCreateFormDraftTransaction(formFarmDatabase)).execute(
+      { userId: ownerId },
+      definition,
+    );
+    const getDraft = new GetOwnerFormDraft(ownerDraftStore);
+    const saveDraft = new SaveOwnerFormDraft(ownerDraftStore);
+    await expect(getDraft.execute({ userId: ownerId }, definition.id)).resolves.toMatchObject({
+      draftRevision: 1,
+      definition,
+    });
+    await expect(getDraft.execute({ userId: otherId }, definition.id)).rejects.toMatchObject({
+      code: 'not_found',
+    });
+
+    const outcomes = await Promise.allSettled([
+      saveDraft.execute({ userId: ownerId }, definition.id, 1, {
+        ...definition,
+        title: 'First update',
+      }),
+      saveDraft.execute({ userId: ownerId }, definition.id, 1, {
+        ...definition,
+        title: 'Second update',
+      }),
+    ]);
+    expect(outcomes.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+    expect(outcomes.filter((result) => result.status === 'rejected')).toHaveLength(1);
+    expect(outcomes.find((result) => result.status === 'fulfilled')?.value).toMatchObject({
+      draftRevision: 2,
+    });
+    expect(outcomes.find((result) => result.status === 'rejected')?.reason).toMatchObject({
+      code: 'conflict',
+    });
+    const stored = await pool.query(
+      `select d.revision, d.definition, d.updated_at = f.updated_at as timestamps_match
+       from form_drafts d join forms f on f.id = d.form_id where d.form_id = $1`,
+      [definition.id],
+    );
+    expect(stored.rows[0].revision).toBe('2');
+    expect(['First update', 'Second update']).toContain(stored.rows[0].definition.title);
+    expect(stored.rows[0].timestamps_match).toBe(true);
+  });
+
+  it('fails closed when draft JSON version no longer matches relational state', async () => {
+    const ownerId = '30000000-0000-4000-8000-000000000003';
+    await pool.query(
+      `insert into users (id, email, normalized_email, password_hash)
+       values ($1, 'identity-owner@example.com', 'identity-owner@example.com', 'hash')`,
+      [ownerId],
+    );
+    const definition = { ...CUSTOMER_FEEDBACK_FORM, id: 'invalid-owner-draft-identity' };
+    await new CreateFormDraft(new PostgresCreateFormDraftTransaction(formFarmDatabase)).execute(
+      { userId: ownerId },
+      definition,
+    );
+    await pool.query('update forms set latest_version = 1 where id = $1', [definition.id]);
+    await expect(
+      new GetOwnerFormDraft(ownerDraftStore).execute({ userId: ownerId }, definition.id),
+    ).rejects.toMatchObject({ name: 'InvalidStoredFormDefinitionError' });
   });
 
   async function insertPublishedForm(formId: string, definition: unknown): Promise<void> {
@@ -455,5 +525,4 @@ describe('PostgresFormDefinitionSource', () => {
       idempotencyKey,
     };
   }
-
 });

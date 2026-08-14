@@ -3,7 +3,8 @@
 ## Current status
 
 The form runner, owned backend, PostgreSQL submissions, authentication, owner-authorized published reads,
-dashboard, and health sample are implemented. Owner form writes, the form builder, and AI generation are not.
+dashboard, health sample, and owner draft create/load/save are implemented. Publication, the form builder, and
+AI generation are not.
 
 ## Phase 0 — Product foundation
 
@@ -42,6 +43,7 @@ Status: **in progress**
 - [x] Add an authenticated accessible-forms dashboard
 - [x] Define owner creation, draft, versioning, and publication semantics in ADR 0006
 - [x] Add atomic owner form and revision-1 draft creation
+- [x] Load and save owner drafts with strict optimistic concurrency
 - Add a separate owner-management dashboard that lists and creates owned forms
 - Add and arrange sections and fields
 - Configure field options and validation
