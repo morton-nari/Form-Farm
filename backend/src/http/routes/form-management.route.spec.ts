@@ -6,6 +6,7 @@ import { CreateFormDraft } from '../../application/forms/create-form-draft.js';
 import type { CreateFormDraftTransaction } from '../../application/ports/create-form-draft-transaction.js';
 import type { OwnerFormDraftStore } from '../../application/ports/owner-form-draft-store.js';
 import { GetOwnerFormDraft, SaveOwnerFormDraft } from '../../application/forms/owner-form-draft.js';
+import { PublishFormDraft } from '../../application/forms/publish-form-draft.js';
 import type { BackendConfig } from '../../config/backend-config.js';
 import { CUSTOMER_FEEDBACK_FORM } from '../../infrastructure/forms/customer-feedback.form.js';
 import { XsrfTokenService } from '../authentication/xsrf-token-service.js';
@@ -142,6 +143,32 @@ describe('form management creation route', () => {
     expect(store.save).not.toHaveBeenCalled();
     await app.close();
   });
+
+  it('publishes through the authenticated origin and session-XSRF boundary', async () => {
+    const tokens = tokenService();
+    const xsrf = tokens.issueSessionToken('valid-session');
+    const app = createRoutes(vi.fn(), tokens);
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/management/forms/customer-feedback/publications',
+      headers: {
+        origin: 'http://localhost:4200',
+        'content-type': 'application/json',
+        'if-match': '"draft-1"',
+        'x-xsrf-token': xsrf,
+        cookie: `ff_session=valid-session; ff_xsrf=${xsrf}`,
+      },
+      payload: {},
+    });
+    expect(response.statusCode).toBe(201);
+    expect(response.headers['cache-control']).toBe('no-store');
+    expect(response.json()).toMatchObject({
+      formId: 'customer-feedback',
+      status: 'published',
+      formVersion: 1,
+    });
+    await app.close();
+  });
 });
 
 function createRoutes(
@@ -162,6 +189,13 @@ function createRoutes(
     createFormDraft: new CreateFormDraft({ execute }),
     getOwnerFormDraft: new GetOwnerFormDraft(store),
     saveOwnerFormDraft: new SaveOwnerFormDraft(store),
+    publishFormDraft: new PublishFormDraft({
+      execute: async () => ({
+        status: 'published',
+        version: 1,
+        publishedAt: new Date('2026-08-14T00:00:00.000Z'),
+      }),
+    }),
   });
   return app;
 }

@@ -8,6 +8,7 @@ import {
 import { RateLimitedError } from '../authentication/authentication-rate-limiter.js';
 import type { ApplicationErrorCode } from '../../application/errors/application-error.js';
 import type { FastifyInstance } from 'fastify';
+import { UnpublishableFormError } from '../../application/forms/publish-form-draft.js';
 
 interface ErrorResponse {
   readonly error: {
@@ -45,6 +46,12 @@ export function registerErrorHandler(app: FastifyInstance): void {
     if (error instanceof InvalidFormSubmissionError) {
       return reply.status(422).send({
         error: { code: 'invalid_submission', message: 'The submitted answers are invalid.' },
+        issues: error.issues,
+      });
+    }
+    if (error instanceof UnpublishableFormError) {
+      return reply.status(422).send({
+        error: { code: 'unpublishable_form', message: 'The form cannot be published.' },
         issues: error.issues,
       });
     }

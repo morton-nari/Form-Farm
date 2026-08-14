@@ -16,6 +16,8 @@ import { PostgresCreateFormDraftTransaction } from './postgres-create-form-draft
 import { CreateFormDraft } from '../../application/forms/create-form-draft.js';
 import { GetOwnerFormDraft, SaveOwnerFormDraft } from '../../application/forms/owner-form-draft.js';
 import { PostgresOwnerFormDraftStore } from './postgres-owner-form-draft-store.js';
+import { PublishFormDraft } from '../../application/forms/publish-form-draft.js';
+import { PostgresPublishFormDraftTransaction } from './postgres-publish-form-draft-transaction.js';
 
 describe('PostgresFormDefinitionSource', () => {
   let container: StartedTestContainer;
@@ -466,6 +468,124 @@ describe('PostgresFormDefinitionSource', () => {
     await expect(
       new GetOwnerFormDraft(ownerDraftStore).execute({ userId: ownerId }, definition.id),
     ).rejects.toMatchObject({ name: 'InvalidStoredFormDefinitionError' });
+    await expect(
+      new PublishFormDraft(new PostgresPublishFormDraftTransaction(formFarmDatabase)).execute(
+        { userId: ownerId },
+        definition.id,
+        1,
+      ),
+    ).rejects.toMatchObject({ name: 'InvalidStoredFormDefinitionError' });
+    await expect(
+      pool.query(
+        `select count(v.*)::integer as versions, count(d.*)::integer as drafts
+         from forms f left join form_versions v on v.form_id = f.id
+         left join form_drafts d on d.form_id = f.id where f.id = $1 group by f.id`,
+        [definition.id],
+      ),
+    ).resolves.toMatchObject({ rows: [{ versions: 0, drafts: 1 }] });
+  });
+
+  it('publishes one immutable version atomically and resolves a concurrent publication once', async () => {
+    const ownerId = '40000000-0000-4000-8000-000000000001';
+    await pool.query(
+      `insert into users (id, email, normalized_email, password_hash)
+       values ($1, 'publisher@example.com', 'publisher@example.com', 'hash')`,
+      [ownerId],
+    );
+    const definition = { ...CUSTOMER_FEEDBACK_FORM, id: 'published-owner-draft' };
+    await new CreateFormDraft(new PostgresCreateFormDraftTransaction(formFarmDatabase)).execute(
+      { userId: ownerId },
+      definition,
+    );
+    const publish = new PublishFormDraft(new PostgresPublishFormDraftTransaction(formFarmDatabase));
+    const outcomes = await Promise.allSettled([
+      publish.execute({ userId: ownerId }, definition.id, 1),
+      publish.execute({ userId: ownerId }, definition.id, 1),
+    ]);
+    expect(outcomes.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+    expect(outcomes.filter((result) => result.status === 'rejected')).toHaveLength(1);
+    expect(outcomes.find((result) => result.status === 'fulfilled')?.value).toMatchObject({
+      formVersion: 1,
+      status: 'published',
+    });
+    expect(outcomes.find((result) => result.status === 'rejected')?.reason).toMatchObject({
+      code: 'conflict',
+    });
+    const stored = await pool.query(
+      `select f.status, f.latest_version, f.current_published_version,
+              f.updated_at = max(v.published_at) as timestamps_match,
+              count(v.*)::integer as version_count, count(d.*)::integer as draft_count
+       from forms f left join form_versions v on v.form_id = f.id
+       left join form_drafts d on d.form_id = f.id
+       where f.id = $1
+       group by f.id`,
+      [definition.id],
+    );
+    expect(stored.rows[0]).toMatchObject({
+      status: 'published',
+      latest_version: 1,
+      current_published_version: 1,
+      version_count: 1,
+      draft_count: 0,
+      timestamps_match: true,
+    });
+    await expect(
+      submitForm.execute({
+        formId: definition.id,
+        formVersion: 1,
+        answers: { overallRating: 'good' },
+        idempotencyKey: '550e8400-e29b-41d4-a716-446655440099',
+      }),
+    ).resolves.toMatchObject({ replayed: false });
+  });
+
+  it('leaves an unpublishable password draft and lifecycle state untouched', async () => {
+    const ownerId = '40000000-0000-4000-8000-000000000002';
+    await pool.query(
+      `insert into users (id, email, normalized_email, password_hash)
+       values ($1, 'password-publisher@example.com', 'password-publisher@example.com', 'hash')`,
+      [ownerId],
+    );
+    const definition = {
+      ...CUSTOMER_FEEDBACK_FORM,
+      id: 'unpublishable-password-draft',
+      sections: [
+        {
+          ...CUSTOMER_FEEDBACK_FORM.sections[0],
+          fields: [{ id: 'secret', label: 'Secret', type: 'password' as const }],
+        },
+      ],
+    };
+    await new CreateFormDraft(new PostgresCreateFormDraftTransaction(formFarmDatabase)).execute(
+      { userId: ownerId },
+      definition,
+    );
+    await expect(
+      new PublishFormDraft(new PostgresPublishFormDraftTransaction(formFarmDatabase)).execute(
+        { userId: ownerId },
+        definition.id,
+        1,
+      ),
+    ).rejects.toMatchObject({ name: 'UnpublishableFormError' });
+    await expect(
+      pool.query(
+        `select f.status, f.latest_version, f.current_published_version,
+                count(v.*)::integer as versions, count(d.*)::integer as drafts
+         from forms f left join form_versions v on v.form_id = f.id
+         left join form_drafts d on d.form_id = f.id where f.id = $1 group by f.id`,
+        [definition.id],
+      ),
+    ).resolves.toMatchObject({
+      rows: [
+        {
+          status: 'draft',
+          latest_version: 0,
+          current_published_version: null,
+          versions: 0,
+          drafts: 1,
+        },
+      ],
+    });
   });
 
   async function insertPublishedForm(formId: string, definition: unknown): Promise<void> {

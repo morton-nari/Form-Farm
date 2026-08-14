@@ -23,6 +23,8 @@ import type { CreateFormDraftTransaction } from './application/ports/create-form
 import { registerFormManagementRoutes } from './http/routes/form-management.route.js';
 import type { OwnerFormDraftStore } from './application/ports/owner-form-draft-store.js';
 import { GetOwnerFormDraft, SaveOwnerFormDraft } from './application/forms/owner-form-draft.js';
+import type { PublishFormDraftTransaction } from './application/ports/publish-form-draft-transaction.js';
+import { PublishFormDraft } from './application/forms/publish-form-draft.js';
 
 export interface AuthenticationApplicationServices {
   readonly registerAccount: {
@@ -50,6 +52,7 @@ export interface CreateApplicationOptions {
   readonly accessibleFormSource?: AccessibleFormSource;
   readonly createFormDraftTransaction?: CreateFormDraftTransaction;
   readonly ownerFormDraftStore?: OwnerFormDraftStore;
+  readonly publishFormDraftTransaction?: PublishFormDraftTransaction;
   readonly closeInfrastructure?: () => Promise<void>;
 }
 
@@ -99,7 +102,12 @@ export function createApplication(options: CreateApplicationOptions): FastifyIns
       getFormDefinition: new GetFormDefinition(options.formDefinitionSource),
     });
   }
-  if (options.authentication && options.createFormDraftTransaction && options.ownerFormDraftStore) {
+  if (
+    options.authentication &&
+    options.createFormDraftTransaction &&
+    options.ownerFormDraftStore &&
+    options.publishFormDraftTransaction
+  ) {
     void app.register(registerFormManagementRoutes, {
       config: options.config.auth,
       resolveSession: options.authentication.resolveSession,
@@ -107,6 +115,7 @@ export function createApplication(options: CreateApplicationOptions): FastifyIns
       createFormDraft: new CreateFormDraft(options.createFormDraftTransaction),
       getOwnerFormDraft: new GetOwnerFormDraft(options.ownerFormDraftStore),
       saveOwnerFormDraft: new SaveOwnerFormDraft(options.ownerFormDraftStore),
+      publishFormDraft: new PublishFormDraft(options.publishFormDraftTransaction),
     });
   }
   void app.register(registerFormSubmissionRoute, {
