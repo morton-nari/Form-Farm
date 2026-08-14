@@ -348,3 +348,11 @@ group rejects a minimum greater than its maximum. Candidate rules are reconstruc
 order so duplicate families cannot be produced. An empty configuration removes `validation`; non-text fields and
 all other text properties remain unchanged. Shared runtime definition validation still runs before HTTP, and
 backend validation remains authoritative.
+
+Fixed select, radio, multi-select, and checkbox-group fields expose ordered option label/value controls without
+allowing discriminant changes. Option labels and stable submitted values remain separate, while each option's
+existing disabled state travels in an internal typed control and survives reordering. The option array requires
+at least one item, unique non-blank values, and continued validity of every existing enabled default. Invalid
+default references are reported locally rather than silently cleared or rewritten. Candidate reconstruction
+replaces only the options on a new choice-field snapshot and retains defaults, validation, placeholders, and
+unrelated field properties.

@@ -4,8 +4,8 @@
 
 The form runner, owned backend, PostgreSQL submissions, authentication, owner-authorized published reads,
 dashboard, health sample, owner draft create/load/save, atomic publication, structured section/basic field
-operations, and text-entry validation editing are implemented. Field-type, choice-option, other validation, and
-AI editing are not.
+operations, text-entry validation editing, and fixed choice-option editing are implemented. Field-type,
+remaining validation, and AI editing are not.
 
 ## Phase 0 — Product foundation
 
@@ -52,7 +52,8 @@ Status: **in progress**
 - [x] Add structured section editing
 - [x] Add basic structured field editing and arrangement
 - [x] Configure text-entry required and length validation
-- Add field-type, option, and remaining validation editing
+- [x] Configure ordered options for fixed choice fields
+- Add field-type and remaining validation editing
 - Add and arrange sections and fields
 - Configure field options and validation
 - Preview forms through the existing runner
