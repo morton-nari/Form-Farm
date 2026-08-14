@@ -88,7 +88,7 @@ npm run backend:dev
 
 It listens on `http://127.0.0.1:3000` by default. `GET /health` returns `{ "status": "ok" }`, and
 authenticated `GET /api/v1/forms` lists accessible forms, and authenticated
-`GET /api/v1/forms/health-questionnaire` reads the primary sample from PostgreSQL. The health questionnaire
+`GET /api/v1/forms/health-questionnaire` reads the richer health sample from PostgreSQL. The health questionnaire
 is demonstration content, not medical advice, diagnosis, or treatment.
 The Compose credentials are development examples only and must never be reused in a hosted environment.
 The seed command requires `ALLOW_DATABASE_SEED=true` and refuses to run when `NODE_ENV=production`.

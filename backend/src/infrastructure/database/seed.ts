@@ -12,7 +12,6 @@ if (!databaseUrl) throw new Error('DATABASE_URL is required to seed the database
 const pool = new Pool({ connectionString: databaseUrl, max: 1 });
 try {
   await pool.query('begin');
-  // Seed health last so the dashboard's documented updated-at ordering presents it first.
   for (const candidate of [CUSTOMER_FEEDBACK_FORM, HEALTH_QUESTIONNAIRE_FORM]) {
     const validation = validateFormDefinition(candidate);
     if (!validation.success) {
@@ -32,7 +31,9 @@ try {
       [definition.id, definition.formVersion, definition.schemaVersion, JSON.stringify(definition)],
     );
     await pool.query(
-      `update forms set status = 'published', current_published_version = $2, updated_at = clock_timestamp() where id = $1`,
+      `update forms
+       set status = 'published', current_published_version = $2, updated_at = now()
+       where id = $1 and status = 'draft' and current_published_version is null`,
       [definition.id, definition.formVersion],
     );
   }

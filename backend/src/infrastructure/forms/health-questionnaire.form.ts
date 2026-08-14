@@ -92,7 +92,11 @@ export const HEALTH_QUESTIONNAIRE_FORM = {
           id: 'dateOfBirth',
           type: 'date',
           label: 'Date of birth',
-          validation: [{ type: 'required' }],
+          validation: [
+            { type: 'required' },
+            { type: 'earliest', value: '1900-01-01' },
+            { type: 'latest', value: '2026-08-14' },
+          ],
         },
         {
           id: 'overallHealth',
@@ -127,7 +131,8 @@ export const HEALTH_QUESTIONNAIRE_FORM = {
           type: 'textarea',
           label: 'Is there anything else you would like to share?',
           rows: 5,
-          helpText: 'Do not include emergency information. Contact local emergency services if needed.',
+          helpText:
+            'Free text may contain sensitive information. Do not use this sample for real health or emergency information.',
           validation: [{ type: 'maxLength', value: 2_000 }],
         },
       ],

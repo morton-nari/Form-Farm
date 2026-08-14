@@ -263,3 +263,7 @@ is represented by stable individual answer keys because nested groups are deferr
 diagnosis, treatment, emergency handling, or another privileged medical workflow. Health and contact answers
 can still be highly sensitive: the sample must not be treated as approved for real collection until access,
 consent, retention, deletion, encryption, audit, and jurisdiction-specific governance have been reviewed.
+Free-text guidance cannot prevent sensitive or emergency content and is not a security control. Both seeded
+samples are intentionally system-owned and visible to all authenticated users. Seed reruns preserve already
+published lifecycle timestamps; `updated_at` is never manipulated as presentation rank. A future featured-form
+order must be modeled explicitly outside the provider-neutral definition and separately from lifecycle time.

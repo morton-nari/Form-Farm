@@ -40,4 +40,22 @@ describe('health questionnaire sample', () => {
       }),
     ).toMatchObject({ success: true });
   });
+
+  it('applies the versioned date-of-birth bounds declared by the sample', () => {
+    const invalid = validateFormAnswers(HEALTH_QUESTIONNAIRE_FORM, {
+      firstName: 'Alex',
+      lastName: 'Morgan',
+      phoneNumber: '+61 400 000 000',
+      addressLine1: '1 Example Street',
+      suburbOrCity: 'Sydney',
+      stateOrRegion: 'NSW',
+      postalCode: '2000',
+      country: 'Australia',
+      dateOfBirth: '2027-01-01',
+      overallHealth: 'good',
+      preferredContactMethod: 'phone',
+      informationAcknowledgement: true,
+    });
+    expect(invalid).toMatchObject({ success: false });
+  });
 });

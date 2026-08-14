@@ -109,14 +109,22 @@ and internal exception messages are not exposed to clients.
 
 The runtime endpoint uses PostgreSQL and selects only the current published version. The JSONB definition
 remains `unknown` until it passes `validateFormDefinition`; Drizzle inference is never treated as domain
-trust. Deterministic development seeds supply `health-questionnaire` and `customer-feedback`, with the health
-questionnaire presented first by dashboard ordering. Unit tests may inject the in-memory source, but production
-composition does not use it.
+trust. Deterministic development seeds supply `health-questionnaire` and `customer-feedback`. Both are
+system-owned published samples and are therefore intentionally visible to every authenticated user under the
+current accessible-form policy. Unit tests may inject the in-memory source, but production composition does not
+use it.
 
 The health questionnaire is sample content, not medical advice and not approval to collect real health data.
 Health/contact answers may be sensitive personal information. Production use requires explicit review of
 consent, access, retention, deletion, encryption, auditing, incident response, and applicable jurisdictional
 requirements before submissions are enabled for real people.
+The optional free-text field can collect arbitrary sensitive information; its warning copy is guidance, not an
+enforceable security control. The date-of-birth limits are immutable sample-version rules and require a new form
+version when their policy changes.
+
+Seed reruns do not touch lifecycle timestamps or republish forms that are already published. Dashboard ordering
+continues to mean resource update recency, not featured rank. If curated samples need a fixed featured order,
+that requires separate explicit product data rather than overloading `updated_at`.
 
 Dashboard and definition reads are owner-authorized. This does not grant form creation, publishing, or other
 privileged workflow capabilities, which remain planned work.
