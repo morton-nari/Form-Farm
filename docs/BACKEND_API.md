@@ -185,6 +185,9 @@ the route form ID, and use `formVersion = latest_version + 1`. One owner-scoped 
 draft, compares the expected revision, writes the complete validated definition, increments the revision, and
 updates database-owned timestamps. A stale/concurrent save returns `409 conflict` without the current
 definition; success returns the complete validated draft and its new ETag. Responses are `no-store`.
+Revision `9007199254740991` is exhausted: another save returns `409 conflict` rather than wrapping or emitting an
+unsafe JavaScript number. Recovery or draft recreation at that practically unreachable boundary is an explicit
+operator/product action.
 
 Publication, edit bootstrap, draft history, Angular autosave/builder behavior, and AI generation remain separate
 slices.

@@ -60,10 +60,12 @@ export class PostgresOwnerFormDraftStore implements OwnerFormDraftStore {
             updatedAt: formDrafts.updatedAt,
           });
         if (!updated) return { status: 'conflict' } as const;
-        await transaction
+        const [updatedForm] = await transaction
           .update(forms)
           .set({ updatedAt: sql`now()` })
-          .where(eq(forms.id, input.formId));
+          .where(ownerFormPredicate(input.formId, input.actor.userId))
+          .returning({ id: forms.id });
+        if (!updatedForm) throw new OwnerFormDraftPersistenceError();
         return {
           status: 'saved',
           draft: safeRecord({ ...updated, latestVersion: stored.latestVersion }),
@@ -90,6 +92,10 @@ export class PostgresOwnerFormDraftStore implements OwnerFormDraftStore {
 }
 
 function ownerDraftPredicate(formId: string, userId: string) {
+  return ownerFormPredicate(formId, userId);
+}
+
+function ownerFormPredicate(formId: string, userId: string) {
   return and(
     eq(forms.id, formId),
     eq(forms.ownershipKind, 'user'),

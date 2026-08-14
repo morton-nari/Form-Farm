@@ -441,11 +441,13 @@ describe('PostgresFormDefinitionSource', () => {
       code: 'conflict',
     });
     const stored = await pool.query(
-      'select revision, definition from form_drafts where form_id = $1',
+      `select d.revision, d.definition, d.updated_at = f.updated_at as timestamps_match
+       from form_drafts d join forms f on f.id = d.form_id where d.form_id = $1`,
       [definition.id],
     );
     expect(stored.rows[0].revision).toBe('2');
     expect(['First update', 'Second update']).toContain(stored.rows[0].definition.title);
+    expect(stored.rows[0].timestamps_match).toBe(true);
   });
 
   it('fails closed when draft JSON version no longer matches relational state', async () => {
