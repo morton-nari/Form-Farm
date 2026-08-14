@@ -12,7 +12,8 @@ export interface LockedPublishedForm {
 
 export type BootstrapFormDraftResult =
   | { readonly status: 'ready'; readonly created: boolean; readonly draft: StoredOwnerFormDraft }
-  | { readonly status: 'not_found' };
+  | { readonly status: 'not_found' }
+  | { readonly status: 'conflict' };
 
 export interface BootstrapFormDraftTransaction {
   execute(

@@ -19,6 +19,8 @@ export class BootstrapFormDraft {
       prepare(formId, locked),
     );
     if (result.status === 'not_found') throw new ApplicationError('not_found', 'Form not found.');
+    if (result.status === 'conflict')
+      throw new ApplicationError('conflict', 'The form cannot start another draft version.');
     return { ...toOwnerFormDraft(formId, result.draft), created: result.created };
   }
 }

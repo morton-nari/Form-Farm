@@ -609,6 +609,7 @@ describe('PostgresFormDefinitionSource', () => {
     expect(
       results.every((result) => result.draftRevision === 1 && result.definition.formVersion === 2),
     ).toBe(true);
+    expect(results[0].definition).toEqual(results[1].definition);
     const stored = await pool.query(
       `select count(*)::integer as count, min(revision)::text as revision,
               min((definition->>'formVersion')::integer) as form_version

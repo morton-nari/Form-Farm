@@ -32,8 +32,10 @@ export class PostgresBootstrapFormDraftTransaction implements BootstrapFormDraft
           .limit(1)
           .for('update');
         if (!form || form.currentVersion === null) return { status: 'not_found' } as const;
-        const existing = await findDraft(tx, input.formId, form.latestVersion);
+        const latestVersion = safeLatestVersion(form.latestVersion);
+        const existing = await findDraft(tx, input.formId, latestVersion);
         if (existing) return { status: 'ready', created: false, draft: existing } as const;
+        if (latestVersion === MAXIMUM_POSTGRES_INTEGER) return { status: 'conflict' } as const;
         const [published] = await tx
           .select({
             definition: formVersions.definition,
@@ -50,9 +52,9 @@ export class PostgresBootstrapFormDraftTransaction implements BootstrapFormDraft
           )
           .limit(1);
         if (!published) throw new BootstrapFormDraftPersistenceError();
-        const definition = prepare({ ...published, latestVersion: form.latestVersion });
+        const definition = prepare({ ...published, latestVersion });
         await tx.insert(formDrafts).values({ formId: input.formId, definition, revision: 1 });
-        const created = await findDraft(tx, input.formId, form.latestVersion);
+        const created = await findDraft(tx, input.formId, latestVersion);
         if (!created) throw new BootstrapFormDraftPersistenceError();
         return { status: 'ready', created: true, draft: created } as const;
       });
@@ -61,6 +63,22 @@ export class PostgresBootstrapFormDraftTransaction implements BootstrapFormDraft
       throw new BootstrapFormDraftPersistenceError();
     }
   }
+}
+
+const MAXIMUM_POSTGRES_INTEGER = 2_147_483_647;
+
+function safeLatestVersion(value: unknown): number {
+  const version =
+    typeof value === 'string' && /^(0|[1-9][0-9]*)$/.test(value) ? Number(value) : value;
+  if (
+    typeof version !== 'number' ||
+    !Number.isSafeInteger(version) ||
+    version < 0 ||
+    version > MAXIMUM_POSTGRES_INTEGER
+  ) {
+    throw new BootstrapFormDraftPersistenceError();
+  }
+  return version;
 }
 
 async function findDraft(

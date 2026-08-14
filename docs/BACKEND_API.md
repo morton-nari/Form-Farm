@@ -230,6 +230,10 @@ session-XSRF boundary. PostgreSQL locks the published owner form, validates its 
 `ETag: "draft-1"` and `201` when created. If a draft already exists, its content is never replaced and the route
 returns it with `200` and its existing ETag. Concurrent calls therefore converge on one draft. Missing, system,
 archived, and non-owned forms remain indistinguishable as `404 not_found`.
+Bootstrap never refreshes or replaces an existing draft from a newer publication. The lifecycle requires
+`current_published_version = latest_version`; divergence or a missing referenced version fails internally. Rollback
+should publish a new version copied from historical content rather than moving the pointer backward. The relational
+version is parsed and bounded before arithmetic; PostgreSQL integer exhaustion returns `409 conflict`.
 
 ## Submit a form response
 
