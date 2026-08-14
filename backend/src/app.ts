@@ -18,6 +18,9 @@ import { registerAuthenticationRoutes } from './http/routes/authentication.route
 import type { AuthenticationRateLimiter } from './http/authentication/authentication-rate-limiter.js';
 import type { XsrfTokenService } from './http/authentication/xsrf-token-service.js';
 import { registerOwnedFormsRoutes } from './http/routes/owned-forms.route.js';
+import { CreateFormDraft } from './application/forms/create-form-draft.js';
+import type { CreateFormDraftTransaction } from './application/ports/create-form-draft-transaction.js';
+import { registerFormManagementRoutes } from './http/routes/form-management.route.js';
 
 export interface AuthenticationApplicationServices {
   readonly registerAccount: {
@@ -43,6 +46,7 @@ export interface CreateApplicationOptions {
   readonly formSubmissionTransaction: FormSubmissionTransaction;
   readonly authentication?: AuthenticationApplicationServices;
   readonly accessibleFormSource?: AccessibleFormSource;
+  readonly createFormDraftTransaction?: CreateFormDraftTransaction;
   readonly closeInfrastructure?: () => Promise<void>;
 }
 
@@ -90,6 +94,14 @@ export function createApplication(options: CreateApplicationOptions): FastifyIns
   } else {
     void app.register(registerFormDefinitionRoute, {
       getFormDefinition: new GetFormDefinition(options.formDefinitionSource),
+    });
+  }
+  if (options.authentication && options.createFormDraftTransaction) {
+    void app.register(registerFormManagementRoutes, {
+      config: options.config.auth,
+      resolveSession: options.authentication.resolveSession,
+      xsrfTokens: options.authentication.xsrfTokens,
+      createFormDraft: new CreateFormDraft(options.createFormDraftTransaction),
     });
   }
   void app.register(registerFormSubmissionRoute, {

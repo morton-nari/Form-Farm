@@ -6,6 +6,7 @@ import { PostgresFormDefinitionSource } from './infrastructure/forms/postgres-fo
 import { PostgresFormSubmissionTransaction } from './infrastructure/forms/postgres-form-submission-transaction.js';
 import { createAuthenticationServices } from './composition/create-authentication-services.js';
 import { PostgresAccessibleFormSource } from './infrastructure/forms/postgres-accessible-form-source.js';
+import { PostgresCreateFormDraftTransaction } from './infrastructure/forms/postgres-create-form-draft-transaction.js';
 
 const config = loadBackendConfig();
 const database = createDatabase(config);
@@ -15,6 +16,7 @@ const app = createApplication({
   formSubmissionTransaction: new PostgresFormSubmissionTransaction(database.database),
   authentication: createAuthenticationServices(database.database, config.auth),
   accessibleFormSource: new PostgresAccessibleFormSource(database.database),
+  createFormDraftTransaction: new PostgresCreateFormDraftTransaction(database.database),
   closeInfrastructure: database.close,
 });
 const removeShutdownHandlers = installGracefulShutdown(app);

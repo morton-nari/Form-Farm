@@ -9,6 +9,7 @@ const migrations = [
   '0000_initial_form_read.sql',
   '0001_versioned_form_submissions.sql',
   '0002_authentication_ownership_core.sql',
+  '0003_owner_form_drafts.sql',
 ] as const;
 const pool = new Pool({ connectionString: databaseUrl, max: 1 });
 

@@ -1,5 +1,6 @@
 import {
   check,
+  bigint,
   foreignKey,
   integer,
   index,
@@ -163,6 +164,34 @@ export const formVersions = pgTable(
         and (${table.definition}->>'formVersion')::integer = ${table.version}
         and (${table.definition}->>'schemaVersion')::integer = ${table.schemaVersion}`,
     ),
+  ],
+);
+
+export const formDrafts = pgTable(
+  'form_drafts',
+  {
+    formId: text('form_id').primaryKey(),
+    definition: jsonb('definition').notNull(),
+    revision: bigint('revision', { mode: 'number' }).notNull().default(1),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    foreignKey({ columns: [table.formId], foreignColumns: [forms.id] })
+      .onDelete('restrict')
+      .onUpdate('restrict'),
+    check(
+      'form_drafts_revision_check',
+      sql`${table.revision} between 1 and 9007199254740991`,
+    ),
+    check('form_drafts_definition_object_check', sql`jsonb_typeof(${table.definition}) = 'object'`),
+    check(
+      'form_drafts_definition_identity_check',
+      sql`${table.definition}->>'id' = ${table.formId}
+        and (${table.definition}->>'schemaVersion')::integer > 0
+        and (${table.definition}->>'formVersion')::integer > 0`,
+    ),
+    index('form_drafts_updated_at_idx').on(table.updatedAt.desc(), table.formId),
   ],
 );
 

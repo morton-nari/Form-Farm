@@ -40,7 +40,8 @@ Status: **in progress**
 ## Phase 3 — Form builder and realistic demos
 
 - [x] Add an authenticated accessible-forms dashboard
-- Define owner creation, draft, versioning, and publication semantics in ADR 0006
+- [x] Define owner creation, draft, versioning, and publication semantics in ADR 0006
+- [x] Add atomic owner form and revision-1 draft creation
 - Add a separate owner-management dashboard that lists and creates owned forms
 - Add and arrange sections and fields
 - Configure field options and validation

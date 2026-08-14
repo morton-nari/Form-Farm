@@ -12,6 +12,8 @@ import { CUSTOMER_FEEDBACK_FORM } from './customer-feedback.form.js';
 import { PostgresFormDefinitionSource } from './postgres-form-definition-source.js';
 import { PostgresFormSubmissionTransaction } from './postgres-form-submission-transaction.js';
 import { PostgresAccessibleFormSource } from './postgres-accessible-form-source.js';
+import { PostgresCreateFormDraftTransaction } from './postgres-create-form-draft-transaction.js';
+import { CreateFormDraft } from '../../application/forms/create-form-draft.js';
 
 describe('PostgresFormDefinitionSource', () => {
   let container: StartedTestContainer;
@@ -20,6 +22,7 @@ describe('PostgresFormDefinitionSource', () => {
   let useCase: GetFormDefinition;
   let submitForm: SubmitForm;
   let accessibleSource: PostgresAccessibleFormSource;
+  let formFarmDatabase: FormFarmDatabase;
 
   beforeAll(async () => {
     container = await new GenericContainer('postgres:18-alpine')
@@ -40,6 +43,7 @@ describe('PostgresFormDefinitionSource', () => {
       '0000_initial_form_read.sql',
       '0001_versioned_form_submissions.sql',
       '0002_authentication_ownership_core.sql',
+      '0003_owner_form_drafts.sql',
     ]) {
       const migration = await readFile(
         fileURLToPath(new URL(`../../../drizzle/${migrationName}`, import.meta.url)),
@@ -57,6 +61,7 @@ describe('PostgresFormDefinitionSource', () => {
       databasePoolMax: 2,
     });
     closeDatabase = database.close;
+    formFarmDatabase = database.database;
     useCase = new GetFormDefinition(new PostgresFormDefinitionSource(database.database));
     submitForm = new SubmitForm(new PostgresFormSubmissionTransaction(database.database));
     accessibleSource = new PostgresAccessibleFormSource(database.database);
@@ -344,6 +349,55 @@ describe('PostgresFormDefinitionSource', () => {
     ).resolves.toMatchObject({ rowFormId: 'owned-dashboard-form' });
   });
 
+  it('creates the owner form and revision-1 draft atomically and resolves concurrent IDs once', async () => {
+    const ownerId = '20000000-0000-4000-8000-000000000001';
+    await pool.query(
+      `insert into users (id, email, normalized_email, password_hash)
+       values ($1, 'creator@example.com', 'creator@example.com', 'hash') on conflict (id) do nothing`,
+      [ownerId],
+    );
+    const useCase = new CreateFormDraft(
+      new PostgresCreateFormDraftTransaction(formFarmDatabase),
+    );
+    const definition = { ...CUSTOMER_FEEDBACK_FORM, id: 'concurrent-created-form' };
+    const outcomes = await Promise.allSettled([
+      useCase.execute({ userId: ownerId }, definition),
+      useCase.execute({ userId: ownerId }, definition),
+    ]);
+    expect(outcomes.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+    expect(outcomes.filter((result) => result.status === 'rejected')).toHaveLength(1);
+    await expect(
+      pool.query(
+        `select f.owner_user_id, f.ownership_kind, f.latest_version, d.revision, d.definition
+         from forms f join form_drafts d on d.form_id = f.id where f.id = $1`,
+        [definition.id],
+      ),
+    ).resolves.toMatchObject({
+      rows: [
+        {
+          owner_user_id: ownerId,
+          ownership_kind: 'user',
+          latest_version: 0,
+          revision: '1',
+          definition,
+        },
+      ],
+    });
+  });
+
+  it('rolls back without an orphan form when draft creation cannot complete', async () => {
+    const useCase = new CreateFormDraft(
+      new PostgresCreateFormDraftTransaction(formFarmDatabase),
+    );
+    const definition = { ...CUSTOMER_FEEDBACK_FORM, id: 'rolled-back-created-form' };
+    await expect(
+      useCase.execute({ userId: '20000000-0000-4000-8000-999999999999' }, definition),
+    ).rejects.toMatchObject({ name: 'CreateFormDraftPersistenceError' });
+    await expect(
+      pool.query('select id from forms where id = $1', [definition.id]),
+    ).resolves.toMatchObject({ rowCount: 0 });
+  });
+
   async function insertPublishedForm(formId: string, definition: unknown): Promise<void> {
     await pool.query('begin');
     try {
@@ -401,4 +455,5 @@ describe('PostgresFormDefinitionSource', () => {
       idempotencyKey,
     };
   }
+
 });
