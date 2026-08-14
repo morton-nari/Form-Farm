@@ -94,9 +94,75 @@ import { HttpErrorResponse } from '@angular/common/http';
                 [id]="'section-description-' + index"
                 formControlName="description"
               ></textarea>
-              <p class="form-text mb-0">
-                {{ sectionFieldCount(section.controls.id.value) }} existing field(s) are preserved.
-              </p>
+              <fieldset class="border rounded p-3 mt-3" formArrayName="fields">
+                <legend class="float-none w-auto px-2 fs-6">Fields</legend>
+                @for (
+                  field of section.controls.fields.controls;
+                  track field.controls.id.value;
+                  let fieldIndex = $index
+                ) {
+                  <div class="bg-body-tertiary rounded p-3 mb-3" [formGroupName]="fieldIndex">
+                    <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
+                      <h3 class="h6 mb-0">
+                        Field {{ fieldIndex + 1 }} · {{ field.controls.type.value }}
+                      </h3>
+                      <div class="btn-group" aria-label="Field order and removal">
+                        <button
+                          class="btn btn-sm btn-outline-secondary"
+                          type="button"
+                          [disabled]="fieldIndex === 0"
+                          (click)="moveField(index, fieldIndex, -1)"
+                          [attr.aria-label]="'Move field ' + (fieldIndex + 1) + ' up'"
+                        >
+                          Move up
+                        </button>
+                        <button
+                          class="btn btn-sm btn-outline-secondary"
+                          type="button"
+                          [disabled]="fieldIndex === section.controls.fields.length - 1"
+                          (click)="moveField(index, fieldIndex, 1)"
+                          [attr.aria-label]="'Move field ' + (fieldIndex + 1) + ' down'"
+                        >
+                          Move down
+                        </button>
+                        <button
+                          class="btn btn-sm btn-outline-danger"
+                          type="button"
+                          [disabled]="section.controls.fields.length === 1"
+                          (click)="removeField(index, fieldIndex)"
+                          [attr.aria-label]="'Remove field ' + (fieldIndex + 1)"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                    <label class="form-label" [for]="'field-label-' + index + '-' + fieldIndex"
+                      >Field label</label
+                    >
+                    <input
+                      #fieldLabel
+                      class="form-control mb-3"
+                      [id]="'field-label-' + index + '-' + fieldIndex"
+                      formControlName="label"
+                    />
+                    <label class="form-label" [for]="'field-help-' + index + '-' + fieldIndex"
+                      >Help text</label
+                    >
+                    <textarea
+                      class="form-control"
+                      [id]="'field-help-' + index + '-' + fieldIndex"
+                      formControlName="helpText"
+                    ></textarea>
+                  </div>
+                }
+                <button
+                  class="btn btn-sm btn-outline-primary"
+                  type="button"
+                  (click)="addField(index)"
+                >
+                  Add text field
+                </button>
+              </fieldset>
             </div>
           }
           <button class="btn btn-outline-primary" type="button" (click)="addSection()">
@@ -140,6 +206,9 @@ export class FormEditorPage implements OnInit {
   @ViewChildren('sectionTitle') private readonly sectionTitles!: QueryList<
     ElementRef<HTMLInputElement>
   >;
+  @ViewChildren('fieldLabel') private readonly fieldLabels!: QueryList<
+    ElementRef<HTMLInputElement>
+  >;
   private readonly route = inject(ActivatedRoute);
   readonly formId = this.route.snapshot.paramMap.get('formId');
   readonly status = signal<'loading' | 'ready' | 'saving' | 'saved' | 'error'>(
@@ -157,7 +226,7 @@ export class FormEditorPage implements OnInit {
     description: new FormControl('', { nonNullable: true }),
     sections: new FormArray<SectionFormGroup>([]),
   });
-  private readonly fieldsBySectionId = new Map<string, readonly FormField[]>();
+  private readonly fieldSnapshotsById = new Map<string, FormField>();
 
   get sections(): FormArray<SectionFormGroup> {
     return this.form.controls.sections;
@@ -168,8 +237,9 @@ export class FormEditorPage implements OnInit {
     private readonly changeDetector: ChangeDetectorRef,
   ) {
     if (!this.formId) {
-      this.fieldsBySectionId.set('main', [{ id: 'response', type: 'text', label: 'Response' }]);
-      this.sections.push(sectionGroup('main', 'Main', ''), { emitEvent: false });
+      const field: FormField = { id: 'response', type: 'text', label: 'Response' };
+      this.fieldSnapshotsById.set(field.id, field);
+      this.sections.push(sectionGroup('main', 'Main', '', [field]), { emitEvent: false });
     }
   }
   ngOnInit(): void {
@@ -210,12 +280,11 @@ export class FormEditorPage implements OnInit {
       'section',
       new Set(this.sections.controls.map((item) => item.controls.id.value)),
     );
-    const existingFieldIds = new Set(
-      [...this.fieldsBySectionId.values()].flatMap((fields) => fields.map((field) => field.id)),
-    );
+    const existingFieldIds = new Set(this.fieldSnapshotsById.keys());
     const fieldId = nextIdentifier('response', existingFieldIds);
-    this.fieldsBySectionId.set(sectionId, [{ id: fieldId, type: 'text', label: 'Response' }]);
-    this.sections.push(sectionGroup(sectionId, `Section ${this.sections.length + 1}`, ''));
+    const field: FormField = { id: fieldId, type: 'text', label: 'Response' };
+    this.fieldSnapshotsById.set(fieldId, field);
+    this.sections.push(sectionGroup(sectionId, `Section ${this.sections.length + 1}`, '', [field]));
     this.form.markAsDirty();
     this.focusSection(this.sections.length - 1);
   }
@@ -233,12 +302,46 @@ export class FormEditorPage implements OnInit {
     if (this.sections.length <= 1 || index < 0 || index >= this.sections.length) return;
     const removed = this.sections.at(index);
     this.sections.removeAt(index);
-    this.fieldsBySectionId.delete(removed.controls.id.value);
+    removed.controls.fields.controls.forEach((field) =>
+      this.fieldSnapshotsById.delete(field.controls.id.value),
+    );
     this.form.markAsDirty();
     this.focusSection(Math.min(index, this.sections.length - 1));
   }
-  sectionFieldCount(sectionId: string): number {
-    return this.fieldsBySectionId.get(sectionId)?.length ?? 0;
+  addField(sectionIndex: number): void {
+    const section = this.sections.at(sectionIndex);
+    if (!section) return;
+    const fieldId = nextIdentifier('field', new Set(this.fieldSnapshotsById.keys()));
+    const field: FormField = {
+      id: fieldId,
+      type: 'text',
+      label: `Field ${section.controls.fields.length + 1}`,
+    };
+    this.fieldSnapshotsById.set(fieldId, field);
+    section.controls.fields.push(fieldGroup(field));
+    this.form.markAsDirty();
+    this.focusField(sectionIndex, section.controls.fields.length - 1);
+  }
+  moveField(sectionIndex: number, fieldIndex: number, offset: -1 | 1): void {
+    const fields = this.sections.at(sectionIndex)?.controls.fields;
+    if (!fields) return;
+    const target = fieldIndex + offset;
+    if (fieldIndex < 0 || fieldIndex >= fields.length || target < 0 || target >= fields.length)
+      return;
+    const field = fields.at(fieldIndex);
+    fields.removeAt(fieldIndex, { emitEvent: false });
+    fields.insert(target, field, { emitEvent: false });
+    this.form.markAsDirty();
+    this.focusField(sectionIndex, target);
+  }
+  removeField(sectionIndex: number, fieldIndex: number): void {
+    const fields = this.sections.at(sectionIndex)?.controls.fields;
+    if (!fields || fields.length <= 1 || fieldIndex < 0 || fieldIndex >= fields.length) return;
+    const removed = fields.at(fieldIndex);
+    fields.removeAt(fieldIndex);
+    this.fieldSnapshotsById.delete(removed.controls.id.value);
+    this.form.markAsDirty();
+    this.focusField(sectionIndex, Math.min(fieldIndex, fields.length - 1));
   }
   canPublish(): boolean {
     return (
@@ -252,6 +355,13 @@ export class FormEditorPage implements OnInit {
   private focusSection(index: number): void {
     this.changeDetector.detectChanges();
     this.sectionTitles.get(index)?.nativeElement.focus();
+  }
+  private focusField(sectionIndex: number, fieldIndex: number): void {
+    this.changeDetector.detectChanges();
+    const precedingFieldCount = this.sections.controls
+      .slice(0, sectionIndex)
+      .reduce((count, section) => count + section.controls.fields.length, 0);
+    this.fieldLabels.get(precedingFieldCount + fieldIndex)?.nativeElement.focus();
   }
   publish(): void {
     if (!this.formId || !this.etag) return;
@@ -305,10 +415,20 @@ export class FormEditorPage implements OnInit {
     const sections: FormSection[] = [];
     for (const section of this.sections.controls) {
       const value = section.getRawValue();
-      const fields = this.fieldsBySectionId.get(value.id);
-      if (!fields) {
-        this.fail('The draft contains invalid builder state. Reload the draft.');
-        return undefined;
+      const fields: FormField[] = [];
+      for (const field of section.controls.fields.controls) {
+        const fieldValue = field.getRawValue();
+        const snapshot = this.fieldSnapshotsById.get(fieldValue.id);
+        if (!snapshot || snapshot.type !== fieldValue.type) {
+          this.fail('The draft contains invalid builder state. Reload the draft.');
+          return undefined;
+        }
+        const updated = { ...snapshot, label: fieldValue.label } as FormField & {
+          helpText?: string;
+        };
+        if (fieldValue.helpText) updated.helpText = fieldValue.helpText;
+        else delete updated.helpText;
+        fields.push(updated);
       }
       sections.push({
         id: value.id,
@@ -379,13 +499,14 @@ export class FormEditorPage implements OnInit {
     if (!result.success || result.value.id !== this.formId) return this.rejectDraft();
     this.definition = result.value;
     this.etag = etag;
-    this.fieldsBySectionId.clear();
+    this.fieldSnapshotsById.clear();
     this.sections.clear({ emitEvent: false });
     result.value.sections.forEach((section) => {
-      this.fieldsBySectionId.set(section.id, section.fields);
-      this.sections.push(sectionGroup(section.id, section.title, section.description ?? ''), {
-        emitEvent: false,
-      });
+      section.fields.forEach((field) => this.fieldSnapshotsById.set(field.id, field));
+      this.sections.push(
+        sectionGroup(section.id, section.title, section.description ?? '', section.fields),
+        { emitEvent: false },
+      );
     });
     this.form.patchValue({
       id: result.value.id,
@@ -411,13 +532,36 @@ type SectionFormGroup = FormGroup<{
   id: FormControl<string>;
   title: FormControl<string>;
   description: FormControl<string>;
+  fields: FormArray<FieldFormGroup>;
 }>;
 
-function sectionGroup(id: string, title: string, description: string): SectionFormGroup {
+type FieldFormGroup = FormGroup<{
+  id: FormControl<string>;
+  type: FormControl<FormField['type']>;
+  label: FormControl<string>;
+  helpText: FormControl<string>;
+}>;
+
+function sectionGroup(
+  id: string,
+  title: string,
+  description: string,
+  fields: readonly FormField[],
+): SectionFormGroup {
   return new FormGroup({
     id: new FormControl(id, { nonNullable: true }),
     title: new FormControl(title, { nonNullable: true, validators: [Validators.required] }),
     description: new FormControl(description, { nonNullable: true }),
+    fields: new FormArray(fields.map(fieldGroup)),
+  });
+}
+
+function fieldGroup(field: FormField): FieldFormGroup {
+  return new FormGroup({
+    id: new FormControl(field.id, { nonNullable: true }),
+    type: new FormControl(field.type, { nonNullable: true }),
+    label: new FormControl(field.label, { nonNullable: true, validators: [Validators.required] }),
+    helpText: new FormControl(field.helpText ?? '', { nonNullable: true }),
   });
 }
 
