@@ -2,6 +2,8 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { ComponentFixture } from '@angular/core/testing';
+import { ActivatedRoute, convertToParamMap } from '@angular/router';
+import { of } from 'rxjs';
 
 import { FormDefinition } from '@form-farm/form-domain';
 import { FormViewerPage } from './form-viewer-page';
@@ -12,7 +14,11 @@ describe('FormViewerPage integration', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [FormViewerPage],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: ActivatedRoute, useValue: { paramMap: of(convertToParamMap({ formId: 'customer-feedback' })) } },
+      ],
     }).compileComponents();
 
     httpTesting = TestBed.inject(HttpTestingController);

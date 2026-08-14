@@ -55,7 +55,7 @@ Status: **in progress**
 - Publish form versions
 - [x] Store submissions against the submitted version
 - [x] Submit provider-neutral Angular answers with safe idempotent retry
-- Support dashboard-friendly form and submission queries
+- [x] Support an owner-authorized dashboard form-summary query
 - Add database integration tests
 
 ## Phase 5 — Authentication and authorization
@@ -64,8 +64,8 @@ Status: **in progress**
 - [x] Add the framework-independent account, opaque-session, rate-limit, and ownership persistence core
 - [x] Expose sign-up, login, logout, session, cookie, XSRF, origin, and rate-limit HTTP handling
 - [x] Wire Angular registration, login, session bootstrap, guards, and logout
-- Protect frontend routes and backend operations
-- Add user form ownership and authorization, with organizations deferred until justified
+- [x] Protect frontend routes and backend form-read operations
+- [x] Add user form ownership and read authorization, with organizations deferred until justified
 - Establish secure secret and environment management
 
 ## Phase 6 — AI form generation

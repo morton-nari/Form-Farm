@@ -2,7 +2,7 @@
 
 This document describes implemented HTTP behavior. Form writes/publishing and AI operations are not part of
 the current API. Angular consumes both the generic form endpoints and this authentication boundary; owner
-dashboard queries remain a separate follow-up.
+dashboard queries use the same opaque-session boundary.
 
 ## Authentication
 
@@ -31,16 +31,41 @@ returned or logged. Durable source and normalized-account rate limits use indepe
 Previous XSRF and limiter keys are accepted only until one validated rotation deadline, limited to a maximum
 24-hour overlap; current keys are always used for new tokens and identities.
 
-## Get a form definition
+## List and get forms
+
+```http
+GET /api/v1/forms
+```
+
+An authenticated request returns `{ "forms": [...] }` containing only dashboard summaries: stable ID,
+title, current form version, and update timestamp. It does not return definitions, persistence rows, owner
+identities, or submission data. Published system forms are available to every authenticated user; published
+user forms are available only to their exact owner. Draft, archived, and another user's forms are excluded.
+This is deliberately an **accessible-forms landing query**, not an owner-management query. The initial
+system-form rule supports curated platform forms (currently only the development sample); it does not imply
+that the signed-in user owns or may edit those forms.
+
+Published-only behavior is intentional for this runner-facing slice. A later management API must use a
+separate owner-only, lifecycle-aware query for Draft / Published / Archived views and write controls rather
+than broadening this accessibility contract. Form creation, editing, and publishing use cases will receive the
+authenticated actor and enforce their own authorization policies.
+
+The first response is intentionally unpaginated while form creation is unavailable. Pagination must be added
+before users can accumulate large form collections; clients must not treat the current unbounded array as the
+final dashboard contract. Results are ordered by `updated_at DESC`, then form ID ascending as a stable
+tie-breaker.
 
 ```http
 GET /api/v1/forms/:formId
 ```
 
+This read also requires a valid session and applies the same ownership policy in the backend use case and
+PostgreSQL query. Missing and inaccessible IDs both return `404`, preventing ownership discovery.
+
 `v1` is the HTTP API version. It is separate from both `schemaVersion`, which versions the shape of the
 Form Farm contract, and `formVersion`, which identifies a content revision of one logical form.
 
-The initial deterministic form is available at:
+The deterministic development form is available to authenticated users at:
 
 ```http
 GET /api/v1/forms/customer-feedback
@@ -48,8 +73,13 @@ GET /api/v1/forms/customer-feedback
 
 A successful response is the validated provider-neutral `FormDefinition` JSON with status `200`. The
 current fixture has `schemaVersion: 1`, `id: "customer-feedback"`, and `formVersion: 1`. The endpoint
-passes source data through `validateFormDefinition` before returning it, even though its current source
-is owned in-memory data.
+passes persisted source data through `validateFormDefinition` and checks JSON/relational identity before
+returning it.
+
+The list currently validates each selected full JSONB definition to obtain trusted title and version data.
+That keeps one trust rule for the initial scale, but is not the intended high-volume projection. When creation
+is introduced, frequently queried dashboard fields should be evaluated for relational storage so list requests
+do not repeatedly parse every definition.
 
 Valid identifiers begin with a letter and contain only letters, digits, `_`, or `-`.
 
@@ -82,8 +112,8 @@ remains `unknown` until it passes `validateFormDefinition`; Drizzle inference is
 trust. A deterministic development seed supplies `customer-feedback`. Unit tests may inject the in-memory
 source, but production composition does not use it.
 
-This read capability does not imply authorization or privileged workflow execution. Version creation,
-publishing operations, ownership, and dashboard queries remain planned work.
+Dashboard and definition reads are owner-authorized. This does not grant form creation, publishing, or other
+privileged workflow capabilities, which remain planned work.
 
 ## Submit a form response
 

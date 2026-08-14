@@ -6,6 +6,9 @@ import { GetFormDefinition } from './application/forms/get-form-definition.js';
 import { SubmitForm } from './application/forms/submit-form.js';
 import type { FormDefinitionSource } from './application/ports/form-definition-source.js';
 import type { FormSubmissionTransaction } from './application/ports/form-submission-transaction.js';
+import type { AccessibleFormSource } from './application/ports/accessible-form-source.js';
+import { GetAccessibleFormDefinition } from './application/forms/get-accessible-form-definition.js';
+import { ListAccessibleForms } from './application/forms/list-accessible-forms.js';
 import type { BackendConfig } from './config/backend-config.js';
 import { registerErrorHandler } from './http/errors/register-error-handler.js';
 import { registerFormDefinitionRoute } from './http/routes/form-definition.route.js';
@@ -14,6 +17,7 @@ import { registerFormSubmissionRoute } from './http/routes/form-submission.route
 import { registerAuthenticationRoutes } from './http/routes/authentication.route.js';
 import type { AuthenticationRateLimiter } from './http/authentication/authentication-rate-limiter.js';
 import type { XsrfTokenService } from './http/authentication/xsrf-token-service.js';
+import { registerOwnedFormsRoutes } from './http/routes/owned-forms.route.js';
 
 export interface AuthenticationApplicationServices {
   readonly registerAccount: {
@@ -38,6 +42,7 @@ export interface CreateApplicationOptions {
   readonly formDefinitionSource: FormDefinitionSource;
   readonly formSubmissionTransaction: FormSubmissionTransaction;
   readonly authentication?: AuthenticationApplicationServices;
+  readonly accessibleFormSource?: AccessibleFormSource;
   readonly closeInfrastructure?: () => Promise<void>;
 }
 
@@ -75,9 +80,18 @@ export function createApplication(options: CreateApplicationOptions): FastifyIns
       ...options.authentication,
     });
   }
-  void app.register(registerFormDefinitionRoute, {
-    getFormDefinition: new GetFormDefinition(options.formDefinitionSource),
-  });
+  if (options.authentication && options.accessibleFormSource) {
+    void app.register(registerOwnedFormsRoutes, {
+      secureCookies: options.config.auth.secureCookies,
+      resolveSession: options.authentication.resolveSession,
+      getFormDefinition: new GetAccessibleFormDefinition(options.accessibleFormSource),
+      listForms: new ListAccessibleForms(options.accessibleFormSource),
+    });
+  } else {
+    void app.register(registerFormDefinitionRoute, {
+      getFormDefinition: new GetFormDefinition(options.formDefinitionSource),
+    });
+  }
   void app.register(registerFormSubmissionRoute, {
     submitForm: new SubmitForm(options.formSubmissionTransaction),
   });

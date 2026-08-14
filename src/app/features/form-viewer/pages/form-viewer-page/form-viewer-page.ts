@@ -1,6 +1,8 @@
 import { DOCUMENT } from '@angular/common';
-import { ChangeDetectionStrategy, Component, effect, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, effect, inject, OnInit, signal } from '@angular/core';
 import { ReactiveFormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { FormAnswerValue } from '@form-farm/form-domain';
 import { DynamicField } from '../../../../shared/form-runner/components/dynamic-field/dynamic-field';
@@ -10,8 +12,6 @@ import {
   DynamicFormFactory,
 } from '../../../../shared/form-runner/forms/dynamic-form.factory';
 import { FormViewerStore } from '../../data-access/form-viewer.store';
-
-const DEFAULT_FORM_ID = 'customer-feedback';
 
 @Component({
   selector: 'app-form-viewer-page',
@@ -24,8 +24,11 @@ export class FormViewerPage implements OnInit {
   protected readonly store = inject(FormViewerStore);
   private readonly formFactory = inject(DynamicFormFactory);
   private readonly document = inject(DOCUMENT);
+  private readonly route = inject(ActivatedRoute);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly formState = signal<DynamicForm | null>(null);
   private loadedDefinitionKey: string | null = null;
+  private currentFormId: string | null = null;
 
   protected readonly form = this.formState.asReadonly();
   protected readonly reviewing = signal(false);
@@ -49,13 +52,16 @@ export class FormViewerPage implements OnInit {
   }
 
   ngOnInit(): void {
-    this.store.load(DEFAULT_FORM_ID);
+    this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
+      this.currentFormId = params.get('formId');
+      if (this.currentFormId) this.store.load(this.currentFormId);
+    });
   }
 
   protected retry(): void {
     this.loadedDefinitionKey = null;
     this.formState.set(null);
-    this.store.load(DEFAULT_FORM_ID);
+    if (this.currentFormId) this.store.load(this.currentFormId);
   }
 
   protected controlFor(fieldId: string): DynamicFormControl {

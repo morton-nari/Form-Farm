@@ -25,7 +25,7 @@ export const routes: Routes = [
           import('./features/forms-home/forms-home-page').then((module) => module.FormsHomePage),
       },
       {
-        path: 'customer-feedback',
+        path: ':formId',
         loadComponent: () =>
           import('./features/form-viewer/pages/form-viewer-page/form-viewer-page').then(
             (module) => module.FormViewerPage,

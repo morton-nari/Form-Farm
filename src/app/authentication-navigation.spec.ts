@@ -44,6 +44,8 @@ describe('authentication navigation', () => {
     const navigation = RouterTestingHarness.create('/login');
     await flushSession(200);
     const harness = await navigation;
+    flushDashboard();
+    harness.fixture.detectChanges();
 
     expect(TestBed.inject(Router).url).toBe('/forms');
     expect(harness.routeNativeElement?.textContent).toContain('Your forms');
@@ -104,6 +106,7 @@ describe('authentication navigation', () => {
     http.expectOne('/api/v1/auth/xsrf').flush(null);
     (await waitForRequest('/api/v1/auth/login')).flush({ authenticated: true });
     await vi.waitFor(() => expect(TestBed.inject(Router).url).toBe('/forms'));
+    flushDashboard();
     harness.fixture.detectChanges();
     expect(harness.routeNativeElement?.textContent).toContain('Your forms');
   });
@@ -137,6 +140,7 @@ describe('authentication navigation', () => {
     const navigation = RouterTestingHarness.create('/forms');
     await flushSession(200);
     const harness = await navigation;
+    flushDashboard();
     harness.routeNativeElement?.querySelector<HTMLButtonElement>('button')!.click();
     http.expectOne('/api/v1/auth/logout').flush(null);
     await harness.fixture.whenStable();
@@ -196,6 +200,19 @@ describe('authentication navigation', () => {
     });
     if (!request) throw new Error(`Expected request: ${url}`);
     return request;
+  }
+
+  function flushDashboard(): void {
+    http.expectOne('/api/v1/forms').flush({
+      forms: [
+        {
+          id: 'customer-feedback',
+          title: 'Customer feedback',
+          formVersion: 1,
+          updatedAt: '2026-08-14T00:00:00.000Z',
+        },
+      ],
+    });
   }
 });
 
