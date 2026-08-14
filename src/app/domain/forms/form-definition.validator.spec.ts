@@ -230,6 +230,51 @@ describe('validateFormDefinition', () => {
     }
   });
 
+  it.each([
+    [[], [{ type: 'required' as const }]],
+    [['one'], [{ type: 'minSelections' as const, value: 2 }]],
+    [['one', 'two'], [{ type: 'maxSelections' as const, value: 1 }]],
+  ])('rejects a multi-choice default outside its selection rules', (defaultValue, validation) => {
+    const form = cloneForm();
+    form.sections[0]!.fields[0] = {
+      id: 'choices',
+      type: 'multi-select',
+      label: 'Choices',
+      options: [
+        { label: 'One', value: 'one' },
+        { label: 'Two', value: 'two' },
+        { label: 'Three', value: 'three' },
+      ],
+      defaultValue,
+      validation,
+    };
+
+    const result = validateFormDefinition(form);
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.issues).toContainEqual(
+        expect.objectContaining({
+          path: ['sections', 0, 'fields', 0, 'defaultValue'],
+          code: 'invalid_default',
+        }),
+      );
+    }
+  });
+
+  it('allows a required choice field without an initial default', () => {
+    const form = cloneForm();
+    form.sections[0]!.fields[0] = {
+      id: 'choice',
+      type: 'multi-select',
+      label: 'Choice',
+      options: [{ label: 'One', value: 'one' }],
+      validation: [{ type: 'required' }],
+    };
+
+    expect(validateFormDefinition(form).success).toBe(true);
+  });
+
   it('rejects duplicate and contradictory validation rules', () => {
     const form = cloneForm();
     form.sections[0]!.fields[0]!.validation = [

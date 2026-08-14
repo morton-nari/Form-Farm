@@ -396,5 +396,7 @@ controls. Selection rules are rebuilt deterministically in required/minimum/maxi
 applicable controls are unset; field discriminants, options, disabled states, defaults, placeholders, and
 unrelated properties remain unchanged. The builder rejects an effective minimum above the maximum or enabled
 option count. The shared domain boundary enforces the same satisfiability rule for untrusted definitions,
-including required choice fields with no enabled options. Full runtime definition validation remains
-authoritative before persistence.
+including required choice fields with no enabled options. When a multi-choice default is present, its selection
+count must also satisfy required/minimum/maximum rules; a missing default remains valid because required governs
+submitted answers rather than initial state. Invalid defaults fail closed and are never silently changed. Full
+runtime definition validation remains authoritative before persistence.

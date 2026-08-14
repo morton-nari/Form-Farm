@@ -378,6 +378,18 @@ function validateChoiceField(
     });
   }
 
+  if (
+    Array.isArray(field.defaultValue) &&
+    (field.defaultValue.length < requiredCount ||
+      field.defaultValue.length > (maximum?.value ?? Infinity))
+  ) {
+    issues.push({
+      path: [...fieldPath, 'defaultValue'],
+      code: 'invalid_default',
+      message: 'Selection default does not satisfy its validation rules.',
+    });
+  }
+
   defaults.forEach((defaultValue, defaultIndex) => {
     const defaultPath = [
       ...fieldPath,
