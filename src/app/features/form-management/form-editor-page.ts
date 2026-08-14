@@ -26,6 +26,7 @@ import {
   type FormFieldOption,
   type FormSection,
   type NumberValidationRule,
+  type TemporalValidationRule,
   type TextValidationRule,
 } from '@form-farm/form-domain';
 import { take } from 'rxjs';
@@ -283,6 +284,59 @@ import { HttpErrorResponse } from '@angular/common/http';
                         @if (field.hasError('invalidNumberRange')) {
                           <p class="text-danger mt-2 mb-0" role="alert">
                             Minimum cannot exceed maximum.
+                          </p>
+                        }
+                      </fieldset>
+                    }
+                    @if (isTemporalType(field.controls.type.value)) {
+                      <fieldset class="border-top mt-3 pt-3">
+                        <legend class="fs-6">Date and time validation</legend>
+                        <div class="form-check mb-3">
+                          <input
+                            class="form-check-input"
+                            type="checkbox"
+                            [id]="'temporal-required-' + index + '-' + fieldIndex"
+                            formControlName="temporalRequired"
+                          />
+                          <label
+                            class="form-check-label"
+                            [for]="'temporal-required-' + index + '-' + fieldIndex"
+                            >Required</label
+                          >
+                        </div>
+                        <div class="row g-3">
+                          <div class="col-md-6">
+                            <label
+                              class="form-label"
+                              [for]="'temporal-earliest-' + index + '-' + fieldIndex"
+                              >Earliest</label
+                            >
+                            <input
+                              class="form-control"
+                              [type]="temporalInputType(field.controls.type.value)"
+                              step="1"
+                              [id]="'temporal-earliest-' + index + '-' + fieldIndex"
+                              formControlName="temporalEarliest"
+                            />
+                          </div>
+                          <div class="col-md-6">
+                            <label
+                              class="form-label"
+                              [for]="'temporal-latest-' + index + '-' + fieldIndex"
+                              >Latest</label
+                            >
+                            <input
+                              class="form-control"
+                              [type]="temporalInputType(field.controls.type.value)"
+                              step="1"
+                              [id]="'temporal-latest-' + index + '-' + fieldIndex"
+                              formControlName="temporalLatest"
+                            />
+                          </div>
+                        </div>
+                        @if (field.hasError('invalidTemporalRange')) {
+                          <p class="text-danger mt-2 mb-0" role="alert">
+                            Earliest cannot be later than latest.
                           </p>
                         }
                       </fieldset>
@@ -595,6 +649,12 @@ export class FormEditorPage implements OnInit {
   supportsChoiceOptions(type: FormField['type']): boolean {
     return isChoiceType(type);
   }
+  isTemporalType(type: FormField['type']): boolean {
+    return isTemporalFieldType(type);
+  }
+  temporalInputType(type: FormField['type']): 'date' | 'datetime-local' | 'time' {
+    return type === 'datetime' ? 'datetime-local' : type === 'time' ? 'time' : 'date';
+  }
   addOption(sectionIndex: number, fieldIndex: number): void {
     const options = this.sections.at(sectionIndex)?.controls.fields.at(fieldIndex)
       ?.controls.options;
@@ -744,9 +804,16 @@ export class FormEditorPage implements OnInit {
                   fieldValue.numberMax,
                   fieldValue.numberInteger,
                 )
-              : isChoiceField(updated)
-                ? withChoiceOptions(updated, field.controls.options.getRawValue())
-                : updated,
+              : isTemporalField(updated)
+                ? withTemporalValidation(
+                    updated,
+                    fieldValue.temporalRequired,
+                    fieldValue.temporalEarliest,
+                    fieldValue.temporalLatest,
+                  )
+                : isChoiceField(updated)
+                  ? withChoiceOptions(updated, field.controls.options.getRawValue())
+                  : updated,
         );
       }
       sections.push({
@@ -867,6 +934,9 @@ type FieldFormGroup = FormGroup<{
   numberMin: FormControl<number | null>;
   numberMax: FormControl<number | null>;
   numberInteger: FormControl<boolean>;
+  temporalRequired: FormControl<boolean>;
+  temporalEarliest: FormControl<string>;
+  temporalLatest: FormControl<string>;
   options: FormArray<OptionFormGroup>;
 }>;
 
@@ -894,6 +964,7 @@ function sectionGroup(
 function fieldGroup(field: FormField): FieldFormGroup {
   const textRules = isTextEntryField(field) ? field.validation : undefined;
   const numberRules = field.type === 'number' ? field.validation : undefined;
+  const temporalRules = isTemporalField(field) ? field.validation : undefined;
   const options = isChoiceField(field) ? field.options : [];
   const defaults = isChoiceField(field)
     ? Array.isArray(field.defaultValue)
@@ -931,12 +1002,22 @@ function fieldGroup(field: FormField): FieldFormGroup {
         numberRules?.some((rule) => rule.type === 'integer') ?? false,
         { nonNullable: true },
       ),
+      temporalRequired: new FormControl(
+        temporalRules?.some((rule) => rule.type === 'required') ?? false,
+        { nonNullable: true },
+      ),
+      temporalEarliest: new FormControl(temporalRuleValue(temporalRules, 'earliest'), {
+        nonNullable: true,
+      }),
+      temporalLatest: new FormControl(temporalRuleValue(temporalRules, 'latest'), {
+        nonNullable: true,
+      }),
       options: new FormArray(
         options.map(optionGroup),
         isChoiceField(field) ? { validators: [choiceOptionsValidator(defaults)] } : undefined,
       ),
     },
-    { validators: [validLengthRange, validNumberRange] },
+    { validators: [validLengthRange, validNumberRange, validTemporalRange] },
   );
 }
 
@@ -973,6 +1054,16 @@ type ChoiceField = Extract<
   { type: 'select' | 'radio' | 'multi-select' | 'checkbox-group' }
 >;
 
+type TemporalField = Extract<FormField, { type: 'date' | 'datetime' | 'time' }>;
+
+function isTemporalFieldType(type: unknown): type is TemporalField['type'] {
+  return type === 'date' || type === 'datetime' || type === 'time';
+}
+
+function isTemporalField(field: FormField): field is TemporalField {
+  return isTemporalFieldType(field.type);
+}
+
 function isChoiceType(type: FormField['type']): type is ChoiceField['type'] {
   return ['select', 'radio', 'multi-select', 'checkbox-group'].includes(type);
 }
@@ -1003,6 +1094,14 @@ function numberRuleValue(
 ): number | null {
   const rule = rules?.find((candidate) => candidate.type === type);
   return rule && 'value' in rule ? rule.value : null;
+}
+
+function temporalRuleValue(
+  rules: readonly TemporalValidationRule[] | undefined,
+  type: 'earliest' | 'latest',
+): string {
+  const rule = rules?.find((candidate) => candidate.type === type);
+  return rule && 'value' in rule ? rule.value : '';
 }
 
 function nonNegativeSafeInteger(control: AbstractControl): ValidationErrors | null {
@@ -1056,6 +1155,50 @@ function validNumberRange(control: AbstractControl): ValidationErrors | null {
     : null;
 }
 
+function validTemporalRange(control: AbstractControl): ValidationErrors | null {
+  const earliest: unknown = control.get('temporalEarliest')?.value;
+  const latest: unknown = control.get('temporalLatest')?.value;
+  const type: unknown = control.get('type')?.value;
+  return typeof earliest === 'string' &&
+    earliest.length > 0 &&
+    typeof latest === 'string' &&
+    latest.length > 0 &&
+    isTemporalFieldType(type) &&
+    compareTemporalValues(type, earliest, latest) > 0
+    ? { invalidTemporalRange: true }
+    : null;
+}
+
+function compareTemporalValues(
+  type: 'date' | 'datetime' | 'time',
+  left: string,
+  right: string,
+): number {
+  if (type === 'date') return left.localeCompare(right);
+
+  const leftParts = temporalComparisonParts(type, left);
+  const rightParts = temporalComparisonParts(type, right);
+  const wholeValueComparison = leftParts.whole.localeCompare(rightParts.whole);
+  if (wholeValueComparison !== 0) return wholeValueComparison;
+
+  const precision = Math.max(leftParts.fraction.length, rightParts.fraction.length);
+  return leftParts.fraction
+    .padEnd(precision, '0')
+    .localeCompare(rightParts.fraction.padEnd(precision, '0'));
+}
+
+function temporalComparisonParts(
+  type: 'datetime' | 'time',
+  value: string,
+): { readonly whole: string; readonly fraction: string } {
+  const [wholeValue, fraction = ''] = value.split('.');
+  const timeSeparator = type === 'datetime' ? 'T' : '';
+  const [datePart, timePart] =
+    type === 'datetime' ? wholeValue!.split('T') : ['', wholeValue ?? ''];
+  const whole = `${datePart}${timeSeparator}${timePart!.length === 5 ? `${timePart}:00` : timePart}`;
+  return { whole, fraction };
+}
+
 function withTextValidation(
   field: TextEntryField,
   required: boolean,
@@ -1100,6 +1243,33 @@ const NUMBER_RULE_POLICY = {
   max: 'editable',
   integer: 'editable',
 } as const satisfies Record<NumberValidationRule['type'], 'editable' | 'preserved'>;
+
+const TEMPORAL_RULE_POLICY = {
+  required: 'editable',
+  earliest: 'editable',
+  latest: 'editable',
+} as const satisfies Record<TemporalValidationRule['type'], 'editable' | 'preserved'>;
+
+function withTemporalValidation(
+  field: TemporalField,
+  required: boolean,
+  earliest: string,
+  latest: string,
+): TemporalField {
+  const validation: TemporalValidationRule[] = [];
+  if (TEMPORAL_RULE_POLICY.required === 'editable' && required)
+    validation.push({ type: 'required' });
+  if (TEMPORAL_RULE_POLICY.earliest === 'editable' && earliest)
+    validation.push({ type: 'earliest', value: earliest });
+  if (TEMPORAL_RULE_POLICY.latest === 'editable' && latest)
+    validation.push({ type: 'latest', value: latest });
+  const updated = { ...field } as TemporalField & {
+    validation?: readonly TemporalValidationRule[];
+  };
+  if (validation.length > 0) updated.validation = validation;
+  else delete updated.validation;
+  return updated;
+}
 
 function withChoiceOptions(
   field: ChoiceField,

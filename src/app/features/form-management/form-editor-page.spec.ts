@@ -272,6 +272,136 @@ describe('FormEditorPage', () => {
     ]);
   });
 
+  it('edits temporal validation and preserves other temporal fields', async () => {
+    const definition = {
+      schemaVersion: 1 as const,
+      id: 'temporal-form',
+      formVersion: 1,
+      title: 'Temporal form',
+      sections: [
+        {
+          id: 'main',
+          title: 'Main',
+          fields: [
+            {
+              id: 'day',
+              type: 'date' as const,
+              label: 'Day',
+              defaultValue: '2026-08-15',
+              validation: [
+                { type: 'required' as const },
+                { type: 'earliest' as const, value: '2026-08-14' },
+                { type: 'latest' as const, value: '2026-08-16' },
+              ],
+            },
+            {
+              id: 'appointment',
+              type: 'datetime' as const,
+              label: 'Appointment',
+              validation: [{ type: 'earliest' as const, value: '2026-08-15T09:00' }],
+            },
+            {
+              id: 'opening',
+              type: 'time' as const,
+              label: 'Opening',
+              validation: [{ type: 'latest' as const, value: '17:00' }],
+            },
+          ],
+        },
+      ],
+      submission: { submitLabel: 'Send', successMessage: 'Sent.' },
+    };
+    let revision = 1;
+    let savedDefinition: unknown;
+    const body = {
+      formId: definition.id,
+      status: 'draft',
+      draftRevision: revision,
+      definition,
+      createdAt: '2026-08-14T00:00:00.000Z',
+      updatedAt: '2026-08-14T00:00:00.000Z',
+    };
+    const save = vi.fn((_formId: string, candidate: unknown) => {
+      savedDefinition = candidate;
+      revision += 1;
+      return of(
+        new HttpResponse({
+          body: { ...body, draftRevision: revision, definition: candidate },
+          headers: new HttpHeaders({ etag: `"draft-${revision}"` }),
+        }),
+      );
+    });
+    const api = {
+      loadDraft: () =>
+        of(new HttpResponse({ body, headers: new HttpHeaders({ etag: '"draft-1"' }) })),
+      save,
+      publish: () => of({}),
+      bootstrap: () => of(new HttpResponse()),
+      create: () => of({}),
+      listForms: () => of({}),
+    };
+    await TestBed.configureTestingModule({
+      imports: [FormEditorPage],
+      providers: [
+        provideRouter([]),
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { paramMap: { get: () => definition.id } } },
+        },
+        { provide: FormManagementApiService, useValue: api },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(FormEditorPage);
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+    let fields = component.sections.at(0).controls.fields;
+    expect(fields.at(0).controls.temporalEarliest.value).toBe('2026-08-14');
+    expect(fields.at(1).controls.temporalEarliest.value).toBe('2026-08-15T09:00');
+    expect(fields.at(2).controls.temporalLatest.value).toBe('17:00');
+    expect(component.temporalInputType('date')).toBe('date');
+    expect(component.temporalInputType('datetime')).toBe('datetime-local');
+    expect(component.temporalInputType('time')).toBe('time');
+
+    const openingField = fields.at(2);
+    openingField.controls.temporalEarliest.setValue('09:05:00');
+    openingField.controls.temporalLatest.setValue('09:05');
+    expect(openingField.hasError('invalidTemporalRange')).toBe(false);
+    openingField.controls.temporalEarliest.setValue('');
+    openingField.controls.temporalLatest.setValue('17:00');
+
+    const dateField = fields.at(0);
+    dateField.controls.temporalRequired.setValue(false);
+    dateField.controls.temporalEarliest.setValue('');
+    dateField.controls.temporalLatest.setValue('');
+    component.save();
+    expect(save).toHaveBeenCalledTimes(1);
+    const savedFields = (savedDefinition as { sections: { fields: { validation?: unknown }[] }[] })
+      .sections[0]!.fields;
+    expect(savedFields[0]).not.toHaveProperty('validation');
+    expect(savedFields[1]!.validation).toEqual([{ type: 'earliest', value: '2026-08-15T09:00' }]);
+    expect(savedFields[2]!.validation).toEqual([{ type: 'latest', value: '17:00' }]);
+
+    fields = component.sections.at(0).controls.fields;
+    const reloadedDate = fields.at(0);
+    reloadedDate.controls.temporalEarliest.setValue('not-a-date');
+    component.save();
+    expect(save).toHaveBeenCalledTimes(1);
+    reloadedDate.controls.temporalEarliest.setValue('2026-08-16');
+    reloadedDate.controls.temporalLatest.setValue('2026-08-17');
+    component.save();
+    expect(save).toHaveBeenCalledTimes(1);
+    reloadedDate.controls.temporalEarliest.setValue('2026-08-17');
+    reloadedDate.controls.temporalLatest.setValue('2026-08-16');
+    expect(reloadedDate.hasError('invalidTemporalRange')).toBe(true);
+    component.save();
+    expect(save).toHaveBeenCalledTimes(1);
+    reloadedDate.controls.temporalRequired.setValue(true);
+    reloadedDate.controls.temporalEarliest.setValue('2026-08-14');
+    reloadedDate.controls.temporalLatest.setValue('2026-08-16');
+    component.save();
+    expect(save).toHaveBeenCalledTimes(2);
+  });
+
   it('adds, reorders, and saves sections while preserving untouched field definitions', async () => {
     const definition = {
       schemaVersion: 1 as const,

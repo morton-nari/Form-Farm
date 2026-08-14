@@ -9,6 +9,11 @@ const identifier = z
 const nonBlankText = z.string().check(z.trim(), z.minLength(1, 'Must not be empty.'));
 const positiveInteger = z.number().check(z.int(), z.positive());
 const nonNegativeInteger = z.number().check(z.int(), z.nonnegative());
+const dateValue = z.iso.date();
+const localDateTimeValue = z.iso
+  .datetime({ local: true })
+  .check(z.regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?$/));
+const timeValue = z.iso.time();
 
 const requiredRule = z.strictObject({ type: z.literal('required') });
 const minLengthRule = z.strictObject({
@@ -130,19 +135,19 @@ const formFieldSchema = z.discriminatedUnion('type', [
   z.strictObject({
     ...fieldBase,
     type: z.literal('date'),
-    defaultValue: z.optional(z.iso.date()),
+    defaultValue: z.optional(dateValue),
     validation: z.optional(z.array(temporalRule)),
   }),
   z.strictObject({
     ...fieldBase,
     type: z.literal('datetime'),
-    defaultValue: z.optional(z.iso.datetime({ local: true })),
+    defaultValue: z.optional(localDateTimeValue),
     validation: z.optional(z.array(temporalRule)),
   }),
   z.strictObject({
     ...fieldBase,
     type: z.literal('time'),
-    defaultValue: z.optional(z.iso.time()),
+    defaultValue: z.optional(timeValue),
     validation: z.optional(z.array(temporalRule)),
   }),
   z.strictObject({
@@ -248,7 +253,11 @@ function validateDomainInvariants(
         validateNumberDefault(issues, field, fieldPath);
       }
 
-      validateRuleRanges(issues, field.validation, [...fieldPath, 'validation']);
+      if (field.type === 'date' || field.type === 'datetime' || field.type === 'time') {
+        validateTemporalDefault(issues, field, fieldPath);
+      }
+
+      validateRuleRanges(issues, field.type, field.validation, [...fieldPath, 'validation']);
       validateTemporalRules(issues, field, [...fieldPath, 'validation']);
     });
   });
@@ -282,6 +291,37 @@ function validateNumberDefault(
       path: [...fieldPath, 'defaultValue'],
       code: 'invalid_default',
       message: 'Number default does not satisfy its validation rules.',
+    });
+  }
+}
+
+function validateTemporalDefault(
+  issues: FormDefinitionValidationIssue[],
+  field: {
+    readonly type: 'date' | 'datetime' | 'time';
+    readonly defaultValue?: string | undefined;
+    readonly validation?:
+      | readonly (
+          | { readonly type: 'required' }
+          | { readonly type: 'earliest' | 'latest'; readonly value: string }
+        )[]
+      | undefined;
+  },
+  fieldPath: readonly (string | number)[],
+): void {
+  if (field.defaultValue === undefined) return;
+  const earliest = field.validation?.find((rule) => rule.type === 'earliest');
+  const latest = field.validation?.find((rule) => rule.type === 'latest');
+  if (
+    (earliest?.type === 'earliest' &&
+      compareTemporalValues(field.type, field.defaultValue, earliest.value) < 0) ||
+    (latest?.type === 'latest' &&
+      compareTemporalValues(field.type, field.defaultValue, latest.value) > 0)
+  ) {
+    issues.push({
+      path: [...fieldPath, 'defaultValue'],
+      code: 'invalid_default',
+      message: 'Temporal default does not satisfy its validation rules.',
     });
   }
 }
@@ -349,14 +389,13 @@ function validateTemporalRules(
   if (!['date', 'datetime', 'time'].includes(field.type)) return;
 
   const format =
-    field.type === 'date'
-      ? /^\d{4}-\d{2}-\d{2}$/
-      : field.type === 'time'
-        ? /^\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?$/
-        : /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
+    field.type === 'date' ? dateValue : field.type === 'time' ? timeValue : localDateTimeValue;
 
   field.validation?.forEach((rule, index) => {
-    if ((rule.type === 'earliest' || rule.type === 'latest') && !format.test(String(rule.value))) {
+    if (
+      (rule.type === 'earliest' || rule.type === 'latest') &&
+      !format.safeParse(rule.value).success
+    ) {
       issues.push({
         path: [...path, index, 'value'],
         code: 'invalid_temporal_value',
@@ -364,6 +403,36 @@ function validateTemporalRules(
       });
     }
   });
+}
+
+function compareTemporalValues(
+  type: 'date' | 'datetime' | 'time',
+  left: string,
+  right: string,
+): number {
+  if (type === 'date') return left.localeCompare(right);
+
+  const leftParts = temporalComparisonParts(type, left);
+  const rightParts = temporalComparisonParts(type, right);
+  const wholeValueComparison = leftParts.whole.localeCompare(rightParts.whole);
+  if (wholeValueComparison !== 0) return wholeValueComparison;
+
+  const precision = Math.max(leftParts.fraction.length, rightParts.fraction.length);
+  return leftParts.fraction
+    .padEnd(precision, '0')
+    .localeCompare(rightParts.fraction.padEnd(precision, '0'));
+}
+
+function temporalComparisonParts(
+  type: 'datetime' | 'time',
+  value: string,
+): { readonly whole: string; readonly fraction: string } {
+  const [wholeValue, fraction = ''] = value.split('.');
+  const timeSeparator = type === 'datetime' ? 'T' : '';
+  const [datePart, timePart] =
+    type === 'datetime' ? wholeValue!.split('T') : ['', wholeValue ?? ''];
+  const whole = `${datePart}${timeSeparator}${timePart!.length === 5 ? `${timePart}:00` : timePart}`;
+  return { whole, fraction };
 }
 
 function validateUniqueRuleTypes(
@@ -379,6 +448,7 @@ function validateUniqueRuleTypes(
 
 function validateRuleRanges(
   issues: FormDefinitionValidationIssue[],
+  fieldType: string,
   rules:
     readonly { readonly type: string; readonly value?: string | number | undefined }[] | undefined,
   path: readonly (string | number)[],
@@ -392,11 +462,16 @@ function validateRuleRanges(
     ['max', 'maxLength', 'maxSelections', 'latest'].includes(rule.type),
   );
 
-  if (
-    minimum?.value !== undefined &&
-    maximum?.value !== undefined &&
-    minimum.value > maximum.value
-  ) {
+  if (minimum?.value === undefined || maximum?.value === undefined) return;
+
+  const invalidRange =
+    (fieldType === 'date' || fieldType === 'datetime' || fieldType === 'time') &&
+    typeof minimum.value === 'string' &&
+    typeof maximum.value === 'string'
+      ? compareTemporalValues(fieldType, minimum.value, maximum.value) > 0
+      : minimum.value > maximum.value;
+
+  if (invalidRange) {
     issues.push({
       path,
       code: 'invalid_range',

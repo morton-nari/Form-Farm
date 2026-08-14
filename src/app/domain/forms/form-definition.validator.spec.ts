@@ -84,6 +84,33 @@ describe('validateFormDefinition', () => {
       );
   });
 
+  it.each([
+    ['date', '2026-08-13', { type: 'earliest' as const, value: '2026-08-14' }],
+    ['datetime', '2026-08-15T10:00', { type: 'latest' as const, value: '2026-08-15T09:00' }],
+    ['time', '08:59', { type: 'earliest' as const, value: '09:00' }],
+  ])('rejects a %s default outside its temporal range', (type, defaultValue, rule) => {
+    const form = cloneForm();
+    form.sections[0]!.fields[0] = {
+      id: 'when',
+      type: type as 'date' | 'datetime' | 'time',
+      label: 'When',
+      defaultValue,
+      validation: [rule],
+    };
+
+    const result = validateFormDefinition(form);
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.issues).toContainEqual(
+        expect.objectContaining({
+          path: ['sections', 0, 'fields', 0, 'defaultValue'],
+          code: 'invalid_default',
+        }),
+      );
+    }
+  });
+
   it('rejects empty forms, sections, and presentation text', () => {
     const emptyForm = { ...cloneForm(), title: ' ', sections: [] };
     const result = validateFormDefinition(emptyForm);
@@ -212,13 +239,19 @@ describe('validateFormDefinition', () => {
     }
   });
 
-  it('rejects temporal rule values that do not match their field format', () => {
+  it.each([
+    ['date', 'next Tuesday'],
+    ['date', '2026-8-14'],
+    ['datetime', '2026-08-14T09:05Z'],
+    ['datetime', '2026-08-14T09:05junk'],
+    ['time', '9:05'],
+  ])('rejects a non-canonical %s rule value %s', (type, value) => {
     const form = cloneForm();
     form.sections[0]!.fields[0] = {
-      id: 'startDate',
-      type: 'date',
-      label: 'Start date',
-      validation: [{ type: 'earliest', value: 'next Tuesday' }],
+      id: 'start',
+      type,
+      label: 'Start',
+      validation: [{ type: 'earliest', value }],
     };
 
     const result = validateFormDefinition(form);
@@ -229,6 +262,55 @@ describe('validateFormDefinition', () => {
         expect.arrayContaining([expect.objectContaining({ code: 'invalid_temporal_value' })]),
       );
     }
+  });
+
+  it.each([
+    ['date', '2026-8-14'],
+    ['datetime', '2026-08-14T09:05Z'],
+    ['time', '9:05'],
+  ])('rejects a non-canonical %s default before temporal comparisons', (type, defaultValue) => {
+    const form = cloneForm();
+    form.sections[0]!.fields[0] = {
+      id: 'when',
+      type,
+      label: 'When',
+      defaultValue,
+      validation: [{ type: 'earliest', value: defaultValue }],
+    };
+
+    expect(validateFormDefinition(form).success).toBe(false);
+  });
+
+  it('accepts canonical local temporal values with optional seconds and fractional seconds', () => {
+    const form = cloneForm();
+    form.sections[0]!.fields = [
+      {
+        id: 'date',
+        type: 'date',
+        label: 'Date',
+        defaultValue: '2026-08-14',
+        validation: [{ type: 'earliest', value: '2026-08-14' }],
+      },
+      {
+        id: 'datetime',
+        type: 'datetime',
+        label: 'Date and time',
+        defaultValue: '2026-08-14T09:05:06',
+        validation: [{ type: 'latest', value: '2026-08-14T09:05:06.500' }],
+      },
+      {
+        id: 'time',
+        type: 'time',
+        label: 'Time',
+        defaultValue: '09:05',
+        validation: [
+          { type: 'earliest', value: '09:05:00' },
+          { type: 'latest', value: '09:05:00.500' },
+        ],
+      },
+    ];
+
+    expect(validateFormDefinition(form).success).toBe(true);
   });
 
   it('returns safe issues rather than throwing for non-object input', () => {
