@@ -145,8 +145,11 @@ the resolved session actor; ownership fields are not accepted in JSON. The compl
 `unknown`, must pass `validateFormDefinition`, and must have `formVersion: 1`.
 
 One PostgreSQL transaction serializes creation for the actor, enforces the controlled-release limit of 100
-owned forms, inserts a user-owned logical form with `latest_version = 0`, and inserts revision-1 draft JSON. A
-duplicate global form ID or owner limit returns `409 conflict`; validation returns `400`; missing authentication
+user-owned forms, inserts a user-owned logical form with `latest_version = 0`, and inserts revision-1 draft JSON.
+Draft, published, and archived user-owned forms all count toward this limit; system-owned forms never count.
+The advisory-lock namespace seed `0` is reserved for this owner-form-creation serialization and future advisory
+lock families must use a separately documented namespace. A duplicate global form ID or owner limit returns
+`409 conflict`; validation returns `400`; missing authentication
 returns `401`; origin/XSRF failures return `403`. Every response is `Cache-Control: no-store`. Failure cannot
 leave a normal owner form without its draft.
 

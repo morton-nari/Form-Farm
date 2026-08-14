@@ -278,5 +278,7 @@ split into backend creation, save/publication, and Angular builder slices before
 The first ADR 0006 implementation slice now creates a validated user-owned logical form and revision-1 draft in
 one PostgreSQL transaction. The fixed management route derives ownership from the authenticated actor and
 requires the existing origin/session-XSRF boundary. A per-owner advisory transaction lock makes the temporary
-100-form controlled-release cap concurrency-safe. Draft load/save, publication, and builder UI remain separate
+100-form controlled-release cap concurrency-safe. Its namespace seed `0` is reserved for owner-form creation;
+future advisory-lock families require distinct documented namespaces. The cap includes every lifecycle state of
+a user-owned form and excludes system-owned forms. Draft load/save, publication, and builder UI remain separate
 slices; no AI capability or dependency is present.

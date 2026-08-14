@@ -7,6 +7,10 @@ import type {
 import type { FormFarmDatabase } from '../database/create-database.js';
 import { formDrafts, forms } from '../database/schema.js';
 
+// Reserved for serializing the per-owner form-creation limit. Future advisory-lock
+// uses must choose and document a different namespace seed.
+const OWNER_FORM_CREATION_LOCK_NAMESPACE = 0;
+
 export class PostgresCreateFormDraftTransaction implements CreateFormDraftTransaction {
   constructor(private readonly database: FormFarmDatabase) {}
 
@@ -16,7 +20,7 @@ export class PostgresCreateFormDraftTransaction implements CreateFormDraftTransa
     try {
       return await this.database.transaction(async (transaction) => {
         await transaction.execute(
-          sql`select pg_advisory_xact_lock(hashtextextended(${input.actor.userId}, 0))`,
+          sql`select pg_advisory_xact_lock(hashtextextended(${input.actor.userId}, ${OWNER_FORM_CREATION_LOCK_NAMESPACE}))`,
         );
         const [owned] = await transaction
           .select({ value: count() })
