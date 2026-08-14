@@ -239,13 +239,19 @@ describe('validateFormDefinition', () => {
     }
   });
 
-  it('rejects temporal rule values that do not match their field format', () => {
+  it.each([
+    ['date', 'next Tuesday'],
+    ['date', '2026-8-14'],
+    ['datetime', '2026-08-14T09:05Z'],
+    ['datetime', '2026-08-14T09:05junk'],
+    ['time', '9:05'],
+  ])('rejects a non-canonical %s rule value %s', (type, value) => {
     const form = cloneForm();
     form.sections[0]!.fields[0] = {
-      id: 'startDate',
-      type: 'date',
-      label: 'Start date',
-      validation: [{ type: 'earliest', value: 'next Tuesday' }],
+      id: 'start',
+      type,
+      label: 'Start',
+      validation: [{ type: 'earliest', value }],
     };
 
     const result = validateFormDefinition(form);
@@ -256,6 +262,55 @@ describe('validateFormDefinition', () => {
         expect.arrayContaining([expect.objectContaining({ code: 'invalid_temporal_value' })]),
       );
     }
+  });
+
+  it.each([
+    ['date', '2026-8-14'],
+    ['datetime', '2026-08-14T09:05Z'],
+    ['time', '9:05'],
+  ])('rejects a non-canonical %s default before temporal comparisons', (type, defaultValue) => {
+    const form = cloneForm();
+    form.sections[0]!.fields[0] = {
+      id: 'when',
+      type,
+      label: 'When',
+      defaultValue,
+      validation: [{ type: 'earliest', value: defaultValue }],
+    };
+
+    expect(validateFormDefinition(form).success).toBe(false);
+  });
+
+  it('accepts canonical local temporal values with optional seconds and fractional seconds', () => {
+    const form = cloneForm();
+    form.sections[0]!.fields = [
+      {
+        id: 'date',
+        type: 'date',
+        label: 'Date',
+        defaultValue: '2026-08-14',
+        validation: [{ type: 'earliest', value: '2026-08-14' }],
+      },
+      {
+        id: 'datetime',
+        type: 'datetime',
+        label: 'Date and time',
+        defaultValue: '2026-08-14T09:05:06',
+        validation: [{ type: 'latest', value: '2026-08-14T09:05:06.500' }],
+      },
+      {
+        id: 'time',
+        type: 'time',
+        label: 'Time',
+        defaultValue: '09:05',
+        validation: [
+          { type: 'earliest', value: '09:05:00' },
+          { type: 'latest', value: '09:05:00.500' },
+        ],
+      },
+    ];
+
+    expect(validateFormDefinition(form).success).toBe(true);
   });
 
   it('returns safe issues rather than throwing for non-object input', () => {

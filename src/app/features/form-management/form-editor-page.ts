@@ -1056,7 +1056,7 @@ type ChoiceField = Extract<
 
 type TemporalField = Extract<FormField, { type: 'date' | 'datetime' | 'time' }>;
 
-function isTemporalFieldType(type: FormField['type']): type is TemporalField['type'] {
+function isTemporalFieldType(type: unknown): type is TemporalField['type'] {
   return type === 'date' || type === 'datetime' || type === 'time';
 }
 
@@ -1158,13 +1158,45 @@ function validNumberRange(control: AbstractControl): ValidationErrors | null {
 function validTemporalRange(control: AbstractControl): ValidationErrors | null {
   const earliest: unknown = control.get('temporalEarliest')?.value;
   const latest: unknown = control.get('temporalLatest')?.value;
+  const type: unknown = control.get('type')?.value;
   return typeof earliest === 'string' &&
     earliest.length > 0 &&
     typeof latest === 'string' &&
     latest.length > 0 &&
-    earliest > latest
+    isTemporalFieldType(type) &&
+    compareTemporalValues(type, earliest, latest) > 0
     ? { invalidTemporalRange: true }
     : null;
+}
+
+function compareTemporalValues(
+  type: 'date' | 'datetime' | 'time',
+  left: string,
+  right: string,
+): number {
+  if (type === 'date') return left.localeCompare(right);
+
+  const leftParts = temporalComparisonParts(type, left);
+  const rightParts = temporalComparisonParts(type, right);
+  const wholeValueComparison = leftParts.whole.localeCompare(rightParts.whole);
+  if (wholeValueComparison !== 0) return wholeValueComparison;
+
+  const precision = Math.max(leftParts.fraction.length, rightParts.fraction.length);
+  return leftParts.fraction
+    .padEnd(precision, '0')
+    .localeCompare(rightParts.fraction.padEnd(precision, '0'));
+}
+
+function temporalComparisonParts(
+  type: 'datetime' | 'time',
+  value: string,
+): { readonly whole: string; readonly fraction: string } {
+  const [wholeValue, fraction = ''] = value.split('.');
+  const timeSeparator = type === 'datetime' ? 'T' : '';
+  const [datePart, timePart] =
+    type === 'datetime' ? wholeValue!.split('T') : ['', wholeValue ?? ''];
+  const whole = `${datePart}${timeSeparator}${timePart!.length === 5 ? `${timePart}:00` : timePart}`;
+  return { whole, fraction };
 }
 
 function withTextValidation(

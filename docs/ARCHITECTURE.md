@@ -385,3 +385,7 @@ properties remain unchanged. The shared domain validator also rejects a temporal
 range, so the builder surfaces the inconsistency instead of deleting or rewriting the default. An exhaustive
 temporal-rule policy requires an explicit builder decision if the domain later gains another temporal rule, and
 the complete definition still passes runtime validation before persistence.
+Canonical domain values are zero-padded ISO dates (`YYYY-MM-DD`), local datetimes
+(`YYYY-MM-DDTHH:mm` with optional seconds/fraction), or times (`HH:mm` with optional seconds/fraction). Offset
+and `Z` datetime values are rejected: schema-v1 datetime values represent local wall-clock time, not instants.
+Type-specific comparison treats omitted seconds as zero, so supported precision variants remain consistent.

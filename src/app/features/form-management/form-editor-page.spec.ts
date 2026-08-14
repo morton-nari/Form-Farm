@@ -362,6 +362,13 @@ describe('FormEditorPage', () => {
     expect(component.temporalInputType('datetime')).toBe('datetime-local');
     expect(component.temporalInputType('time')).toBe('time');
 
+    const openingField = fields.at(2);
+    openingField.controls.temporalEarliest.setValue('09:05:00');
+    openingField.controls.temporalLatest.setValue('09:05');
+    expect(openingField.hasError('invalidTemporalRange')).toBe(false);
+    openingField.controls.temporalEarliest.setValue('');
+    openingField.controls.temporalLatest.setValue('17:00');
+
     const dateField = fields.at(0);
     dateField.controls.temporalRequired.setValue(false);
     dateField.controls.temporalEarliest.setValue('');
