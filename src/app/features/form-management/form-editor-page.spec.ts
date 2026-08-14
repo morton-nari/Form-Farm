@@ -226,17 +226,20 @@ describe('FormEditorPage', () => {
       createdAt: '2026-08-14T00:00:00.000Z',
       updatedAt: '2026-08-14T00:00:00.000Z',
     };
+    const save = vi.fn(() =>
+      of(
+        new HttpResponse({
+          body: { invalid: true },
+          headers: new HttpHeaders({ etag: '"draft-2"' }),
+        }),
+      ),
+    );
+    const publish = vi.fn(() => of({}));
     const api = {
       loadDraft: () =>
         of(new HttpResponse({ body, headers: new HttpHeaders({ etag: '"draft-1"' }) })),
-      save: () =>
-        of(
-          new HttpResponse({
-            body: { invalid: true },
-            headers: new HttpHeaders({ etag: '"draft-2"' }),
-          }),
-        ),
-      publish: () => of({}),
+      save,
+      publish,
       bootstrap: () => of(new HttpResponse()),
       create: () => of({}),
       listForms: () => of({}),
@@ -260,7 +263,21 @@ describe('FormEditorPage', () => {
     expect(
       (fixture.nativeElement.querySelector('.btn-success') as HTMLButtonElement).disabled,
     ).toBe(true);
+    component.preview();
+    fixture.detectChanges();
+    expect(component.previewDefinition()?.title).toBe('Unsaved title');
+    expect(fixture.nativeElement.querySelector('app-dynamic-field')).not.toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('cannot be submitted');
+    (fixture.nativeElement as HTMLElement)
+      .querySelector<HTMLButtonElement>('app-form-draft-preview button[type="submit"]')
+      ?.click();
+    expect(save).not.toHaveBeenCalled();
+    expect(publish).not.toHaveBeenCalled();
+    component.closePreview();
+    expect(component.form.dirty).toBe(true);
+    expect(component.canPublish()).toBe(false);
     component.save();
+    expect(save).toHaveBeenCalledOnce();
     expect(component.status()).toBe('error');
     expect(component.message()).toContain('invalid draft');
   });

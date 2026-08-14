@@ -59,9 +59,7 @@ Status: **in progress**
 - [x] Configure temporal-field validation
 - [x] Configure selection-field validation
 - [x] Configure checkbox acceptance validation
-- Add and arrange sections and fields
-- Configure field options and validation
-- Preview forms through the existing runner
+- [x] Preview owner drafts through the existing runner primitives without submission
 - Provide several interview-ready example forms
 
 ## Phase 4 — PostgreSQL persistence and versioning

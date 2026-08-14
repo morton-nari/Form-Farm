@@ -34,17 +34,29 @@ import {
 import { take } from 'rxjs';
 import { FormManagementApiService } from '../../core/api/form-management-api.service';
 import { HttpErrorResponse } from '@angular/common/http';
+import { FormDraftPreview } from './form-draft-preview';
 
 @Component({
   selector: 'app-form-editor-page',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [FormDraftPreview, ReactiveFormsModule, RouterLink],
   template: ` <main class="container py-5" id="main-content">
     <a routerLink="/manage/forms">&larr; Manage forms</a>
     <h1 class="mt-3">{{ formId ? 'Edit form' : 'Create form' }}</h1>
     @if (status() === 'loading') {
       <p role="status">Loading draft&hellip;</p>
     } @else {
-      <form class="card card-body mt-4" [formGroup]="form" (ngSubmit)="save()">
+      @if (previewDefinition(); as preview) {
+        <button class="btn btn-outline-secondary mt-4" type="button" (click)="closePreview()">
+          Back to editor
+        </button>
+        <app-form-draft-preview [definition]="preview" />
+      }
+      <form
+        class="card card-body mt-4"
+        [class.d-none]="previewDefinition()"
+        [formGroup]="form"
+        (ngSubmit)="save()"
+      >
         @if (!formId) {
           <label class="form-label" for="form-id">Stable form ID</label
           ><input id="form-id" class="form-control mb-3" formControlName="id" />
@@ -546,6 +558,11 @@ import { HttpErrorResponse } from '@angular/common/http';
           </button>
         </fieldset>
         <div class="d-flex gap-2">
+          @if (formId) {
+            <button class="btn btn-outline-primary" type="button" (click)="preview()">
+              Preview
+            </button>
+          }
           <button
             class="btn btn-primary"
             type="submit"
@@ -595,6 +612,7 @@ export class FormEditorPage implements OnInit {
     this.formId ? 'loading' : 'ready',
   );
   readonly message = signal('');
+  readonly previewDefinition = signal<FormDefinition | null>(null);
   private definition?: FormDefinition;
   private etag?: string;
   readonly form = new FormGroup({
@@ -654,6 +672,29 @@ export class FormEditorPage implements OnInit {
         error: () =>
           this.fail('The draft could not be saved. Reload if another editor changed it.'),
       });
+  }
+  preview(): void {
+    if (this.form.invalid || !this.definition) {
+      this.fail('The draft contains invalid builder state.');
+      return;
+    }
+    const sections = this.buildSections();
+    if (!sections) return;
+    const candidate = {
+      ...this.definition,
+      title: this.form.controls.title.value,
+      sections,
+    };
+    if (this.form.controls.description.value)
+      candidate.description = this.form.controls.description.value;
+    else delete candidate.description;
+    const validated = validateFormDefinition(candidate);
+    if (!validated.success) return this.fail('The draft contains invalid builder state.');
+    this.message.set('');
+    this.previewDefinition.set(validated.value);
+  }
+  closePreview(): void {
+    this.previewDefinition.set(null);
   }
   addSection(): void {
     const sectionId = nextIdentifier(
