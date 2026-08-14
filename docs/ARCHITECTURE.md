@@ -324,3 +324,12 @@ adapter returns `unknown`; strict summary parsing and shared form-definition val
 editor can create a deterministic starter draft and edit title/description while preserving the complete validated
 definition, exact draft ETag, and fixed save/publication endpoints. Schema content never selects actions or URLs.
 Structured field operations, autosave, and AI remain deferred.
+
+The owner editor now maps validated sections into Angular Reactive Form groups for title and optional
+description editing. Section array position remains the only ordering mechanism. Add, move, and remove
+operations reconstruct a complete candidate `FormDefinition` while retaining untouched field discriminants,
+options, defaults, validation rules, and presentation data by stable section ID. Because schema version 1
+requires every section to contain a field, a newly added section receives one deterministic text-field starter;
+field configuration remains a separate builder slice. Publication stays disabled while the editor is dirty,
+and the complete candidate still crosses the existing ETag and runtime-validation boundaries. No schema data
+selects management endpoints or privileged operations.

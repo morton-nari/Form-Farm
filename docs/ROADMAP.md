@@ -3,8 +3,8 @@
 ## Current status
 
 The form runner, owned backend, PostgreSQL submissions, authentication, owner-authorized published reads,
-dashboard, health sample, owner draft create/load/save, and atomic publication are implemented. The form builder
-and AI generation are not.
+dashboard, health sample, owner draft create/load/save, atomic publication, and the first structured section
+builder operations are implemented. Field/option/validation editing and AI generation are not.
 
 ## Phase 0 — Product foundation
 
@@ -48,7 +48,8 @@ Status: **in progress**
 - [x] Bootstrap one next-version draft from a published owner form
 - [x] Add a separate owner-management backend query across lifecycle states
 - [x] Add a minimal Angular owner-management dashboard and trusted create/edit/publish workflow
-- Add structured section, field, option, and validation editing
+- [x] Add structured section editing
+- Add structured field, option, and validation editing
 - Add and arrange sections and fields
 - Configure field options and validation
 - Preview forms through the existing runner

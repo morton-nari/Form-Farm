@@ -1,10 +1,20 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  ChangeDetectorRef,
+  Component,
+  ElementRef,
+  inject,
+  OnInit,
+  QueryList,
+  signal,
+  ViewChildren,
+} from '@angular/core';
+import { FormArray, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
   FORM_IDENTIFIER_PATTERN,
   validateFormDefinition,
   type FormDefinition,
+  type FormField,
 } from '@form-farm/form-domain';
 import { take } from 'rxjs';
 import { FormManagementApiService } from '../../core/api/form-management-api.service';
@@ -32,10 +42,66 @@ import { HttpErrorResponse } from '@angular/common/http';
           class="form-control mb-3"
           formControlName="description"
         ></textarea>
-        <p class="text-body-secondary">
-          This first builder edits presentation details while preserving the complete validated
-          field structure.
-        </p>
+        <fieldset class="border rounded p-3 mb-3" formArrayName="sections">
+          <legend class="float-none w-auto px-2 fs-5">Sections</legend>
+          @for (section of sections.controls; track section.controls.id.value; let index = $index) {
+            <div class="border rounded p-3 mb-3" [formGroupName]="index">
+              <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
+                <h2 class="h6 mb-0">Section {{ index + 1 }}</h2>
+                <div class="btn-group" aria-label="Section order and removal">
+                  <button
+                    class="btn btn-sm btn-outline-secondary"
+                    type="button"
+                    [disabled]="index === 0"
+                    (click)="moveSection(index, -1)"
+                    [attr.aria-label]="'Move section ' + (index + 1) + ' up'"
+                  >
+                    Move up
+                  </button>
+                  <button
+                    class="btn btn-sm btn-outline-secondary"
+                    type="button"
+                    [disabled]="index === sections.length - 1"
+                    (click)="moveSection(index, 1)"
+                    [attr.aria-label]="'Move section ' + (index + 1) + ' down'"
+                  >
+                    Move down
+                  </button>
+                  <button
+                    class="btn btn-sm btn-outline-danger"
+                    type="button"
+                    [disabled]="sections.length === 1"
+                    (click)="removeSection(index)"
+                    [attr.aria-label]="'Remove section ' + (index + 1)"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+              <label class="form-label" [for]="'section-title-' + index">Section title</label>
+              <input
+                #sectionTitle
+                class="form-control mb-3"
+                [id]="'section-title-' + index"
+                formControlName="title"
+              />
+              <label class="form-label" [for]="'section-description-' + index"
+                >Section description</label
+              >
+              <textarea
+                class="form-control"
+                [id]="'section-description-' + index"
+                formControlName="description"
+              ></textarea>
+              <p class="form-text mb-0">
+                {{ sectionFieldCount(section.controls.id.value) }} existing field(s) are preserved.
+              </p>
+            </div>
+          }
+          <button class="btn btn-outline-primary" type="button" (click)="addSection()">
+            Add section
+          </button>
+        </fieldset>
         <div class="d-flex gap-2">
           <button
             class="btn btn-primary"
@@ -70,6 +136,9 @@ import { HttpErrorResponse } from '@angular/common/http';
   </main>`,
 })
 export class FormEditorPage implements OnInit {
+  @ViewChildren('sectionTitle') private readonly sectionTitles!: QueryList<
+    ElementRef<HTMLInputElement>
+  >;
   private readonly route = inject(ActivatedRoute);
   readonly formId = this.route.snapshot.paramMap.get('formId');
   readonly status = signal<'loading' | 'ready' | 'saving' | 'saved' | 'error'>(
@@ -85,11 +154,23 @@ export class FormEditorPage implements OnInit {
     }),
     title: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     description: new FormControl('', { nonNullable: true }),
+    sections: new FormArray<SectionFormGroup>([]),
   });
+  private readonly fieldsBySectionId = new Map<string, readonly FormField[]>();
+
+  get sections(): FormArray<SectionFormGroup> {
+    return this.form.controls.sections;
+  }
   constructor(
     private readonly router: Router,
     private readonly api: FormManagementApiService,
-  ) {}
+    private readonly changeDetector: ChangeDetectorRef,
+  ) {
+    if (!this.formId) {
+      this.fieldsBySectionId.set('main', [{ id: 'response', type: 'text', label: 'Response' }]);
+      this.sections.push(sectionGroup('main', 'Main', ''), { emitEvent: false });
+    }
+  }
   ngOnInit(): void {
     if (this.formId) this.loadDraft();
   }
@@ -100,6 +181,15 @@ export class FormEditorPage implements OnInit {
     const candidate = {
       ...this.definition,
       title: this.form.controls.title.value,
+      sections: this.sections.controls.map((section) => {
+        const value = section.getRawValue();
+        return {
+          id: value.id,
+          title: value.title,
+          ...(value.description ? { description: value.description } : {}),
+          fields: this.fieldsBySectionId.get(value.id) ?? [],
+        };
+      }),
     };
     if (this.form.controls.description.value)
       candidate.description = this.form.controls.description.value;
@@ -117,6 +207,45 @@ export class FormEditorPage implements OnInit {
         error: () =>
           this.fail('The draft could not be saved. Reload if another editor changed it.'),
       });
+  }
+  addSection(): void {
+    const sectionId = nextIdentifier(
+      'section',
+      new Set(this.sections.controls.map((item) => item.controls.id.value)),
+    );
+    const existingFieldIds = new Set(
+      [...this.fieldsBySectionId.values()].flatMap((fields) => fields.map((field) => field.id)),
+    );
+    const fieldId = nextIdentifier('response', existingFieldIds);
+    this.fieldsBySectionId.set(sectionId, [{ id: fieldId, type: 'text', label: 'Response' }]);
+    this.sections.push(sectionGroup(sectionId, `Section ${this.sections.length + 1}`, ''));
+    this.form.markAsDirty();
+    this.focusSection(this.sections.length - 1);
+  }
+  moveSection(index: number, offset: -1 | 1): void {
+    const target = index + offset;
+    if (index < 0 || index >= this.sections.length || target < 0 || target >= this.sections.length)
+      return;
+    const section = this.sections.at(index);
+    this.sections.removeAt(index, { emitEvent: false });
+    this.sections.insert(target, section, { emitEvent: false });
+    this.form.markAsDirty();
+    this.focusSection(target);
+  }
+  removeSection(index: number): void {
+    if (this.sections.length <= 1 || index < 0 || index >= this.sections.length) return;
+    const removed = this.sections.at(index);
+    this.sections.removeAt(index);
+    this.fieldsBySectionId.delete(removed.controls.id.value);
+    this.form.markAsDirty();
+    this.focusSection(Math.min(index, this.sections.length - 1));
+  }
+  sectionFieldCount(sectionId: string): number {
+    return this.fieldsBySectionId.get(sectionId)?.length ?? 0;
+  }
+  private focusSection(index: number): void {
+    this.changeDetector.detectChanges();
+    this.sectionTitles.get(index)?.nativeElement.focus();
   }
   publish(): void {
     if (!this.formId || !this.etag) return;
@@ -145,13 +274,15 @@ export class FormEditorPage implements OnInit {
       formVersion: 1,
       title: value.title,
       ...(value.description ? { description: value.description } : {}),
-      sections: [
-        {
-          id: 'main',
-          title: 'Main',
-          fields: [{ id: 'response', type: 'text', label: 'Response' }],
-        },
-      ],
+      sections: this.sections.controls.map((section) => {
+        const sectionValue = section.getRawValue();
+        return {
+          id: sectionValue.id,
+          title: sectionValue.title,
+          ...(sectionValue.description ? { description: sectionValue.description } : {}),
+          fields: this.fieldsBySectionId.get(sectionValue.id) ?? [],
+        };
+      }),
       submission: { submitLabel: 'Submit', successMessage: 'Thank you.' },
     };
     this.status.set('saving');
@@ -227,6 +358,14 @@ export class FormEditorPage implements OnInit {
     if (!result.success || result.value.id !== this.formId) return this.rejectDraft();
     this.definition = result.value;
     this.etag = etag;
+    this.fieldsBySectionId.clear();
+    this.sections.clear({ emitEvent: false });
+    result.value.sections.forEach((section) => {
+      this.fieldsBySectionId.set(section.id, section.fields);
+      this.sections.push(sectionGroup(section.id, section.title, section.description ?? ''), {
+        emitEvent: false,
+      });
+    });
     this.form.patchValue({
       id: result.value.id,
       title: result.value.title,
@@ -245,6 +384,27 @@ export class FormEditorPage implements OnInit {
     this.status.set('error');
     this.message.set(message);
   }
+}
+
+type SectionFormGroup = FormGroup<{
+  id: FormControl<string>;
+  title: FormControl<string>;
+  description: FormControl<string>;
+}>;
+
+function sectionGroup(id: string, title: string, description: string): SectionFormGroup {
+  return new FormGroup({
+    id: new FormControl(id, { nonNullable: true }),
+    title: new FormControl(title, { nonNullable: true, validators: [Validators.required] }),
+    description: new FormControl(description, { nonNullable: true }),
+  });
+}
+
+function nextIdentifier(base: string, existing: ReadonlySet<string>): string {
+  if (!existing.has(base)) return base;
+  let suffix = 2;
+  while (existing.has(`${base}-${suffix}`)) suffix += 1;
+  return `${base}-${suffix}`;
 }
 
 function exact(value: unknown, keys: readonly string[]): value is Record<string, unknown> {
