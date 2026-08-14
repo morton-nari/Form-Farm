@@ -333,3 +333,11 @@ requires every section to contain a field, a newly added section receives one de
 field configuration remains a separate builder slice. Publication stays disabled while the editor is dirty,
 and the complete candidate still crosses the existing ETag and runtime-validation boundaries. No schema data
 selects management endpoints or privileged operations.
+
+Basic field editing follows the same boundary. Nested typed Reactive Form arrays own field label, optional help
+text, and within-section order, while a private stable-ID map retains immutable discriminated-union snapshots.
+Candidate reconstruction replaces presentation properties on a new field object and preserves type-specific
+configuration such as options, defaults, autocomplete, placeholders, rows, and validation. Missing snapshots or
+unexpected type changes fail closed before an HTTP request, and the complete candidate must pass shared runtime
+validation. New fields are text fields with globally collision-safe IDs because answer keys are unique across the
+whole form. Field-type switching and type-specific configuration remain separate operations.

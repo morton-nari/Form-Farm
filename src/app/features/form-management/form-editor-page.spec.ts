@@ -94,7 +94,7 @@ describe('FormEditorPage', () => {
           title: 'Main',
           fields: [
             {
-              id: 'choice',
+              id: 'response',
               type: 'select' as const,
               label: 'Choose',
               options: [{ label: 'One', value: 'one' }],
@@ -152,8 +152,17 @@ describe('FormEditorPage', () => {
     fixture.detectChanges();
     const component = fixture.componentInstance;
 
+    component.addField(0);
+    expect(component.sections.at(0).controls.fields.at(1).controls.id.value).toBe('field');
+    expect(document.activeElement?.id).toBe('field-label-0-1');
+    component.sections.at(0).controls.fields.at(1).controls.label.setValue('Details');
+    component.sections.at(0).controls.fields.at(1).controls.helpText.setValue('Tell us more.');
+    component.moveField(0, 1, -1);
+    expect(document.activeElement?.id).toBe('field-label-0-0');
+    expect(component.canPublish()).toBe(false);
     component.addSection();
     expect(component.sections.at(1).controls.id.value).toBe('section');
+    expect(component.sections.at(1).controls.fields.at(0).controls.id.value).toBe('response-2');
     expect(document.activeElement?.id).toBe('section-title-1');
     component.sections.at(1).controls.title.setValue('Follow up');
     component.moveSection(1, -1);
@@ -165,11 +174,19 @@ describe('FormEditorPage', () => {
         {
           id: 'section',
           title: 'Follow up',
-          fields: [{ id: 'response', type: 'text', label: 'Response' }],
+          fields: [{ id: 'response-2', type: 'text', label: 'Response' }],
         },
         {
           id: 'main',
-          fields: definition.sections[0]!.fields,
+          fields: [
+            {
+              id: 'field',
+              type: 'text',
+              label: 'Details',
+              helpText: 'Tell us more.',
+            },
+            definition.sections[0]!.fields[0],
+          ],
         },
       ],
       submission: definition.submission,
@@ -181,6 +198,10 @@ describe('FormEditorPage', () => {
     expect(component.sections.length).toBe(1);
     component.removeSection(0);
     expect(component.sections.length).toBe(1);
+    component.removeField(0, 0);
+    expect(component.sections.at(0).controls.fields.length).toBe(1);
+    component.removeField(0, 0);
+    expect(component.sections.at(0).controls.fields.length).toBe(1);
 
     component.sections.at(0).controls.description.setValue('   ');
     component.save();
@@ -190,9 +211,9 @@ describe('FormEditorPage', () => {
     component.sections.at(0).controls.description.setValue('');
 
     const editorState = component as unknown as {
-      fieldsBySectionId: Map<string, unknown>;
+      fieldSnapshotsById: Map<string, unknown>;
     };
-    editorState.fieldsBySectionId.delete('main');
+    editorState.fieldSnapshotsById.delete('response');
     component.save();
     expect(save).toHaveBeenCalledTimes(1);
     expect(component.status()).toBe('error');
