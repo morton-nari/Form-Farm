@@ -8,6 +8,7 @@ import type { OwnerFormDraftStore } from '../../application/ports/owner-form-dra
 import { GetOwnerFormDraft, SaveOwnerFormDraft } from '../../application/forms/owner-form-draft.js';
 import { PublishFormDraft } from '../../application/forms/publish-form-draft.js';
 import { BootstrapFormDraft } from '../../application/forms/bootstrap-form-draft.js';
+import { ListOwnerManagedForms } from '../../application/forms/list-owner-managed-forms.js';
 import type { BackendConfig } from '../../config/backend-config.js';
 import { CUSTOMER_FEEDBACK_FORM } from '../../infrastructure/forms/customer-feedback.form.js';
 import { XsrfTokenService } from '../authentication/xsrf-token-service.js';
@@ -191,6 +192,21 @@ describe('form management creation route', () => {
     expect(response.json()).toMatchObject({ created: true, draftRevision: 1 });
     await app.close();
   });
+
+  it('lists only safe owner-management summaries with bounded pagination', async () => {
+    const app = createRoutes(vi.fn());
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/management/forms?limit=1',
+      headers: { cookie: 'ff_session=valid-session' },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.headers['cache-control']).toBe('no-store');
+    expect(response.json()).toMatchObject({
+      forms: [{ id: 'customer-feedback', title: 'Customer feedback', status: 'published' }],
+    });
+    await app.close();
+  });
 });
 
 function createRoutes(
@@ -237,6 +253,20 @@ function createRoutes(
           updatedAt: new Date('2026-08-14T00:00:00.000Z'),
         },
       }),
+    }),
+    listOwnerManagedForms: new ListOwnerManagedForms({
+      list: async () => [
+        {
+          definition: CUSTOMER_FEEDBACK_FORM,
+          rowFormId: CUSTOMER_FEEDBACK_FORM.id,
+          status: 'published',
+          latestVersion: 1,
+          currentPublishedVersion: 1,
+          draftRevision: null,
+          definitionVersion: 1,
+          updatedAt: new Date('2026-08-14T00:00:00.000Z'),
+        },
+      ],
     }),
   });
   return app;

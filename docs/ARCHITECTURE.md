@@ -310,3 +310,8 @@ or AI behavior.
 It explicitly relies on `current_published_version = latest_version`. A future rollback should create a new
 immutable publication from historical content instead of moving the pointer backward. Bootstrap validates the
 relational version before arithmetic and treats PostgreSQL integer exhaustion as a conflict.
+
+The owner-management list is separate from accessible published reads. One owner-filtered PostgreSQL query joins
+the optional draft and current immutable version, orders by `updated_at DESC, id ASC`, and returns bounded cursor
+pages. Application code validates the selected JSONB and relational identity/version fields before deriving safe
+summaries; definitions and owner IDs never enter the HTTP representation.

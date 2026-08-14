@@ -235,6 +235,18 @@ Bootstrap never refreshes or replaces an existing draft from a newer publication
 should publish a new version copied from historical content rather than moving the pointer backward. The relational
 version is parsed and bounded before arithmetic; PostgreSQL integer exhaustion returns `409 conflict`.
 
+### List owner-managed forms
+
+`GET /api/v1/management/forms?limit=20&cursor=<opaque>` requires an authenticated session and returns only forms
+whose user owner is that actor. Unlike the accessible published-form list, this lifecycle-aware query includes
+draft, published, and archived owner forms but never system forms. Results are ordered by `updated_at DESC, id ASC`.
+The default page size is 20 and the maximum is 100; malformed limits/cursors return `400 invalid_request`.
+
+Each summary contains only ID, validated title, lifecycle status, latest/current published version, draft
+presence/revision, and update timestamp. It never includes definitions, owner IDs, or submissions. Draft JSONB is
+preferred for its current title; otherwise the current immutable publication is used. Both remain `unknown` until
+runtime validation and relational identity/version checks succeed. `nextCursor` is opaque and `null` on the last page.
+
 ## Submit a form response
 
 ```http

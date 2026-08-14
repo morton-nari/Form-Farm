@@ -7,6 +7,8 @@ import type {
 } from '../../application/forms/owner-form-draft.js';
 import type { PublishFormDraft } from '../../application/forms/publish-form-draft.js';
 import type { BootstrapFormDraft } from '../../application/forms/bootstrap-form-draft.js';
+import type { ListOwnerManagedForms } from '../../application/forms/list-owner-managed-forms.js';
+import { ApplicationError } from '../../application/errors/application-error.js';
 import type { BackendConfig } from '../../config/backend-config.js';
 import { ForbiddenAuthenticationRequestError } from '../authentication/authentication-errors.js';
 import { resolveAuthenticatedRequest } from '../authentication/resolve-authenticated-user.js';
@@ -29,6 +31,7 @@ interface FormManagementRouteOptions {
   readonly saveOwnerFormDraft: SaveOwnerFormDraft;
   readonly publishFormDraft: PublishFormDraft;
   readonly bootstrapFormDraft: BootstrapFormDraft;
+  readonly listOwnerManagedForms: ListOwnerManagedForms;
 }
 
 export const registerFormManagementRoutes: FastifyPluginAsync<FormManagementRouteOptions> = async (
@@ -38,6 +41,25 @@ export const registerFormManagementRoutes: FastifyPluginAsync<FormManagementRout
   app.addHook('onSend', async (_request, reply) => {
     void reply.header('cache-control', 'no-store');
   });
+  app.get<{ Querystring: { readonly limit?: string; readonly cursor?: string } }>(
+    '/api/v1/management/forms',
+    async (request) => {
+      const authenticated = await resolveAuthenticatedRequest(
+        request,
+        options.config.secureCookies,
+        options.resolveSession,
+      );
+      const result = await options.listOwnerManagedForms.execute(
+        authenticated.userId,
+        parseLimit(request.query.limit),
+        parseCursor(request.query.cursor),
+      );
+      return {
+        forms: result.forms,
+        nextCursor: result.nextCursor ? encodeCursor(result.nextCursor) : null,
+      };
+    },
+  );
   app.post<{ Body: { readonly definition: unknown } }>(
     '/api/v1/management/forms',
     {
@@ -152,6 +174,38 @@ export const registerFormManagementRoutes: FastifyPluginAsync<FormManagementRout
     },
   );
 };
+
+function parseLimit(value: string | undefined): number {
+  if (value === undefined) return 20;
+  if (!/^[1-9][0-9]*$/.test(value) || Number(value) > 100)
+    throw new ApplicationError('invalid_input', 'The page size is invalid.');
+  return Number(value);
+}
+
+function parseCursor(value: string | undefined): { updatedAt: Date; formId: string } | undefined {
+  if (!value) return undefined;
+  try {
+    const parsed = JSON.parse(Buffer.from(value, 'base64url').toString('utf8')) as unknown;
+    if (
+      !Array.isArray(parsed) ||
+      parsed.length !== 2 ||
+      typeof parsed[0] !== 'string' ||
+      typeof parsed[1] !== 'string'
+    )
+      throw new Error();
+    const updatedAt = new Date(parsed[0]);
+    if (Number.isNaN(updatedAt.valueOf())) throw new Error();
+    return { updatedAt, formId: parsed[1] };
+  } catch {
+    throw new ApplicationError('invalid_input', 'The page cursor is invalid.');
+  }
+}
+
+function encodeCursor(cursor: { updatedAt: Date; formId: string }): string {
+  return Buffer.from(JSON.stringify([cursor.updatedAt.toISOString(), cursor.formId])).toString(
+    'base64url',
+  );
+}
 
 function assertSessionXsrf(
   request: Parameters<typeof headerValue>[0],
