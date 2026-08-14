@@ -144,6 +144,134 @@ describe('FormEditorPage', () => {
     expect(component.message()).toContain('invalid draft');
   });
 
+  it('edits number validation without losing unrelated number configuration', async () => {
+    const definition = {
+      schemaVersion: 1 as const,
+      id: 'number-form',
+      formVersion: 1,
+      title: 'Number form',
+      sections: [
+        {
+          id: 'main',
+          title: 'Main',
+          fields: [
+            {
+              id: 'amount',
+              type: 'number' as const,
+              label: 'Amount',
+              placeholder: 'Enter an amount',
+              defaultValue: -1,
+              validation: [
+                { type: 'required' as const },
+                { type: 'min' as const, value: -1.5 },
+                { type: 'max' as const, value: 0 },
+                { type: 'integer' as const },
+              ],
+            },
+          ],
+        },
+      ],
+      submission: { submitLabel: 'Send', successMessage: 'Sent.' },
+    };
+    let revision = 1;
+    let savedDefinition: unknown;
+    const body = {
+      formId: definition.id,
+      status: 'draft',
+      draftRevision: revision,
+      definition,
+      createdAt: '2026-08-14T00:00:00.000Z',
+      updatedAt: '2026-08-14T00:00:00.000Z',
+    };
+    const save = vi.fn((_formId: string, candidate: unknown) => {
+      savedDefinition = candidate;
+      revision += 1;
+      return of(
+        new HttpResponse({
+          body: { ...body, draftRevision: revision, definition: candidate },
+          headers: new HttpHeaders({ etag: `"draft-${revision}"` }),
+        }),
+      );
+    });
+    const api = {
+      loadDraft: () =>
+        of(new HttpResponse({ body, headers: new HttpHeaders({ etag: '"draft-1"' }) })),
+      save,
+      publish: () => of({}),
+      bootstrap: () => of(new HttpResponse()),
+      create: () => of({}),
+      listForms: () => of({}),
+    };
+    await TestBed.configureTestingModule({
+      imports: [FormEditorPage],
+      providers: [
+        provideRouter([]),
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { paramMap: { get: () => definition.id } } },
+        },
+        { provide: FormManagementApiService, useValue: api },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(FormEditorPage);
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+    let numberField = component.sections.at(0).controls.fields.at(0);
+    expect(numberField.controls.numberRequired.value).toBe(true);
+    expect(numberField.controls.numberMin.value).toBe(-1.5);
+    expect(numberField.controls.numberMax.value).toBe(0);
+    expect(numberField.controls.numberInteger.value).toBe(true);
+
+    numberField.controls.numberRequired.setValue(false);
+    numberField.controls.numberMin.setValue(null);
+    numberField.controls.numberMax.setValue(null);
+    numberField.controls.numberInteger.setValue(false);
+    component.save();
+    expect(save).toHaveBeenCalledTimes(1);
+    const savedNumber = (savedDefinition as { sections: { fields: Record<string, unknown>[] }[] })
+      .sections[0]!.fields[0]!;
+    expect(savedNumber).toMatchObject({
+      id: 'amount',
+      type: 'number',
+      placeholder: 'Enter an amount',
+      defaultValue: -1,
+    });
+    expect(savedNumber).not.toHaveProperty('validation');
+
+    numberField = component.sections.at(0).controls.fields.at(0);
+    numberField.controls.numberMin.setValue(Number.POSITIVE_INFINITY);
+    expect(component.form.invalid).toBe(true);
+    component.save();
+    expect(save).toHaveBeenCalledTimes(1);
+    numberField.controls.numberMin.setValue(-0.5);
+    numberField.controls.numberMax.setValue(0);
+    expect(component.form.valid).toBe(true);
+    component.save();
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(component.message()).toContain('invalid builder state');
+    numberField.controls.numberMin.setValue(1);
+    numberField.controls.numberMax.setValue(0);
+    expect(numberField.hasError('invalidNumberRange')).toBe(true);
+    component.save();
+    expect(save).toHaveBeenCalledTimes(1);
+
+    numberField.controls.numberRequired.setValue(true);
+    numberField.controls.numberMin.setValue(-2.25);
+    numberField.controls.numberMax.setValue(0);
+    numberField.controls.numberInteger.setValue(true);
+    component.save();
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(
+      (savedDefinition as { sections: { fields: { validation?: unknown }[] }[] }).sections[0]!
+        .fields[0]!.validation,
+    ).toEqual([
+      { type: 'required' },
+      { type: 'min', value: -2.25 },
+      { type: 'max', value: 0 },
+      { type: 'integer' },
+    ]);
+  });
+
   it('adds, reorders, and saves sections while preserving untouched field definitions', async () => {
     const definition = {
       schemaVersion: 1 as const,
