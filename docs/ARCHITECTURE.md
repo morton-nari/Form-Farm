@@ -356,3 +356,11 @@ at least one item, unique non-blank values, and continued validity of every exis
 default references are reported locally rather than silently cleared or rewritten. Candidate reconstruction
 replaces only the options on a new choice-field snapshot and retains defaults, validation, placeholders, and
 unrelated field properties.
+
+Field creation uses a per-section typed selector and an exhaustive factory for all schema-version-1
+discriminants that the current release permits publishing. Each choice field receives one valid starter option;
+other types receive only their required base properties. Password is intentionally absent because generic
+password-bearing definitions are currently non-publishable. Selection affects only the next new field and is not
+serialized. Existing field discriminants remain immutable, so creation introduces no type-conversion semantics.
+New fields immediately enter the same validated snapshot, dirty-state, ETag, and applicable type-specific editor
+boundaries as loaded fields.

@@ -9,15 +9,77 @@ import { FormManagementApiService } from '../../core/api/form-management-api.ser
 
 describe('FormEditorPage', () => {
   it('renders the trusted minimal create workflow without schema-selected actions', async () => {
+    let createdDefinition:
+      { sections: { fields: { type: string; options?: unknown }[] }[] } | undefined;
+    const api = {
+      create: (definition: unknown) => {
+        createdDefinition = definition as {
+          sections: { fields: { type: string; options?: unknown }[] }[];
+        };
+        return of({
+          formId: (definition as { id: string }).id,
+          status: 'draft',
+          draftRevision: 1,
+          definition,
+          createdAt: '2026-08-14T00:00:00.000Z',
+        });
+      },
+      loadDraft: () => of(new HttpResponse()),
+      save: () => of(new HttpResponse()),
+      publish: () => of({}),
+      bootstrap: () => of(new HttpResponse()),
+      listForms: () => of({}),
+    };
     await TestBed.configureTestingModule({
       imports: [FormEditorPage],
-      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+      providers: [
+        provideRouter([{ path: 'manage/forms/:formId/edit', component: FormEditorPage }]),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: FormManagementApiService, useValue: api },
+      ],
     }).compileComponents();
     const fixture = TestBed.createComponent(FormEditorPage);
     fixture.detectChanges();
+    const component = fixture.componentInstance;
     expect(fixture.nativeElement.querySelector('h1')?.textContent).toContain('Create form');
     expect(fixture.nativeElement.querySelector('form')).not.toBeNull();
     expect(fixture.nativeElement.querySelector('[formControlName="id"]')).not.toBeNull();
+
+    const offeredTypes = component.creatableFieldTypes.map((item) => item.type);
+    expect(offeredTypes).toEqual([
+      'text',
+      'email',
+      'tel',
+      'url',
+      'textarea',
+      'number',
+      'date',
+      'datetime',
+      'time',
+      'select',
+      'radio',
+      'multi-select',
+      'checkbox',
+      'checkbox-group',
+    ]);
+    expect(offeredTypes).not.toContain('password');
+    for (const type of offeredTypes) {
+      component.sections.at(0).controls.newFieldType.setValue(type);
+      component.addField(0);
+    }
+    component.form.controls.id.setValue('all-field-types');
+    component.form.controls.title.setValue('All field types');
+    component.save();
+
+    expect(createdDefinition).toBeDefined();
+    const fields = createdDefinition!.sections[0]!.fields;
+    expect(fields.slice(1).map((field: { type: string }) => field.type)).toEqual(offeredTypes);
+    for (const field of fields.filter((candidate: { type: string }) =>
+      ['select', 'radio', 'multi-select', 'checkbox-group'].includes(candidate.type),
+    )) {
+      expect(field.options).toEqual([{ label: 'Option 1', value: 'option' }]);
+    }
   });
 
   it('disables publish for dirty visible edits and preserves error for malformed save response', async () => {

@@ -312,13 +312,29 @@ import { HttpErrorResponse } from '@angular/common/http';
                     }
                   </div>
                 }
-                <button
-                  class="btn btn-sm btn-outline-primary"
-                  type="button"
-                  (click)="addField(index)"
-                >
-                  Add text field
-                </button>
+                <div class="row g-2 align-items-end">
+                  <div class="col-sm-6">
+                    <label class="form-label" [for]="'new-field-type-' + index">Field type</label>
+                    <select
+                      class="form-select"
+                      [id]="'new-field-type-' + index"
+                      [formControl]="section.controls.newFieldType"
+                    >
+                      @for (fieldType of creatableFieldTypes; track fieldType.type) {
+                        <option [value]="fieldType.type">{{ fieldType.label }}</option>
+                      }
+                    </select>
+                  </div>
+                  <div class="col-sm-auto">
+                    <button
+                      class="btn btn-sm btn-outline-primary"
+                      type="button"
+                      (click)="addField(index)"
+                    >
+                      Add field
+                    </button>
+                  </div>
+                </div>
               </fieldset>
             </div>
           }
@@ -370,6 +386,7 @@ export class FormEditorPage implements OnInit {
     ElementRef<HTMLInputElement>
   >;
   private readonly route = inject(ActivatedRoute);
+  readonly creatableFieldTypes = CREATABLE_FIELD_TYPES;
   readonly formId = this.route.snapshot.paramMap.get('formId');
   readonly status = signal<'loading' | 'ready' | 'saving' | 'saved' | 'error'>(
     this.formId ? 'loading' : 'ready',
@@ -472,11 +489,11 @@ export class FormEditorPage implements OnInit {
     const section = this.sections.at(sectionIndex);
     if (!section) return;
     const fieldId = nextIdentifier('field', new Set(this.fieldSnapshotsById.keys()));
-    const field: FormField = {
-      id: fieldId,
-      type: 'text',
-      label: `Field ${section.controls.fields.length + 1}`,
-    };
+    const field = createStarterField(
+      section.controls.newFieldType.value,
+      fieldId,
+      `Field ${section.controls.fields.length + 1}`,
+    );
     this.fieldSnapshotsById.set(fieldId, field);
     section.controls.fields.push(fieldGroup(field));
     this.form.markAsDirty();
@@ -758,6 +775,7 @@ type SectionFormGroup = FormGroup<{
   title: FormControl<string>;
   description: FormControl<string>;
   fields: FormArray<FieldFormGroup>;
+  newFieldType: FormControl<CreatableFieldType>;
 }>;
 
 type FieldFormGroup = FormGroup<{
@@ -788,6 +806,7 @@ function sectionGroup(
     title: new FormControl(title, { nonNullable: true, validators: [Validators.required] }),
     description: new FormControl(description, { nonNullable: true }),
     fields: new FormArray(fields.map(fieldGroup)),
+    newFieldType: new FormControl<CreatableFieldType>('text', { nonNullable: true }),
   });
 }
 
@@ -946,6 +965,55 @@ function withChoiceOptions(
       ...(option.disabled ? { disabled: true } : {}),
     })),
   };
+}
+
+type CreatableFieldType = Exclude<FormField['type'], 'password'>;
+
+const CREATABLE_FIELD_TYPES: readonly {
+  readonly type: CreatableFieldType;
+  readonly label: string;
+}[] = [
+  { type: 'text', label: 'Text' },
+  { type: 'email', label: 'Email' },
+  { type: 'tel', label: 'Telephone' },
+  { type: 'url', label: 'URL' },
+  { type: 'textarea', label: 'Long text' },
+  { type: 'number', label: 'Number' },
+  { type: 'date', label: 'Date' },
+  { type: 'datetime', label: 'Date and time' },
+  { type: 'time', label: 'Time' },
+  { type: 'select', label: 'Select list' },
+  { type: 'radio', label: 'Radio buttons' },
+  { type: 'multi-select', label: 'Multi-select list' },
+  { type: 'checkbox', label: 'Checkbox' },
+  { type: 'checkbox-group', label: 'Checkbox group' },
+];
+
+function createStarterField(type: CreatableFieldType, id: string, label: string): FormField {
+  switch (type) {
+    case 'text':
+    case 'email':
+    case 'tel':
+    case 'url':
+    case 'textarea':
+    case 'number':
+    case 'date':
+    case 'datetime':
+    case 'time':
+    case 'checkbox':
+      return { id, type, label };
+    case 'select':
+    case 'radio':
+    case 'multi-select':
+    case 'checkbox-group':
+      return { id, type, label, options: [{ label: 'Option 1', value: 'option' }] };
+    default:
+      return assertNever(type);
+  }
+}
+
+function assertNever(value: never): never {
+  throw new Error(`Unsupported creatable field type: ${String(value)}`);
 }
 
 function nextIdentifier(base: string, existing: ReadonlySet<string>): string {
