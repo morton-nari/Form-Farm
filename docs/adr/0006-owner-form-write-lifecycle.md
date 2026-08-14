@@ -53,6 +53,12 @@ The JSON is a complete schema-v1 `FormDefinition`. Its identity must match the r
 A draft is mutable working state, not a published version and never submission-eligible. Draft history,
 collaboration, approval, and recovery logs are deferred.
 
+There is exactly one draft per form. Branches, per-user drafts, and collaborative merging are explicitly
+deferred. Draft JSON may contain sensitive labels, help text, and defaults. The initial retention rule is
+owner-controlled persistence with no automatic expiry: it remains until publication, explicit owner deletion,
+or deletion of its still-unpublished logical form. Before production use, Form Farm must define visible
+retention controls, deletion guarantees, backup expiry, and administrator access policy.
+
 ### Create
 
 Use a fixed route such as `POST /api/v1/management/forms` with `{ "definition": unknown }`. The use case:
@@ -65,6 +71,15 @@ Use a fixed route such as `POST /api/v1/management/forms` with `{ "definition": 
 The initial client supplies a schema-valid stable form ID. A uniqueness race returns `409 conflict` without
 revealing ownership. IDs cannot be renamed. Slug suggestions or server-generated IDs are deferred.
 
+This deliberately creates one global client-chosen namespace for the initial controlled portfolio release. The
+first creator can reserve a desirable ID. Creation therefore remains authenticated, rate/quantity limited, and
+unavailable as an unrestricted public feature. Before general multi-tenant creation, revisit this and strongly
+consider a server-generated internal ID (with a domain-compatible prefix) plus an owner-editable routing slug.
+Existing version and submission identity must never change during such a migration.
+
+The form row and revision-1 draft are inserted in one transaction. Any draft-insert or commit failure rolls back
+both. An owner form with `latest_version = 0` and no draft is not a supported normal state.
+
 ### Save and optimistic concurrency
 
 Use `PUT /api/v1/management/forms/:formId/draft` with a complete unknown definition and an opaque
@@ -73,8 +88,19 @@ conditional update at the expected revision. Success increments revision and ret
 ownership returns `404`; stale state returns `409` without embedding the current definition. The UI must reload
 and let the user reconcile deliberately. Silent last-write-wins merging is prohibited.
 
+The strong ETag grammar is exactly `"draft-<positive base-10 integer>"`, with no leading zero and a maximum of
+`9007199254740991`. `If-Match` contains exactly one value. Weak ETags, `*`, lists, unquoted values, internal
+whitespace, zero, negatives, and overflow return `400 invalid_request`. Responses return the exact new ETag.
+
+Save never trusts the JSON version. The owner-scoped persistence operation verifies candidate and stored IDs
+against the row and requires both JSON versions to equal relational `latest_version + 1`. A client cannot advance,
+rewind, or retain a version independently.
+
 Full-definition saves are the first contract. JSON Patch and field operations are deferred until builder UX
 demonstrates a need. Request limits are HTTP policy, not domain metadata.
+
+Mutable draft does not mean saving every keystroke. Angular will debounce meaningful complete snapshots, avoid
+parallel saves, and expose saving/conflict state. Exact timing is a measured UX concern, not a domain contract.
 
 ### Publish transaction
 
@@ -82,7 +108,7 @@ Use `POST /api/v1/management/forms/:formId/publications` with the expected draft
 transaction behind an application-owned port:
 
 1. locks the owner-scoped form and draft rows;
-2. verifies the draft revision;
+2. compares the exact expected draft revision while the row is locked;
 3. exposes JSON as `unknown` to a synchronous CPU-only application callback;
 4. reruns runtime/domain validation and relational identity checks;
 5. applies publishability policy separately from validity;
@@ -91,20 +117,36 @@ transaction behind an application-owned port:
 8. updates latest/current-published pointers, status, and timestamp atomically; and
 9. deletes the consumed draft.
 
+The application never validates a pre-lock copy and publishes a newer replacement accidentally. It receives the
+locked row, derives the version from locked relational state, and verifies rather than trusts the JSON version.
 The callback performs no network, AI, or unrelated I/O. Database uniqueness and composite pointer constraints
 remain final integrity guarantees. Races and stale drafts return `409`; safe publishability failures return
 `422`; infrastructure failures remain internal.
 
+Draft deletion is the final statement in the same transaction. Failure before commit rolls back the version,
+pointer changes, and deletion together, restoring the prior draft automatically.
+
 Editing a published form starts through a separate owner-authorized operation that copies the validated current
 definition, sets `formVersion = latest_version + 1`, and creates draft revision 1. Publication never mutates or
 deletes older versions. ADR 0004 continues to govern their submission eligibility.
+
+Edit bootstrap locks the owner form and inserts only when no draft exists. Concurrent calls never replace draft
+content: one creates revision 1 and the other returns that existing draft (or a stable already-exists result).
+Both tabs then share one ETag, so the first save advances it and the stale tab conflicts.
+
+Archived forms are terminal initially. Owners may view management metadata but cannot create/save drafts,
+publish, or submit. Restoration/republishing requires a future explicit use case. Publishing a newer version
+leaves the form published and preserves ADR 0004: older published versions remain submission-eligible until the
+logical form is archived.
 
 ### Validity, publishability, and AI
 
 Successful `validateFormDefinition` means structurally/domain valid—not authorized, publishable, or safe for a
 workflow. Create/save keep invalid JSON out of normal draft storage. Publish validates again inside the
 transaction, then applies explicit policy, initially rejecting password collection, unsupported schema versions,
-and content prohibited by release/data-governance controls.
+and the explicit high-risk release restriction already documented by ADR 0004. The first implementation names
+every publishability rule and stable issue code; it cannot add an open-ended “governance” callback or mix policy
+failures into schema validation. New rules require documented product/security rationale and contract tests.
 
 AI output eventually enters as unknown draft input through exactly the same validation, owner review, and
 publication boundary. It receives no direct persistence or publishing path.
@@ -112,9 +154,12 @@ publication boundary. It receives no direct persistence or publishing path.
 ### Owner management query
 
 Add a separate paginated owner-only query ordered by `updated_at DESC, id ASC`. It may expose lifecycle status,
-latest/published version, draft presence/revision, and relational title/timestamps needed by management UI. It
-never exposes owner IDs, raw rows, list definitions, submissions, or system samples. Builder screens never infer
-edit permission from the accessible landing list.
+latest/published version, draft presence/revision, and timestamps needed by management UI. Title remains
+authoritative inside the validated draft or current published `FormDefinition`; initially it is derived from
+validated JSON rather than duplicated relationally. If measured list cost later justifies a relational title
+projection, save/publication must update it atomically and the definition remains canonical. The query never
+exposes owner IDs, raw rows, list definitions, submissions, or system samples. Builder screens never infer edit
+permission from the accessible landing list.
 
 Definitions remain `unknown` at HTTP and persistence ingress. API representations are owned DTOs, not Drizzle
 rows or domain aliases. Management responses use `Cache-Control: no-store`.
