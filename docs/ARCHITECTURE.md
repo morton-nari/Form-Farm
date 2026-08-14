@@ -366,3 +366,9 @@ new policy decision at compile time. Selection affects only the next new field a
 field discriminants remain immutable, so creation introduces no type-conversion semantics.
 New fields immediately enter the same validated snapshot, dirty-state, ETag, and applicable type-specific editor
 boundaries as loaded fields.
+
+Fixed number fields expose the complete schema-version-1 number-rule family: `required`, `min`, `max`, and
+`integer`. Minimum and maximum controls accept any finite number, including negative, fractional, and zero
+values, while the nested group rejects a minimum greater than its maximum. Candidate rules are rebuilt in
+required/minimum/maximum/integer order and removed entirely when unset. Placeholder, default value, and unrelated
+snapshot properties remain unchanged; full runtime definition validation still precedes persistence.

@@ -25,6 +25,7 @@ import {
   type FormField,
   type FormFieldOption,
   type FormSection,
+  type NumberValidationRule,
   type TextValidationRule,
 } from '@form-farm/form-domain';
 import { take } from 'rxjs';
@@ -214,6 +215,74 @@ import { HttpErrorResponse } from '@angular/common/http';
                         @if (field.hasError('invalidLengthRange')) {
                           <p class="text-danger mt-2 mb-0" role="alert">
                             Minimum length cannot exceed maximum length.
+                          </p>
+                        }
+                      </fieldset>
+                    }
+                    @if (field.controls.type.value === 'number') {
+                      <fieldset class="border-top mt-3 pt-3">
+                        <legend class="fs-6">Number validation</legend>
+                        <div class="d-flex flex-wrap gap-4 mb-3">
+                          <div class="form-check">
+                            <input
+                              class="form-check-input"
+                              type="checkbox"
+                              [id]="'number-required-' + index + '-' + fieldIndex"
+                              formControlName="numberRequired"
+                            />
+                            <label
+                              class="form-check-label"
+                              [for]="'number-required-' + index + '-' + fieldIndex"
+                              >Required</label
+                            >
+                          </div>
+                          <div class="form-check">
+                            <input
+                              class="form-check-input"
+                              type="checkbox"
+                              [id]="'number-integer-' + index + '-' + fieldIndex"
+                              formControlName="numberInteger"
+                            />
+                            <label
+                              class="form-check-label"
+                              [for]="'number-integer-' + index + '-' + fieldIndex"
+                              >Whole numbers only</label
+                            >
+                          </div>
+                        </div>
+                        <div class="row g-3">
+                          <div class="col-md-6">
+                            <label
+                              class="form-label"
+                              [for]="'number-min-' + index + '-' + fieldIndex"
+                              >Minimum</label
+                            >
+                            <input
+                              class="form-control"
+                              type="number"
+                              step="any"
+                              [id]="'number-min-' + index + '-' + fieldIndex"
+                              formControlName="numberMin"
+                            />
+                          </div>
+                          <div class="col-md-6">
+                            <label
+                              class="form-label"
+                              [for]="'number-max-' + index + '-' + fieldIndex"
+                              >Maximum</label
+                            >
+                            <input
+                              class="form-control"
+                              type="number"
+                              step="any"
+                              [id]="'number-max-' + index + '-' + fieldIndex"
+                              formControlName="numberMax"
+                            />
+                          </div>
+                        </div>
+                        @if (field.hasError('invalidNumberRange')) {
+                          <p class="text-danger mt-2 mb-0" role="alert">
+                            Minimum cannot exceed maximum.
                           </p>
                         }
                       </fieldset>
@@ -667,9 +736,17 @@ export class FormEditorPage implements OnInit {
                 fieldValue.minLength,
                 fieldValue.maxLength,
               )
-            : isChoiceField(updated)
-              ? withChoiceOptions(updated, field.controls.options.getRawValue())
-              : updated,
+            : updated.type === 'number'
+              ? withNumberValidation(
+                  updated,
+                  fieldValue.numberRequired,
+                  fieldValue.numberMin,
+                  fieldValue.numberMax,
+                  fieldValue.numberInteger,
+                )
+              : isChoiceField(updated)
+                ? withChoiceOptions(updated, field.controls.options.getRawValue())
+                : updated,
         );
       }
       sections.push({
@@ -786,6 +863,10 @@ type FieldFormGroup = FormGroup<{
   requiredRule: FormControl<boolean>;
   minLength: FormControl<number | null>;
   maxLength: FormControl<number | null>;
+  numberRequired: FormControl<boolean>;
+  numberMin: FormControl<number | null>;
+  numberMax: FormControl<number | null>;
+  numberInteger: FormControl<boolean>;
   options: FormArray<OptionFormGroup>;
 }>;
 
@@ -812,6 +893,7 @@ function sectionGroup(
 
 function fieldGroup(field: FormField): FieldFormGroup {
   const textRules = isTextEntryField(field) ? field.validation : undefined;
+  const numberRules = field.type === 'number' ? field.validation : undefined;
   const options = isChoiceField(field) ? field.options : [];
   const defaults = isChoiceField(field)
     ? Array.isArray(field.defaultValue)
@@ -835,12 +917,26 @@ function fieldGroup(field: FormField): FieldFormGroup {
       maxLength: new FormControl(ruleValue(textRules, 'maxLength'), {
         validators: [nonNegativeSafeInteger],
       }),
+      numberRequired: new FormControl(
+        numberRules?.some((rule) => rule.type === 'required') ?? false,
+        { nonNullable: true },
+      ),
+      numberMin: new FormControl(numberRuleValue(numberRules, 'min'), {
+        validators: [finiteNumber],
+      }),
+      numberMax: new FormControl(numberRuleValue(numberRules, 'max'), {
+        validators: [finiteNumber],
+      }),
+      numberInteger: new FormControl(
+        numberRules?.some((rule) => rule.type === 'integer') ?? false,
+        { nonNullable: true },
+      ),
       options: new FormArray(
         options.map(optionGroup),
         isChoiceField(field) ? { validators: [choiceOptionsValidator(defaults)] } : undefined,
       ),
     },
-    { validators: validLengthRange },
+    { validators: [validLengthRange, validNumberRange] },
   );
 }
 
@@ -901,6 +997,14 @@ function ruleValue(
   return rule && 'value' in rule ? rule.value : null;
 }
 
+function numberRuleValue(
+  rules: readonly NumberValidationRule[] | undefined,
+  type: 'min' | 'max',
+): number | null {
+  const rule = rules?.find((candidate) => candidate.type === type);
+  return rule && 'value' in rule ? rule.value : null;
+}
+
 function nonNegativeSafeInteger(control: AbstractControl): ValidationErrors | null {
   const value: unknown = control.value;
   return value === null || (Number.isSafeInteger(value) && (value as number) >= 0)
@@ -912,6 +1016,13 @@ function nonBlankText(control: AbstractControl): ValidationErrors | null {
   return typeof control.value === 'string' && control.value.trim().length > 0
     ? null
     : { nonBlankText: true };
+}
+
+function finiteNumber(control: AbstractControl): ValidationErrors | null {
+  const value: unknown = control.value;
+  return value === null || (typeof value === 'number' && Number.isFinite(value))
+    ? null
+    : { finiteNumber: true };
 }
 
 function choiceOptionsValidator(defaults: readonly string[]) {
@@ -937,6 +1048,14 @@ function validLengthRange(control: AbstractControl): ValidationErrors | null {
     : null;
 }
 
+function validNumberRange(control: AbstractControl): ValidationErrors | null {
+  const min: unknown = control.get('numberMin')?.value;
+  const max: unknown = control.get('numberMax')?.value;
+  return typeof min === 'number' && typeof max === 'number' && min > max
+    ? { invalidNumberRange: true }
+    : null;
+}
+
 function withTextValidation(
   field: TextEntryField,
   required: boolean,
@@ -948,6 +1067,26 @@ function withTextValidation(
   if (minLength !== null) validation.push({ type: 'minLength', value: minLength });
   if (maxLength !== null) validation.push({ type: 'maxLength', value: maxLength });
   const updated = { ...field } as TextEntryField & { validation?: readonly TextValidationRule[] };
+  if (validation.length > 0) updated.validation = validation;
+  else delete updated.validation;
+  return updated;
+}
+
+function withNumberValidation(
+  field: Extract<FormField, { type: 'number' }>,
+  required: boolean,
+  min: number | null,
+  max: number | null,
+  integer: boolean,
+): Extract<FormField, { type: 'number' }> {
+  const validation: NumberValidationRule[] = [];
+  if (required) validation.push({ type: 'required' });
+  if (min !== null) validation.push({ type: 'min', value: min });
+  if (max !== null) validation.push({ type: 'max', value: max });
+  if (integer) validation.push({ type: 'integer' });
+  const updated = { ...field } as Extract<FormField, { type: 'number' }> & {
+    validation?: readonly NumberValidationRule[];
+  };
   if (validation.length > 0) updated.validation = validation;
   else delete updated.validation;
   return updated;
