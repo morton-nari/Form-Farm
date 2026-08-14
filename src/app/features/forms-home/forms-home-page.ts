@@ -15,7 +15,12 @@ import { FormsDashboardStore } from './forms-dashboard.store';
         aria-label="Main navigation"
       >
         <a class="navbar-brand fw-bold" routerLink="/forms">Form Farm AI</a>
-        <button class="btn btn-outline-secondary" type="button" (click)="logout()">Sign out</button>
+        <div class="d-flex gap-2">
+          <a class="btn btn-outline-primary" routerLink="/manage/forms">Manage forms</a
+          ><button class="btn btn-outline-secondary" type="button" (click)="logout()">
+            Sign out
+          </button>
+        </div>
       </nav>
     </header>
     <main class="container py-5" id="main-content">
@@ -26,7 +31,9 @@ import { FormsDashboardStore } from './forms-dashboard.store';
       } @else if (dashboard.status() === 'error') {
         <div class="alert alert-warning mt-4" role="alert">
           <p>We could not load your forms.</p>
-          <button class="btn btn-outline-secondary" type="button" (click)="dashboard.load()">Try again</button>
+          <button class="btn btn-outline-secondary" type="button" (click)="dashboard.load()">
+            Try again
+          </button>
         </div>
       } @else if (dashboard.forms().length === 0) {
         <p class="mt-4">No forms are available yet.</p>
@@ -34,11 +41,17 @@ import { FormsDashboardStore } from './forms-dashboard.store';
         <div class="row g-4 mt-1" aria-label="Available forms">
           @for (form of dashboard.forms(); track form.id) {
             <article class="col-12 col-md-6 col-xl-4">
-              <div class="card h-100"><div class="card-body d-flex flex-column">
-                <h2 class="h4">{{ form.title }}</h2>
-                <p class="text-body-secondary">Version {{ form.formVersion }}</p>
-                <a class="btn btn-primary mt-auto align-self-start" [routerLink]="['/forms', form.id]">Open form</a>
-              </div></div>
+              <div class="card h-100">
+                <div class="card-body d-flex flex-column">
+                  <h2 class="h4">{{ form.title }}</h2>
+                  <p class="text-body-secondary">Version {{ form.formVersion }}</p>
+                  <a
+                    class="btn btn-primary mt-auto align-self-start"
+                    [routerLink]="['/forms', form.id]"
+                    >Open form</a
+                  >
+                </div>
+              </div>
             </article>
           }
         </div>

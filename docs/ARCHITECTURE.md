@@ -318,3 +318,9 @@ summaries; definitions and owner IDs never enter the HTTP representation.
 Lifecycle combinations and next-definition arithmetic are checked explicitly, including the archived no-draft rule
 and PostgreSQL integer boundary. The existing partial `(owner_user_id, updated_at DESC)` index supports this bounded
 release; adding `id` is deferred until query plans at realistic volume justify a migration.
+
+Angular now exposes a protected owner-management area separate from the accessible forms dashboard. Its HTTP
+adapter returns `unknown`; strict summary parsing and shared form-definition validation gate UI state. A minimal
+editor can create a deterministic starter draft and edit title/description while preserving the complete validated
+definition, exact draft ETag, and fixed save/publication endpoints. Schema content never selects actions or URLs.
+Structured field operations, autosave, and AI remain deferred.

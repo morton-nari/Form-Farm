@@ -4,6 +4,26 @@ import { anonymousGuard, authenticatedGuard } from './core/auth/authentication.g
 
 export const routes: Routes = [
   {
+    path: 'manage/forms',
+    canActivate: [authenticatedGuard],
+    loadComponent: () =>
+      import('./features/form-management/form-management-page').then(
+        (module) => module.FormManagementPage,
+      ),
+  },
+  {
+    path: 'manage/forms/new',
+    canActivate: [authenticatedGuard],
+    loadComponent: () =>
+      import('./features/form-management/form-editor-page').then((m) => m.FormEditorPage),
+  },
+  {
+    path: 'manage/forms/:formId/edit',
+    canActivate: [authenticatedGuard],
+    loadComponent: () =>
+      import('./features/form-management/form-editor-page').then((m) => m.FormEditorPage),
+  },
+  {
     path: 'login',
     canActivate: [anonymousGuard],
     loadComponent: () =>
