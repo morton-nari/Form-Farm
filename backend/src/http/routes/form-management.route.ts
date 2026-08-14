@@ -5,6 +5,7 @@ import type {
   GetOwnerFormDraft,
   SaveOwnerFormDraft,
 } from '../../application/forms/owner-form-draft.js';
+import type { PublishFormDraft } from '../../application/forms/publish-form-draft.js';
 import type { BackendConfig } from '../../config/backend-config.js';
 import { ForbiddenAuthenticationRequestError } from '../authentication/authentication-errors.js';
 import { resolveAuthenticatedRequest } from '../authentication/resolve-authenticated-user.js';
@@ -25,6 +26,7 @@ interface FormManagementRouteOptions {
   readonly createFormDraft: CreateFormDraft;
   readonly getOwnerFormDraft: GetOwnerFormDraft;
   readonly saveOwnerFormDraft: SaveOwnerFormDraft;
+  readonly publishFormDraft: PublishFormDraft;
 }
 
 export const registerFormManagementRoutes: FastifyPluginAsync<FormManagementRouteOptions> = async (
@@ -105,6 +107,25 @@ export const registerFormManagementRoutes: FastifyPluginAsync<FormManagementRout
         request.body.definition,
       );
       return reply.header('etag', draftEtag(draft.draftRevision)).send(draft);
+    },
+  );
+  app.post<{ Params: { readonly formId: string }; Body: Record<string, never> }>(
+    '/api/v1/management/forms/:formId/publications',
+    { schema: { body: { type: 'object', additionalProperties: false } } },
+    async (request, reply) => {
+      assertUnsafeRequest(request, options.config.publicOrigin);
+      const authenticated = await resolveAuthenticatedRequest(
+        request,
+        options.config.secureCookies,
+        options.resolveSession,
+      );
+      assertSessionXsrf(request, authenticated.sessionCredential, options);
+      const published = await options.publishFormDraft.execute(
+        { userId: authenticated.userId },
+        request.params.formId,
+        parseDraftIfMatch(request.headers['if-match']),
+      );
+      return reply.status(201).send(published);
     },
   );
 };

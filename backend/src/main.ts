@@ -8,6 +8,7 @@ import { createAuthenticationServices } from './composition/create-authenticatio
 import { PostgresAccessibleFormSource } from './infrastructure/forms/postgres-accessible-form-source.js';
 import { PostgresCreateFormDraftTransaction } from './infrastructure/forms/postgres-create-form-draft-transaction.js';
 import { PostgresOwnerFormDraftStore } from './infrastructure/forms/postgres-owner-form-draft-store.js';
+import { PostgresPublishFormDraftTransaction } from './infrastructure/forms/postgres-publish-form-draft-transaction.js';
 
 const config = loadBackendConfig();
 const database = createDatabase(config);
@@ -19,6 +20,7 @@ const app = createApplication({
   accessibleFormSource: new PostgresAccessibleFormSource(database.database),
   createFormDraftTransaction: new PostgresCreateFormDraftTransaction(database.database),
   ownerFormDraftStore: new PostgresOwnerFormDraftStore(database.database),
+  publishFormDraftTransaction: new PostgresPublishFormDraftTransaction(database.database),
   closeInfrastructure: database.close,
 });
 const removeShutdownHandlers = installGracefulShutdown(app);

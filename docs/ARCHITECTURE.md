@@ -291,3 +291,11 @@ revisions are range-checked before entering application DTOs. Safe GET requests 
 PUT additionally reuses exact-origin and session-bound XSRF enforcement. Publication, Angular builder behavior,
 and AI remain outside this slice. The maximum safe-integer revision is treated as exhausted and conflicts rather
 than wrapping.
+
+The publication slice locks the owner form and exact draft in one PostgreSQL transaction. A synchronous
+application callback revalidates locked JSONB from `unknown`, checks relational identity and the next immutable
+version, and applies the explicit password-field release prohibition separately from schema validity. Only then
+does infrastructure insert `form_versions`, update lifecycle pointers/status, and consume the draft. Races return
+safe conflicts and any validation or persistence failure rolls back the entire state transition. Historical
+versions remain immutable and submission-eligible under ADR 0004. Angular builder and AI capabilities remain
+outside this backend slice.
