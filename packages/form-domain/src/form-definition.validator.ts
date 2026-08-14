@@ -329,11 +329,18 @@ function validateTemporalDefault(
 function validateChoiceField(
   issues: FormDefinitionValidationIssue[],
   field: {
+    readonly type: 'select' | 'radio' | 'multi-select' | 'checkbox-group';
     readonly options: readonly {
       readonly value: string;
       readonly disabled?: boolean | undefined;
     }[];
     readonly defaultValue?: string | string[] | undefined;
+    readonly validation?:
+      | readonly {
+          readonly type: 'required' | 'minSelections' | 'maxSelections';
+          readonly value?: number | undefined;
+        }[]
+      | undefined;
   },
   fieldPath: readonly (string | number)[],
 ): void {
@@ -358,6 +365,30 @@ function validateChoiceField(
     field.options.filter((option) => !option.disabled).map((option) => option.value),
   );
   const seenDefaults = new Set<string>();
+
+  const required = field.validation?.some((rule) => rule.type === 'required') ?? false;
+  const minimum = field.validation?.find((rule) => rule.type === 'minSelections');
+  const maximum = field.validation?.find((rule) => rule.type === 'maxSelections');
+  const requiredCount = Math.max(required ? 1 : 0, minimum?.value ?? 0);
+  if (requiredCount > enabledOptionValues.size || requiredCount > (maximum?.value ?? Infinity)) {
+    issues.push({
+      path: [...fieldPath, 'validation'],
+      code: 'invalid_range',
+      message: 'Selection validation cannot be satisfied by the enabled options.',
+    });
+  }
+
+  if (
+    Array.isArray(field.defaultValue) &&
+    (field.defaultValue.length < requiredCount ||
+      field.defaultValue.length > (maximum?.value ?? Infinity))
+  ) {
+    issues.push({
+      path: [...fieldPath, 'defaultValue'],
+      code: 'invalid_default',
+      message: 'Selection default does not satisfy its validation rules.',
+    });
+  }
 
   defaults.forEach((defaultValue, defaultIndex) => {
     const defaultPath = [

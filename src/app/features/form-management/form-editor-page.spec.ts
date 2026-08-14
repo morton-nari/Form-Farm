@@ -10,11 +10,12 @@ import { FormManagementApiService } from '../../core/api/form-management-api.ser
 describe('FormEditorPage', () => {
   it('renders the trusted minimal create workflow without schema-selected actions', async () => {
     let createdDefinition:
-      { sections: { fields: { type: string; options?: unknown }[] }[] } | undefined;
+      | { sections: { fields: { type: string; options?: unknown; validation?: unknown }[] }[] }
+      | undefined;
     const api = {
       create: (definition: unknown) => {
         createdDefinition = definition as {
-          sections: { fields: { type: string; options?: unknown }[] }[];
+          sections: { fields: { type: string; options?: unknown; validation?: unknown }[] }[];
         };
         return of({
           formId: (definition as { id: string }).id,
@@ -68,6 +69,25 @@ describe('FormEditorPage', () => {
       component.sections.at(0).controls.newFieldType.setValue(type);
       component.addField(0);
     }
+    const multiSelect = component.sections.at(0).controls.fields.at(12);
+    component.addOption(0, 12);
+    multiSelect.controls.options.at(1).controls.label.setValue('Option 2');
+    multiSelect.controls.options.at(1).controls.value.setValue('option-2');
+    multiSelect.controls.selectionRequired.setValue(true);
+    multiSelect.controls.minSelections.setValue(0);
+    multiSelect.controls.maxSelections.setValue(2);
+    multiSelect.controls.maxSelections.setValue(0);
+    expect(multiSelect.hasError('invalidSelectionRange')).toBe(true);
+    multiSelect.controls.maxSelections.setValue(2);
+    expect(multiSelect.valid).toBe(true);
+    multiSelect.controls.maxSelections.setValue(null);
+    multiSelect.controls.minSelections.setValue(3);
+    expect(multiSelect.hasError('invalidSelectionCapacity')).toBe(true);
+    multiSelect.controls.minSelections.setValue(0);
+    multiSelect.controls.maxSelections.setValue(2);
+
+    const select = component.sections.at(0).controls.fields.at(10);
+    select.controls.selectionRequired.setValue(true);
     component.form.controls.id.setValue('all-field-types');
     component.form.controls.title.setValue('All field types');
     component.save();
@@ -78,8 +98,21 @@ describe('FormEditorPage', () => {
     for (const field of fields.filter((candidate: { type: string }) =>
       ['select', 'radio', 'multi-select', 'checkbox-group'].includes(candidate.type),
     )) {
-      expect(field.options).toEqual([{ label: 'Option 1', value: 'option' }]);
+      expect(field.options).toEqual(
+        field.type === 'multi-select'
+          ? [
+              { label: 'Option 1', value: 'option' },
+              { label: 'Option 2', value: 'option-2' },
+            ]
+          : [{ label: 'Option 1', value: 'option' }],
+      );
     }
+    expect(fields[10]!.validation).toEqual([{ type: 'required' }]);
+    expect(fields[12]!.validation).toEqual([
+      { type: 'required' },
+      { type: 'minSelections', value: 0 },
+      { type: 'maxSelections', value: 2 },
+    ]);
   });
 
   it('disables publish for dirty visible edits and preserves error for malformed save response', async () => {
