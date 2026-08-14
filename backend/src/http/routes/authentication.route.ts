@@ -158,7 +158,7 @@ export const registerAuthenticationRoutes: FastifyPluginAsync<AuthenticationRout
   );
 };
 
-function assertUnsafeRequest(request: FastifyRequest, publicOrigin: string): void {
+export function assertUnsafeRequest(request: FastifyRequest, publicOrigin: string): void {
   const contentType = headerValue(request, 'content-type')?.toLowerCase();
   const origin = headerValue(request, 'origin');
   const fetchSite = headerValue(request, 'sec-fetch-site');
@@ -203,7 +203,7 @@ function assertPreAuthenticationXsrf(
   }
 }
 
-function headerValue(request: FastifyRequest, name: string): string | undefined {
+export function headerValue(request: FastifyRequest, name: string): string | undefined {
   const value = request.headers[name];
   return Array.isArray(value) ? undefined : value;
 }

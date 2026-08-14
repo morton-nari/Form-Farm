@@ -274,3 +274,9 @@ immutable published versions, uses optimistic concurrency for saves, and makes p
 transaction that revalidates unknown JSON, allocates the next version, updates lifecycle pointers, and consumes
 the draft. Owner management queries remain distinct from accessible published-form queries. Implementation is
 split into backend creation, save/publication, and Angular builder slices before AI generation.
+
+The first ADR 0006 implementation slice now creates a validated user-owned logical form and revision-1 draft in
+one PostgreSQL transaction. The fixed management route derives ownership from the authenticated actor and
+requires the existing origin/session-XSRF boundary. A per-owner advisory transaction lock makes the temporary
+100-form controlled-release cap concurrency-safe. Draft load/save, publication, and builder UI remain separate
+slices; no AI capability or dependency is present.

@@ -129,6 +129,31 @@ that requires separate explicit product data rather than overloading `updated_at
 Dashboard and definition reads are owner-authorized. This does not grant form creation, publishing, or other
 privileged workflow capabilities, which remain planned work.
 
+## Create an owner form draft
+
+```http
+POST /api/v1/management/forms
+Origin: https://the-configured-app-origin.example
+X-XSRF-TOKEN: <session-bound token>
+Content-Type: application/json
+
+{ "definition": { ...complete FormDefinition... } }
+```
+
+This authenticated management route implements only initial draft creation. Ownership comes exclusively from
+the resolved session actor; ownership fields are not accepted in JSON. The complete definition is treated as
+`unknown`, must pass `validateFormDefinition`, and must have `formVersion: 1`.
+
+One PostgreSQL transaction serializes creation for the actor, enforces the controlled-release limit of 100
+owned forms, inserts a user-owned logical form with `latest_version = 0`, and inserts revision-1 draft JSON. A
+duplicate global form ID or owner limit returns `409 conflict`; validation returns `400`; missing authentication
+returns `401`; origin/XSRF failures return `403`. Every response is `Cache-Control: no-store`. Failure cannot
+leave a normal owner form without its draft.
+
+The global client-chosen identifier and 100-form cap are controlled portfolio-release constraints, not the final
+multi-tenant namespace design. Draft load/save, ETags, publication, archive/restore, Angular builder behavior,
+and AI generation are not implemented by this endpoint.
+
 ## Submit a form response
 
 ```http
