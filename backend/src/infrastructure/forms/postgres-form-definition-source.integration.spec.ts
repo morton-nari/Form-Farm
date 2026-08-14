@@ -20,6 +20,8 @@ import { PublishFormDraft } from '../../application/forms/publish-form-draft.js'
 import { PostgresPublishFormDraftTransaction } from './postgres-publish-form-draft-transaction.js';
 import { BootstrapFormDraft } from '../../application/forms/bootstrap-form-draft.js';
 import { PostgresBootstrapFormDraftTransaction } from './postgres-bootstrap-form-draft-transaction.js';
+import { PostgresOwnerFormManagementSource } from './postgres-owner-form-management-source.js';
+import { ListOwnerManagedForms } from '../../application/forms/list-owner-managed-forms.js';
 
 describe('PostgresFormDefinitionSource', () => {
   let container: StartedTestContainer;
@@ -616,6 +618,39 @@ describe('PostgresFormDefinitionSource', () => {
        from form_drafts where form_id = 'bootstrap-owner-form'`,
     );
     expect(stored.rows[0]).toEqual({ count: 1, revision: '1', form_version: 2 });
+  });
+
+  it('lists only owner-managed forms across lifecycle states in deterministic pages', async () => {
+    const ownerId = '60000000-0000-4000-8000-000000000001';
+    const otherId = '60000000-0000-4000-8000-000000000002';
+    await pool.query(
+      `insert into users (id, email, normalized_email, password_hash) values
+       ($1, 'manager@example.com', 'manager@example.com', 'hash'),
+       ($2, 'manager-other@example.com', 'manager-other@example.com', 'hash')`,
+      [ownerId, otherId],
+    );
+    await new CreateFormDraft(new PostgresCreateFormDraftTransaction(formFarmDatabase)).execute(
+      { userId: ownerId },
+      { ...CUSTOMER_FEEDBACK_FORM, id: 'managed-draft' },
+    );
+    await insertOwnedPublishedForm('managed-published', ownerId);
+    await insertOwnedPublishedForm('managed-other', otherId);
+    const list = new ListOwnerManagedForms(new PostgresOwnerFormManagementSource(formFarmDatabase));
+    const page = await list.execute(ownerId, 10);
+    expect(page.forms.map((form) => form.id).sort()).toEqual([
+      'managed-draft',
+      'managed-published',
+    ]);
+    expect(page.forms.find((form) => form.id === 'managed-draft')).toMatchObject({
+      status: 'draft',
+      draftRevision: 1,
+    });
+    expect(page.forms.find((form) => form.id === 'managed-published')).toMatchObject({
+      status: 'published',
+      currentPublishedVersion: 1,
+    });
+    expect(page.forms.map((form) => form.id)).not.toContain('managed-other');
+    expect(page.forms.map((form) => form.id)).not.toContain('customer-feedback');
   });
 
   async function insertPublishedForm(formId: string, definition: unknown): Promise<void> {

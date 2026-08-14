@@ -10,6 +10,7 @@ import { PostgresCreateFormDraftTransaction } from './infrastructure/forms/postg
 import { PostgresOwnerFormDraftStore } from './infrastructure/forms/postgres-owner-form-draft-store.js';
 import { PostgresPublishFormDraftTransaction } from './infrastructure/forms/postgres-publish-form-draft-transaction.js';
 import { PostgresBootstrapFormDraftTransaction } from './infrastructure/forms/postgres-bootstrap-form-draft-transaction.js';
+import { PostgresOwnerFormManagementSource } from './infrastructure/forms/postgres-owner-form-management-source.js';
 
 const config = loadBackendConfig();
 const database = createDatabase(config);
@@ -23,6 +24,7 @@ const app = createApplication({
   ownerFormDraftStore: new PostgresOwnerFormDraftStore(database.database),
   publishFormDraftTransaction: new PostgresPublishFormDraftTransaction(database.database),
   bootstrapFormDraftTransaction: new PostgresBootstrapFormDraftTransaction(database.database),
+  ownerFormManagementSource: new PostgresOwnerFormManagementSource(database.database),
   closeInfrastructure: database.close,
 });
 const removeShutdownHandlers = installGracefulShutdown(app);
