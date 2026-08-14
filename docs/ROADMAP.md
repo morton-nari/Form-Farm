@@ -47,7 +47,8 @@ Status: **in progress**
 - [x] Publish owner drafts as immutable versions atomically
 - [x] Bootstrap one next-version draft from a published owner form
 - [x] Add a separate owner-management backend query across lifecycle states
-- Add an owner-management Angular dashboard that lists and creates owned forms
+- [x] Add a minimal Angular owner-management dashboard and trusted create/edit/publish workflow
+- Add structured section, field, option, and validation editing
 - Add and arrange sections and fields
 - Configure field options and validation
 - Preview forms through the existing runner
