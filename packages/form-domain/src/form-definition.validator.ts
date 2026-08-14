@@ -244,6 +244,10 @@ function validateDomainInvariants(
         validateChoiceField(issues, field, fieldPath);
       }
 
+      if (field.type === 'number') {
+        validateNumberDefault(issues, field, fieldPath);
+      }
+
       validateRuleRanges(issues, field.validation, [...fieldPath, 'validation']);
       validateTemporalRules(issues, field, [...fieldPath, 'validation']);
     });
@@ -252,10 +256,43 @@ function validateDomainInvariants(
   return issues;
 }
 
+function validateNumberDefault(
+  issues: FormDefinitionValidationIssue[],
+  field: {
+    readonly defaultValue?: number | undefined;
+    readonly validation?:
+      | readonly (
+          | { readonly type: 'required' | 'integer' }
+          | { readonly type: 'min' | 'max'; readonly value: number }
+        )[]
+      | undefined;
+  },
+  fieldPath: readonly (string | number)[],
+): void {
+  if (field.defaultValue === undefined) return;
+  const min = field.validation?.find((rule) => rule.type === 'min');
+  const max = field.validation?.find((rule) => rule.type === 'max');
+  const requiresInteger = field.validation?.some((rule) => rule.type === 'integer') ?? false;
+  if (
+    (min?.type === 'min' && field.defaultValue < min.value) ||
+    (max?.type === 'max' && field.defaultValue > max.value) ||
+    (requiresInteger && !Number.isInteger(field.defaultValue))
+  ) {
+    issues.push({
+      path: [...fieldPath, 'defaultValue'],
+      code: 'invalid_default',
+      message: 'Number default does not satisfy its validation rules.',
+    });
+  }
+}
+
 function validateChoiceField(
   issues: FormDefinitionValidationIssue[],
   field: {
-    readonly options: readonly { readonly value: string; readonly disabled?: boolean | undefined }[];
+    readonly options: readonly {
+      readonly value: string;
+      readonly disabled?: boolean | undefined;
+    }[];
     readonly defaultValue?: string | string[] | undefined;
   },
   fieldPath: readonly (string | number)[],
@@ -343,8 +380,7 @@ function validateUniqueRuleTypes(
 function validateRuleRanges(
   issues: FormDefinitionValidationIssue[],
   rules:
-    | readonly { readonly type: string; readonly value?: string | number | undefined }[]
-    | undefined,
+    readonly { readonly type: string; readonly value?: string | number | undefined }[] | undefined,
   path: readonly (string | number)[],
 ): void {
   if (!rules) return;

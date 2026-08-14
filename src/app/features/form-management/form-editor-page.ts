@@ -1080,10 +1080,12 @@ function withNumberValidation(
   integer: boolean,
 ): Extract<FormField, { type: 'number' }> {
   const validation: NumberValidationRule[] = [];
-  if (required) validation.push({ type: 'required' });
-  if (min !== null) validation.push({ type: 'min', value: min });
-  if (max !== null) validation.push({ type: 'max', value: max });
-  if (integer) validation.push({ type: 'integer' });
+  if (NUMBER_RULE_POLICY.required === 'editable' && required) validation.push({ type: 'required' });
+  if (NUMBER_RULE_POLICY.min === 'editable' && min !== null)
+    validation.push({ type: 'min', value: min });
+  if (NUMBER_RULE_POLICY.max === 'editable' && max !== null)
+    validation.push({ type: 'max', value: max });
+  if (NUMBER_RULE_POLICY.integer === 'editable' && integer) validation.push({ type: 'integer' });
   const updated = { ...field } as Extract<FormField, { type: 'number' }> & {
     validation?: readonly NumberValidationRule[];
   };
@@ -1091,6 +1093,13 @@ function withNumberValidation(
   else delete updated.validation;
   return updated;
 }
+
+const NUMBER_RULE_POLICY = {
+  required: 'editable',
+  min: 'editable',
+  max: 'editable',
+  integer: 'editable',
+} as const satisfies Record<NumberValidationRule['type'], 'editable' | 'preserved'>;
 
 function withChoiceOptions(
   field: ChoiceField,

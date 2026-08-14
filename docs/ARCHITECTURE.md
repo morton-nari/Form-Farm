@@ -371,4 +371,7 @@ Fixed number fields expose the complete schema-version-1 number-rule family: `re
 `integer`. Minimum and maximum controls accept any finite number, including negative, fractional, and zero
 values, while the nested group rejects a minimum greater than its maximum. Candidate rules are rebuilt in
 required/minimum/maximum/integer order and removed entirely when unset. Placeholder, default value, and unrelated
-snapshot properties remain unchanged; full runtime definition validation still precedes persistence.
+snapshot properties remain unchanged. The domain rejects a numeric default outside min/max bounds or incompatible
+with an integer rule, so the builder cannot silently retain an invalid default or rewrite it. An exhaustive
+number-rule policy forces a builder decision when the domain adds a new numeric rule. Full runtime definition
+validation still precedes persistence.

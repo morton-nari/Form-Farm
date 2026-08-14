@@ -185,6 +185,33 @@ describe('validateFormDefinition', () => {
     }
   });
 
+  it.each([
+    ['below minimum', 2, [{ type: 'min' as const, value: 3 }]],
+    ['above maximum', 5, [{ type: 'max' as const, value: 4 }]],
+    ['not an integer', 2.5, [{ type: 'integer' as const }]],
+  ])('rejects a number default that is %s', (_case, defaultValue, validation) => {
+    const form = cloneForm();
+    form.sections[0]!.fields[0] = {
+      id: 'amount',
+      type: 'number',
+      label: 'Amount',
+      defaultValue,
+      validation,
+    };
+
+    const result = validateFormDefinition(form);
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.issues).toContainEqual(
+        expect.objectContaining({
+          path: ['sections', 0, 'fields', 0, 'defaultValue'],
+          code: 'invalid_default',
+        }),
+      );
+    }
+  });
+
   it('rejects temporal rule values that do not match their field format', () => {
     const form = cloneForm();
     form.sections[0]!.fields[0] = {

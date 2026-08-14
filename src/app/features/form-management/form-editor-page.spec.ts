@@ -243,6 +243,12 @@ describe('FormEditorPage', () => {
     expect(component.form.invalid).toBe(true);
     component.save();
     expect(save).toHaveBeenCalledTimes(1);
+    numberField.controls.numberMin.setValue(-0.5);
+    numberField.controls.numberMax.setValue(0);
+    expect(component.form.valid).toBe(true);
+    component.save();
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(component.message()).toContain('invalid builder state');
     numberField.controls.numberMin.setValue(1);
     numberField.controls.numberMax.setValue(0);
     expect(numberField.hasError('invalidNumberRange')).toBe(true);
