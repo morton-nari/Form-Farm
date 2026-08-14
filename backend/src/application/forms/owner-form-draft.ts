@@ -56,7 +56,7 @@ export class SaveOwnerFormDraft {
   }
 }
 
-function toOwnerFormDraft(formId: string, stored: StoredOwnerFormDraft): OwnerFormDraft {
+export function toOwnerFormDraft(formId: string, stored: StoredOwnerFormDraft): OwnerFormDraft {
   const validation = validateFormDefinition(stored.definition);
   if (
     !validation.success ||

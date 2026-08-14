@@ -220,7 +220,16 @@ publication timestamp. Older immutable versions remain submission-eligible while
 `latest_version` is parsed and bounded before arithmetic. PostgreSQL integer version `2147483647` is exhausted and
 returns `409 conflict` rather than overflowing or relying on a failed insert.
 
-Edit bootstrap, archive/restore, Angular builder behavior, and AI generation remain separate slices.
+Archive/restore, Angular builder behavior, and AI generation remain separate slices.
+
+### Start editing a published owner form
+
+`POST /api/v1/management/forms/:formId/draft` with an empty JSON object uses the authenticated exact-origin and
+session-XSRF boundary. PostgreSQL locks the published owner form, validates its current immutable definition from
+`unknown`, copies it with `formVersion = latest_version + 1`, and creates draft revision 1. The response includes
+`ETag: "draft-1"` and `201` when created. If a draft already exists, its content is never replaced and the route
+returns it with `200` and its existing ETag. Concurrent calls therefore converge on one draft. Missing, system,
+archived, and non-owned forms remain indistinguishable as `404 not_found`.
 
 ## Submit a form response
 
