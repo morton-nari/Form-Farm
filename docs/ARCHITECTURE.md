@@ -341,3 +341,10 @@ configuration such as options, defaults, autocomplete, placeholders, rows, and v
 unexpected type changes fail closed before an HTTP request, and the complete candidate must pass shared runtime
 validation. New fields are text fields with globally collision-safe IDs because answer keys are unique across the
 whole form. Field-type switching and type-specific configuration remain separate operations.
+
+The first type-specific builder controls edit only validation rules shared by fixed text-entry discriminants:
+`required`, `minLength`, and `maxLength`. Values are nullable safe non-negative integers, and the nested field
+group rejects a minimum greater than its maximum. Candidate rules are reconstructed in required/minimum/maximum
+order so duplicate families cannot be produced. An empty configuration removes `validation`; non-text fields and
+all other text properties remain unchanged. Shared runtime definition validation still runs before HTTP, and
+backend validation remains authoritative.

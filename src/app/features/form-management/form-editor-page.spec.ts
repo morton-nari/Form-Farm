@@ -114,17 +114,19 @@ describe('FormEditorPage', () => {
       updatedAt: '2026-08-14T00:00:00.000Z',
     };
     let savedDefinition: unknown;
+    let savedRevision = 1;
     const save = vi.fn((_formId: string, candidate: unknown) => {
       savedDefinition = candidate;
+      savedRevision += 1;
       return of(
         new HttpResponse({
           body: {
             ...draftBody,
-            draftRevision: 2,
+            draftRevision: savedRevision,
             definition: candidate,
             updatedAt: '2026-08-14T00:01:00.000Z',
           },
-          headers: new HttpHeaders({ etag: '"draft-2"' }),
+          headers: new HttpHeaders({ etag: `"draft-${savedRevision}"` }),
         }),
       );
     });
@@ -157,6 +159,9 @@ describe('FormEditorPage', () => {
     expect(document.activeElement?.id).toBe('field-label-0-1');
     component.sections.at(0).controls.fields.at(1).controls.label.setValue('Details');
     component.sections.at(0).controls.fields.at(1).controls.helpText.setValue('Tell us more.');
+    component.sections.at(0).controls.fields.at(1).controls.requiredRule.setValue(true);
+    component.sections.at(0).controls.fields.at(1).controls.minLength.setValue(0);
+    component.sections.at(0).controls.fields.at(1).controls.maxLength.setValue(10);
     component.moveField(0, 1, -1);
     expect(document.activeElement?.id).toBe('field-label-0-0');
     expect(component.canPublish()).toBe(false);
@@ -184,6 +189,11 @@ describe('FormEditorPage', () => {
               type: 'text',
               label: 'Details',
               helpText: 'Tell us more.',
+              validation: [
+                { type: 'required' },
+                { type: 'minLength', value: 0 },
+                { type: 'maxLength', value: 10 },
+              ],
             },
             definition.sections[0]!.fields[0],
           ],
@@ -193,6 +203,38 @@ describe('FormEditorPage', () => {
     });
     expect(component.status()).toBe('saved');
     expect(component.form.pristine).toBe(true);
+
+    const savedTextField = component.sections.at(1).controls.fields.at(0);
+    savedTextField.controls.requiredRule.setValue(false);
+    savedTextField.controls.minLength.setValue(null);
+    savedTextField.controls.maxLength.setValue(null);
+    component.save();
+    expect(save).toHaveBeenCalledTimes(2);
+    const savedField = (savedDefinition as { sections: { fields: { validation?: unknown }[] }[] })
+      .sections[1]!.fields[0];
+    expect(savedField).toMatchObject({
+      id: 'field',
+      type: 'text',
+      label: 'Details',
+      helpText: 'Tell us more.',
+    });
+    expect(savedField).not.toHaveProperty('validation');
+
+    const reloadedTextField = component.sections.at(1).controls.fields.at(0);
+    reloadedTextField.controls.maxLength.setValue(Number.MAX_SAFE_INTEGER);
+    expect(reloadedTextField.controls.maxLength.valid).toBe(true);
+    reloadedTextField.controls.maxLength.setValue(Number.MAX_SAFE_INTEGER + 1);
+    expect(reloadedTextField.controls.maxLength.invalid).toBe(true);
+    component.save();
+    expect(save).toHaveBeenCalledTimes(2);
+    reloadedTextField.controls.minLength.setValue(11);
+    reloadedTextField.controls.maxLength.setValue(10);
+    expect(component.form.invalid).toBe(true);
+    expect(component.canPublish()).toBe(false);
+    component.save();
+    expect(save).toHaveBeenCalledTimes(2);
+    reloadedTextField.controls.minLength.setValue(null);
+    reloadedTextField.controls.maxLength.setValue(null);
 
     component.removeSection(0);
     expect(component.sections.length).toBe(1);
@@ -205,7 +247,7 @@ describe('FormEditorPage', () => {
 
     component.sections.at(0).controls.description.setValue('   ');
     component.save();
-    expect(save).toHaveBeenCalledTimes(1);
+    expect(save).toHaveBeenCalledTimes(2);
     expect(component.status()).toBe('error');
     expect(component.message()).toContain('invalid builder state');
     component.sections.at(0).controls.description.setValue('');
@@ -215,7 +257,7 @@ describe('FormEditorPage', () => {
     };
     editorState.fieldSnapshotsById.delete('response');
     component.save();
-    expect(save).toHaveBeenCalledTimes(1);
+    expect(save).toHaveBeenCalledTimes(2);
     expect(component.status()).toBe('error');
     expect(component.message()).toContain('invalid builder state');
   });
