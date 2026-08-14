@@ -2,10 +2,8 @@
 
 ## Current status
 
-The Angular form runner is functional and tested. It consumes a runtime-validated provider-neutral form
-definition from the owned Fastify and PostgreSQL path, and exact-version submissions are persisted. The
-framework-independent account/session persistence core and its secure Fastify boundary exist, but Angular does
-not consume authentication yet. The form builder and AI generation are not implemented.
+The form runner, owned backend, PostgreSQL submissions, authentication, owner-authorized published reads,
+dashboard, and health sample are implemented. Owner form writes, the form builder, and AI generation are not.
 
 ## Phase 0 — Product foundation
 
@@ -41,7 +39,9 @@ Status: **in progress**
 
 ## Phase 3 — Form builder and realistic demos
 
-- Add an owner dashboard that lists and creates forms
+- [x] Add an authenticated accessible-forms dashboard
+- Define owner creation, draft, versioning, and publication semantics in ADR 0006
+- Add a separate owner-management dashboard that lists and creates owned forms
 - Add and arrange sections and fields
 - Configure field options and validation
 - Preview forms through the existing runner
