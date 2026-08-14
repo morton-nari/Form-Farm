@@ -15,6 +15,7 @@ import {
   validateFormDefinition,
   type FormDefinition,
   type FormField,
+  type FormSection,
 } from '@form-farm/form-domain';
 import { take } from 'rxjs';
 import { FormManagementApiService } from '../../core/api/form-management-api.service';
@@ -114,7 +115,7 @@ import { HttpErrorResponse } from '@angular/common/http';
             <button
               class="btn btn-success"
               type="button"
-              [disabled]="status() === 'saving' || form.dirty"
+              [disabled]="!canPublish()"
               (click)="publish()"
             >
               Publish
@@ -178,25 +179,21 @@ export class FormEditorPage implements OnInit {
     if (this.form.invalid) return;
     if (!this.formId) return this.create();
     if (!this.definition || !this.etag) return this.fail('Reload the draft before saving.');
+    const sections = this.buildSections();
+    if (!sections) return;
     const candidate = {
       ...this.definition,
       title: this.form.controls.title.value,
-      sections: this.sections.controls.map((section) => {
-        const value = section.getRawValue();
-        return {
-          id: value.id,
-          title: value.title,
-          ...(value.description ? { description: value.description } : {}),
-          fields: this.fieldsBySectionId.get(value.id) ?? [],
-        };
-      }),
+      sections,
     };
     if (this.form.controls.description.value)
       candidate.description = this.form.controls.description.value;
     else delete candidate.description;
+    const validatedCandidate = validateFormDefinition(candidate);
+    if (!validatedCandidate.success) return this.fail('The draft contains invalid builder state.');
     this.status.set('saving');
     this.api
-      .save(this.formId, candidate, this.etag)
+      .save(this.formId, validatedCandidate.value, this.etag)
       .pipe(take(1))
       .subscribe({
         next: (response) => {
@@ -243,6 +240,15 @@ export class FormEditorPage implements OnInit {
   sectionFieldCount(sectionId: string): number {
     return this.fieldsBySectionId.get(sectionId)?.length ?? 0;
   }
+  canPublish(): boolean {
+    return (
+      this.status() !== 'saving' &&
+      this.form.valid &&
+      !this.form.dirty &&
+      this.definition !== undefined &&
+      this.etag !== undefined
+    );
+  }
   private focusSection(index: number): void {
     this.changeDetector.detectChanges();
     this.sectionTitles.get(index)?.nativeElement.focus();
@@ -268,23 +274,20 @@ export class FormEditorPage implements OnInit {
   }
   private create(): void {
     const value = this.form.getRawValue();
-    const definition: FormDefinition = {
+    const sections = this.buildSections();
+    if (!sections) return;
+    const candidate = {
       schemaVersion: 1,
       id: value.id,
       formVersion: 1,
       title: value.title,
       ...(value.description ? { description: value.description } : {}),
-      sections: this.sections.controls.map((section) => {
-        const sectionValue = section.getRawValue();
-        return {
-          id: sectionValue.id,
-          title: sectionValue.title,
-          ...(sectionValue.description ? { description: sectionValue.description } : {}),
-          fields: this.fieldsBySectionId.get(sectionValue.id) ?? [],
-        };
-      }),
+      sections,
       submission: { submitLabel: 'Submit', successMessage: 'Thank you.' },
     };
+    const validatedDefinition = validateFormDefinition(candidate);
+    if (!validatedDefinition.success) return this.fail('The draft contains invalid builder state.');
+    const definition = validatedDefinition.value;
     this.status.set('saving');
     this.api
       .create(definition)
@@ -297,6 +300,24 @@ export class FormEditorPage implements OnInit {
         },
         error: () => this.fail('The draft could not be created. Check that the ID is available.'),
       });
+  }
+  private buildSections(): readonly FormSection[] | undefined {
+    const sections: FormSection[] = [];
+    for (const section of this.sections.controls) {
+      const value = section.getRawValue();
+      const fields = this.fieldsBySectionId.get(value.id);
+      if (!fields) {
+        this.fail('The draft contains invalid builder state. Reload the draft.');
+        return undefined;
+      }
+      sections.push({
+        id: value.id,
+        title: value.title,
+        ...(value.description ? { description: value.description } : {}),
+        fields,
+      });
+    }
+    return sections;
   }
   private loadDraft(): void {
     this.api

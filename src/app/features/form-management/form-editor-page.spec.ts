@@ -69,9 +69,11 @@ describe('FormEditorPage', () => {
     const fixture = TestBed.createComponent(FormEditorPage);
     fixture.detectChanges();
     const component = fixture.componentInstance;
+    expect(component.canPublish()).toBe(true);
     component.form.controls.title.setValue('Unsaved title');
     component.form.controls.title.markAsDirty();
     fixture.detectChanges();
+    expect(component.canPublish()).toBe(false);
     expect(
       (fixture.nativeElement.querySelector('.btn-success') as HTMLButtonElement).disabled,
     ).toBe(true);
@@ -112,23 +114,24 @@ describe('FormEditorPage', () => {
       updatedAt: '2026-08-14T00:00:00.000Z',
     };
     let savedDefinition: unknown;
+    const save = vi.fn((_formId: string, candidate: unknown) => {
+      savedDefinition = candidate;
+      return of(
+        new HttpResponse({
+          body: {
+            ...draftBody,
+            draftRevision: 2,
+            definition: candidate,
+            updatedAt: '2026-08-14T00:01:00.000Z',
+          },
+          headers: new HttpHeaders({ etag: '"draft-2"' }),
+        }),
+      );
+    });
     const api = {
       loadDraft: () =>
         of(new HttpResponse({ body: draftBody, headers: new HttpHeaders({ etag: '"draft-1"' }) })),
-      save: (_formId: string, candidate: unknown) => {
-        savedDefinition = candidate;
-        return of(
-          new HttpResponse({
-            body: {
-              ...draftBody,
-              draftRevision: 2,
-              definition: candidate,
-              updatedAt: '2026-08-14T00:01:00.000Z',
-            },
-            headers: new HttpHeaders({ etag: '"draft-2"' }),
-          }),
-        );
-      },
+      save,
       publish: () => of({}),
       bootstrap: () => of(new HttpResponse()),
       create: () => of({}),
@@ -178,5 +181,21 @@ describe('FormEditorPage', () => {
     expect(component.sections.length).toBe(1);
     component.removeSection(0);
     expect(component.sections.length).toBe(1);
+
+    component.sections.at(0).controls.description.setValue('   ');
+    component.save();
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(component.status()).toBe('error');
+    expect(component.message()).toContain('invalid builder state');
+    component.sections.at(0).controls.description.setValue('');
+
+    const editorState = component as unknown as {
+      fieldsBySectionId: Map<string, unknown>;
+    };
+    editorState.fieldsBySectionId.delete('main');
+    component.save();
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(component.status()).toBe('error');
+    expect(component.message()).toContain('invalid builder state');
   });
 });
