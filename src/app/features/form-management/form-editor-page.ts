@@ -23,6 +23,7 @@ import {
   validateFormDefinition,
   type FormDefinition,
   type FormField,
+  type FormFieldOption,
   type FormSection,
   type TextValidationRule,
 } from '@form-farm/form-domain';
@@ -217,6 +218,98 @@ import { HttpErrorResponse } from '@angular/common/http';
                         }
                       </fieldset>
                     }
+                    @if (supportsChoiceOptions(field.controls.type.value)) {
+                      <fieldset class="border-top mt-3 pt-3" formArrayName="options">
+                        <legend class="fs-6">Options</legend>
+                        @for (
+                          option of field.controls.options.controls;
+                          track option;
+                          let optionIndex = $index
+                        ) {
+                          <div class="border rounded p-3 mb-3" [formGroupName]="optionIndex">
+                            <div class="d-flex justify-content-between gap-2 mb-3">
+                              <strong>Option {{ optionIndex + 1 }}</strong>
+                              <div class="btn-group" aria-label="Option order and removal">
+                                <button
+                                  class="btn btn-sm btn-outline-secondary"
+                                  type="button"
+                                  [disabled]="optionIndex === 0"
+                                  (click)="moveOption(index, fieldIndex, optionIndex, -1)"
+                                >
+                                  Move up
+                                </button>
+                                <button
+                                  class="btn btn-sm btn-outline-secondary"
+                                  type="button"
+                                  [disabled]="optionIndex === field.controls.options.length - 1"
+                                  (click)="moveOption(index, fieldIndex, optionIndex, 1)"
+                                >
+                                  Move down
+                                </button>
+                                <button
+                                  class="btn btn-sm btn-outline-danger"
+                                  type="button"
+                                  [disabled]="field.controls.options.length === 1"
+                                  (click)="removeOption(index, fieldIndex, optionIndex)"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            </div>
+                            <div class="row g-3">
+                              <div class="col-md-6">
+                                <label
+                                  class="form-label"
+                                  [for]="
+                                    'option-label-' + index + '-' + fieldIndex + '-' + optionIndex
+                                  "
+                                  >Label</label
+                                >
+                                <input
+                                  #optionLabel
+                                  class="form-control"
+                                  [id]="
+                                    'option-label-' + index + '-' + fieldIndex + '-' + optionIndex
+                                  "
+                                  formControlName="label"
+                                />
+                              </div>
+                              <div class="col-md-6">
+                                <label
+                                  class="form-label"
+                                  [for]="
+                                    'option-value-' + index + '-' + fieldIndex + '-' + optionIndex
+                                  "
+                                  >Submitted value</label
+                                >
+                                <input
+                                  class="form-control"
+                                  [id]="
+                                    'option-value-' + index + '-' + fieldIndex + '-' + optionIndex
+                                  "
+                                  formControlName="value"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        }
+                        @if (field.controls.options.hasError('duplicateOptionValue')) {
+                          <p class="text-danger" role="alert">Option values must be unique.</p>
+                        }
+                        @if (field.controls.options.hasError('invalidDefaultOption')) {
+                          <p class="text-danger" role="alert">
+                            An existing default must remain an enabled option.
+                          </p>
+                        }
+                        <button
+                          class="btn btn-sm btn-outline-primary"
+                          type="button"
+                          (click)="addOption(index, fieldIndex)"
+                        >
+                          Add option
+                        </button>
+                      </fieldset>
+                    }
                   </div>
                 }
                 <button
@@ -271,6 +364,9 @@ export class FormEditorPage implements OnInit {
     ElementRef<HTMLInputElement>
   >;
   @ViewChildren('fieldLabel') private readonly fieldLabels!: QueryList<
+    ElementRef<HTMLInputElement>
+  >;
+  @ViewChildren('optionLabel') private readonly optionLabels!: QueryList<
     ElementRef<HTMLInputElement>
   >;
   private readonly route = inject(ActivatedRoute);
@@ -410,6 +506,43 @@ export class FormEditorPage implements OnInit {
   supportsTextValidation(type: FormField['type']): boolean {
     return isTextEntryType(type);
   }
+  supportsChoiceOptions(type: FormField['type']): boolean {
+    return isChoiceType(type);
+  }
+  addOption(sectionIndex: number, fieldIndex: number): void {
+    const options = this.sections.at(sectionIndex)?.controls.fields.at(fieldIndex)
+      ?.controls.options;
+    if (!options) return;
+    const value = nextIdentifier(
+      'option',
+      new Set(options.controls.map((option) => option.controls.value.value)),
+    );
+    options.push(optionGroup({ label: `Option ${options.length + 1}`, value }));
+    this.form.markAsDirty();
+    this.focusOption(sectionIndex, fieldIndex, options.length - 1);
+  }
+  moveOption(sectionIndex: number, fieldIndex: number, optionIndex: number, offset: -1 | 1): void {
+    const options = this.sections.at(sectionIndex)?.controls.fields.at(fieldIndex)
+      ?.controls.options;
+    if (!options) return;
+    const target = optionIndex + offset;
+    if (optionIndex < 0 || optionIndex >= options.length || target < 0 || target >= options.length)
+      return;
+    const option = options.at(optionIndex);
+    options.removeAt(optionIndex, { emitEvent: false });
+    options.insert(target, option, { emitEvent: false });
+    options.updateValueAndValidity();
+    this.form.markAsDirty();
+    this.focusOption(sectionIndex, fieldIndex, target);
+  }
+  removeOption(sectionIndex: number, fieldIndex: number, optionIndex: number): void {
+    const options = this.sections.at(sectionIndex)?.controls.fields.at(fieldIndex)
+      ?.controls.options;
+    if (!options || options.length <= 1 || optionIndex < 0 || optionIndex >= options.length) return;
+    options.removeAt(optionIndex);
+    this.form.markAsDirty();
+    this.focusOption(sectionIndex, fieldIndex, Math.min(optionIndex, options.length - 1));
+  }
   canPublish(): boolean {
     return (
       this.status() !== 'saving' &&
@@ -429,6 +562,20 @@ export class FormEditorPage implements OnInit {
       .slice(0, sectionIndex)
       .reduce((count, section) => count + section.controls.fields.length, 0);
     this.fieldLabels.get(precedingFieldCount + fieldIndex)?.nativeElement.focus();
+  }
+  private focusOption(sectionIndex: number, fieldIndex: number, optionIndex: number): void {
+    this.changeDetector.detectChanges();
+    let precedingOptionCount = 0;
+    this.sections.controls.forEach((section, currentSectionIndex) => {
+      section.controls.fields.controls.forEach((field, currentFieldIndex) => {
+        if (
+          currentSectionIndex < sectionIndex ||
+          (currentSectionIndex === sectionIndex && currentFieldIndex < fieldIndex)
+        )
+          precedingOptionCount += field.controls.options.length;
+      });
+    });
+    this.optionLabels.get(precedingOptionCount + optionIndex)?.nativeElement.focus();
   }
   publish(): void {
     if (!this.formId || !this.etag) return;
@@ -503,7 +650,9 @@ export class FormEditorPage implements OnInit {
                 fieldValue.minLength,
                 fieldValue.maxLength,
               )
-            : updated,
+            : isChoiceField(updated)
+              ? withChoiceOptions(updated, field.controls.options.getRawValue())
+              : updated,
         );
       }
       sections.push({
@@ -619,6 +768,13 @@ type FieldFormGroup = FormGroup<{
   requiredRule: FormControl<boolean>;
   minLength: FormControl<number | null>;
   maxLength: FormControl<number | null>;
+  options: FormArray<OptionFormGroup>;
+}>;
+
+type OptionFormGroup = FormGroup<{
+  label: FormControl<string>;
+  value: FormControl<string>;
+  disabled: FormControl<boolean>;
 }>;
 
 function sectionGroup(
@@ -637,6 +793,14 @@ function sectionGroup(
 
 function fieldGroup(field: FormField): FieldFormGroup {
   const textRules = isTextEntryField(field) ? field.validation : undefined;
+  const options = isChoiceField(field) ? field.options : [];
+  const defaults = isChoiceField(field)
+    ? Array.isArray(field.defaultValue)
+      ? field.defaultValue
+      : field.defaultValue === undefined
+        ? []
+        : [field.defaultValue]
+    : [];
   return new FormGroup(
     {
       id: new FormControl(field.id, { nonNullable: true }),
@@ -652,9 +816,27 @@ function fieldGroup(field: FormField): FieldFormGroup {
       maxLength: new FormControl(ruleValue(textRules, 'maxLength'), {
         validators: [nonNegativeSafeInteger],
       }),
+      options: new FormArray(
+        options.map(optionGroup),
+        isChoiceField(field) ? { validators: [choiceOptionsValidator(defaults)] } : undefined,
+      ),
     },
     { validators: validLengthRange },
   );
+}
+
+function optionGroup(option: FormFieldOption): OptionFormGroup {
+  return new FormGroup({
+    label: new FormControl(option.label, {
+      nonNullable: true,
+      validators: [Validators.required, nonBlankText],
+    }),
+    value: new FormControl(option.value, {
+      nonNullable: true,
+      validators: [Validators.required, nonBlankText],
+    }),
+    disabled: new FormControl(option.disabled ?? false, { nonNullable: true }),
+  });
 }
 
 const TEXT_ENTRY_TYPES = new Set<FormField['type']>([
@@ -670,6 +852,19 @@ type TextEntryField = Extract<
   FormField,
   { type: 'text' | 'email' | 'password' | 'tel' | 'url' | 'textarea' }
 >;
+
+type ChoiceField = Extract<
+  FormField,
+  { type: 'select' | 'radio' | 'multi-select' | 'checkbox-group' }
+>;
+
+function isChoiceType(type: FormField['type']): type is ChoiceField['type'] {
+  return ['select', 'radio', 'multi-select', 'checkbox-group'].includes(type);
+}
+
+function isChoiceField(field: FormField): field is ChoiceField {
+  return isChoiceType(field.type);
+}
 
 function isTextEntryType(type: FormField['type']): type is TextEntryField['type'] {
   return TEXT_ENTRY_TYPES.has(type);
@@ -694,6 +889,27 @@ function nonNegativeSafeInteger(control: AbstractControl): ValidationErrors | nu
     : { nonNegativeSafeInteger: true };
 }
 
+function nonBlankText(control: AbstractControl): ValidationErrors | null {
+  return typeof control.value === 'string' && control.value.trim().length > 0
+    ? null
+    : { nonBlankText: true };
+}
+
+function choiceOptionsValidator(defaults: readonly string[]) {
+  return (control: AbstractControl): ValidationErrors | null => {
+    const options = control.value as readonly FormFieldOption[];
+    if (!Array.isArray(options) || options.length < 1) return { minimumOptions: true };
+    const values = options.map((option) => option.value);
+    if (new Set(values).size !== values.length) return { duplicateOptionValue: true };
+    const enabledValues = new Set(
+      options.filter((option) => !option.disabled).map((option) => option.value),
+    );
+    return defaults.every((value) => enabledValues.has(value))
+      ? null
+      : { invalidDefaultOption: true };
+  };
+}
+
 function validLengthRange(control: AbstractControl): ValidationErrors | null {
   const minLength: unknown = control.get('minLength')?.value;
   const maxLength: unknown = control.get('maxLength')?.value;
@@ -716,6 +932,20 @@ function withTextValidation(
   if (validation.length > 0) updated.validation = validation;
   else delete updated.validation;
   return updated;
+}
+
+function withChoiceOptions(
+  field: ChoiceField,
+  options: readonly { label: string; value: string; disabled: boolean }[],
+): ChoiceField {
+  return {
+    ...field,
+    options: options.map((option) => ({
+      label: option.label,
+      value: option.value,
+      ...(option.disabled ? { disabled: true } : {}),
+    })),
+  };
 }
 
 function nextIdentifier(base: string, existing: ReadonlySet<string>): string {

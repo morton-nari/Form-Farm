@@ -97,7 +97,11 @@ describe('FormEditorPage', () => {
               id: 'response',
               type: 'select' as const,
               label: 'Choose',
-              options: [{ label: 'One', value: 'one' }],
+              options: [
+                { label: 'One', value: 'one' },
+                { label: 'Legacy', value: 'legacy', disabled: true },
+              ],
+              defaultValue: 'one',
               validation: [{ type: 'required' as const }],
             },
           ],
@@ -154,6 +158,14 @@ describe('FormEditorPage', () => {
     fixture.detectChanges();
     const component = fixture.componentInstance;
 
+    component.addOption(0, 0);
+    const addedOption = component.sections.at(0).controls.fields.at(0).controls.options.at(2);
+    expect(addedOption.controls.value.value).toBe('option');
+    expect(document.activeElement?.id).toBe('option-label-0-0-2');
+    addedOption.controls.label.setValue('Two');
+    addedOption.controls.value.setValue('two');
+    component.moveOption(0, 0, 2, -1);
+    expect(document.activeElement?.id).toBe('option-label-0-0-1');
     component.addField(0);
     expect(component.sections.at(0).controls.fields.at(1).controls.id.value).toBe('field');
     expect(document.activeElement?.id).toBe('field-label-0-1');
@@ -195,7 +207,18 @@ describe('FormEditorPage', () => {
                 { type: 'maxLength', value: 10 },
               ],
             },
-            definition.sections[0]!.fields[0],
+            {
+              id: 'response',
+              type: 'select',
+              label: 'Choose',
+              options: [
+                { label: 'One', value: 'one' },
+                { label: 'Two', value: 'two' },
+                { label: 'Legacy', value: 'legacy', disabled: true },
+              ],
+              defaultValue: 'one',
+              validation: [{ type: 'required' }],
+            },
           ],
         },
       ],
@@ -244,6 +267,23 @@ describe('FormEditorPage', () => {
     expect(component.sections.at(0).controls.fields.length).toBe(1);
     component.removeField(0, 0);
     expect(component.sections.at(0).controls.fields.length).toBe(1);
+
+    const choiceOptions = component.sections.at(0).controls.fields.at(0).controls.options;
+    component.removeOption(0, 0, 0);
+    expect(choiceOptions.hasError('invalidDefaultOption')).toBe(true);
+    component.addOption(0, 0);
+    const restoredDefault = choiceOptions.at(choiceOptions.length - 1);
+    restoredDefault.controls.label.setValue('One');
+    restoredDefault.controls.value.setValue('one');
+    expect(choiceOptions.valid).toBe(true);
+    restoredDefault.controls.value.setValue('two');
+    expect(choiceOptions.hasError('duplicateOptionValue')).toBe(true);
+    restoredDefault.controls.value.setValue('one');
+    component.removeOption(0, 0, 0);
+    component.removeOption(0, 0, 0);
+    expect(choiceOptions.length).toBe(1);
+    component.removeOption(0, 0, 0);
+    expect(choiceOptions.length).toBe(1);
 
     component.sections.at(0).controls.description.setValue('   ');
     component.save();
