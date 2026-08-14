@@ -44,6 +44,17 @@ describe('DynamicField', () => {
     expect(option.value).toBe('phone');
   });
 
+  it('participates as a full-width block row inside section fieldsets', () => {
+    const fixture = render(choiceField('overallRating', 'radio'));
+    const hostStyle = getComputedStyle(fixture.nativeElement);
+
+    expect(hostStyle.display).toBe('block');
+    expect(hostStyle.width).toBe('100%');
+    expect(fixture.nativeElement.querySelector('fieldset legend')?.textContent).toContain(
+      'overallRating',
+    );
+  });
+
   it('associates labels, help, required state, and errors accessibly', () => {
     const control = new FormControl<string | number | boolean | readonly string[] | null>(null);
     control.setErrors({ required: true });
