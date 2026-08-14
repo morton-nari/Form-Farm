@@ -109,8 +109,14 @@ and internal exception messages are not exposed to clients.
 
 The runtime endpoint uses PostgreSQL and selects only the current published version. The JSONB definition
 remains `unknown` until it passes `validateFormDefinition`; Drizzle inference is never treated as domain
-trust. A deterministic development seed supplies `customer-feedback`. Unit tests may inject the in-memory
-source, but production composition does not use it.
+trust. Deterministic development seeds supply `health-questionnaire` and `customer-feedback`, with the health
+questionnaire presented first by dashboard ordering. Unit tests may inject the in-memory source, but production
+composition does not use it.
+
+The health questionnaire is sample content, not medical advice and not approval to collect real health data.
+Health/contact answers may be sensitive personal information. Production use requires explicit review of
+consent, access, retention, deletion, encryption, auditing, incident response, and applicable jurisdictional
+requirements before submissions are enabled for real people.
 
 Dashboard and definition reads are owner-authorized. This does not grant form creation, publishing, or other
 privileged workflow capabilities, which remain planned work.

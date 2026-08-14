@@ -256,3 +256,10 @@ must not stretch `AccessibleFormSource` into a write-authorization or management
 is unpaginated only while users cannot create forms. Its SQL ordering is `updated_at DESC, id ASC`; pagination
 and relational dashboard projections must be designed before collections can grow enough for repeated full
 JSONB validation to become costly.
+
+The seeded `health-questionnaire` is provider-neutral demonstration content and intentionally uses only schema
+version 1 fields with established renderer, answer, validation, accessibility, and test semantics. Its address
+is represented by stable individual answer keys because nested groups are deferred. It does not encode
+diagnosis, treatment, emergency handling, or another privileged medical workflow. Health and contact answers
+can still be highly sensitive: the sample must not be treated as approved for real collection until access,
+consent, retention, deletion, encryption, audit, and jurisdiction-specific governance have been reviewed.
