@@ -967,27 +967,51 @@ function withChoiceOptions(
   };
 }
 
-type CreatableFieldType = Exclude<FormField['type'], 'password'>;
+const FIELD_CREATION_POLICY = {
+  text: 'Text',
+  email: 'Email',
+  password: null,
+  tel: 'Telephone',
+  url: 'URL',
+  textarea: 'Long text',
+  number: 'Number',
+  date: 'Date',
+  datetime: 'Date and time',
+  time: 'Time',
+  select: 'Select list',
+  radio: 'Radio buttons',
+  'multi-select': 'Multi-select list',
+  checkbox: 'Checkbox',
+  'checkbox-group': 'Checkbox group',
+} as const satisfies Record<FormField['type'], string | null>;
 
-const CREATABLE_FIELD_TYPES: readonly {
-  readonly type: CreatableFieldType;
-  readonly label: string;
-}[] = [
-  { type: 'text', label: 'Text' },
-  { type: 'email', label: 'Email' },
-  { type: 'tel', label: 'Telephone' },
-  { type: 'url', label: 'URL' },
-  { type: 'textarea', label: 'Long text' },
-  { type: 'number', label: 'Number' },
-  { type: 'date', label: 'Date' },
-  { type: 'datetime', label: 'Date and time' },
-  { type: 'time', label: 'Time' },
-  { type: 'select', label: 'Select list' },
-  { type: 'radio', label: 'Radio buttons' },
-  { type: 'multi-select', label: 'Multi-select list' },
-  { type: 'checkbox', label: 'Checkbox' },
-  { type: 'checkbox-group', label: 'Checkbox group' },
-];
+type CreatableFieldType = {
+  [Type in keyof typeof FIELD_CREATION_POLICY]: (typeof FIELD_CREATION_POLICY)[Type] extends string
+    ? Type
+    : never;
+}[keyof typeof FIELD_CREATION_POLICY];
+
+const CREATABLE_FIELD_TYPE_ORDER = [
+  'text',
+  'email',
+  'tel',
+  'url',
+  'textarea',
+  'number',
+  'date',
+  'datetime',
+  'time',
+  'select',
+  'radio',
+  'multi-select',
+  'checkbox',
+  'checkbox-group',
+] as const satisfies readonly CreatableFieldType[];
+
+const CREATABLE_FIELD_TYPES = CREATABLE_FIELD_TYPE_ORDER.map((type) => ({
+  type,
+  label: FIELD_CREATION_POLICY[type],
+}));
 
 function createStarterField(type: CreatableFieldType, id: string, label: string): FormField {
   switch (type) {

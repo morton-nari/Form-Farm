@@ -360,7 +360,9 @@ unrelated field properties.
 Field creation uses a per-section typed selector and an exhaustive factory for all schema-version-1
 discriminants that the current release permits publishing. Each choice field receives one valid starter option;
 other types receive only their required base properties. Password is intentionally absent because generic
-password-bearing definitions are currently non-publishable. Selection affects only the next new field and is not
-serialized. Existing field discriminants remain immutable, so creation introduces no type-conversion semantics.
+password-bearing definitions are currently non-publishable. An exhaustive product-policy map covers every domain
+discriminant with either a creation label or an explicit unavailable decision, so adding a schema type requires a
+new policy decision at compile time. Selection affects only the next new field and is not serialized. Existing
+field discriminants remain immutable, so creation introduces no type-conversion semantics.
 New fields immediately enter the same validated snapshot, dirty-state, ETag, and applicable type-specific editor
 boundaries as loaded fields.
