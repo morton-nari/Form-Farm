@@ -8,7 +8,15 @@ import {
   signal,
   ViewChildren,
 } from '@angular/core';
-import { FormArray, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  AbstractControl,
+  FormArray,
+  FormControl,
+  FormGroup,
+  ReactiveFormsModule,
+  ValidationErrors,
+  Validators,
+} from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
   FORM_IDENTIFIER_PATTERN,
@@ -16,6 +24,7 @@ import {
   type FormDefinition,
   type FormField,
   type FormSection,
+  type TextValidationRule,
 } from '@form-farm/form-domain';
 import { take } from 'rxjs';
 import { FormManagementApiService } from '../../core/api/form-management-api.service';
@@ -153,6 +162,61 @@ import { HttpErrorResponse } from '@angular/common/http';
                       [id]="'field-help-' + index + '-' + fieldIndex"
                       formControlName="helpText"
                     ></textarea>
+                    @if (supportsTextValidation(field.controls.type.value)) {
+                      <fieldset class="border-top mt-3 pt-3">
+                        <legend class="fs-6">Text validation</legend>
+                        <div class="form-check mb-3">
+                          <input
+                            class="form-check-input"
+                            type="checkbox"
+                            [id]="'field-required-' + index + '-' + fieldIndex"
+                            formControlName="requiredRule"
+                          />
+                          <label
+                            class="form-check-label"
+                            [for]="'field-required-' + index + '-' + fieldIndex"
+                            >Required</label
+                          >
+                        </div>
+                        <div class="row g-3">
+                          <div class="col-md-6">
+                            <label
+                              class="form-label"
+                              [for]="'field-min-length-' + index + '-' + fieldIndex"
+                              >Minimum length</label
+                            >
+                            <input
+                              class="form-control"
+                              type="number"
+                              min="0"
+                              step="1"
+                              [id]="'field-min-length-' + index + '-' + fieldIndex"
+                              formControlName="minLength"
+                            />
+                          </div>
+                          <div class="col-md-6">
+                            <label
+                              class="form-label"
+                              [for]="'field-max-length-' + index + '-' + fieldIndex"
+                              >Maximum length</label
+                            >
+                            <input
+                              class="form-control"
+                              type="number"
+                              min="0"
+                              step="1"
+                              [id]="'field-max-length-' + index + '-' + fieldIndex"
+                              formControlName="maxLength"
+                            />
+                          </div>
+                        </div>
+                        @if (field.hasError('invalidLengthRange')) {
+                          <p class="text-danger mt-2 mb-0" role="alert">
+                            Minimum length cannot exceed maximum length.
+                          </p>
+                        }
+                      </fieldset>
+                    }
                   </div>
                 }
                 <button
@@ -343,6 +407,9 @@ export class FormEditorPage implements OnInit {
     this.form.markAsDirty();
     this.focusField(sectionIndex, Math.min(fieldIndex, fields.length - 1));
   }
+  supportsTextValidation(type: FormField['type']): boolean {
+    return isTextEntryType(type);
+  }
   canPublish(): boolean {
     return (
       this.status() !== 'saving' &&
@@ -428,7 +495,16 @@ export class FormEditorPage implements OnInit {
         };
         if (fieldValue.helpText) updated.helpText = fieldValue.helpText;
         else delete updated.helpText;
-        fields.push(updated);
+        fields.push(
+          isTextEntryField(updated)
+            ? withTextValidation(
+                updated,
+                fieldValue.requiredRule,
+                fieldValue.minLength,
+                fieldValue.maxLength,
+              )
+            : updated,
+        );
       }
       sections.push({
         id: value.id,
@@ -540,6 +616,9 @@ type FieldFormGroup = FormGroup<{
   type: FormControl<FormField['type']>;
   label: FormControl<string>;
   helpText: FormControl<string>;
+  requiredRule: FormControl<boolean>;
+  minLength: FormControl<number | null>;
+  maxLength: FormControl<number | null>;
 }>;
 
 function sectionGroup(
@@ -557,12 +636,86 @@ function sectionGroup(
 }
 
 function fieldGroup(field: FormField): FieldFormGroup {
-  return new FormGroup({
-    id: new FormControl(field.id, { nonNullable: true }),
-    type: new FormControl(field.type, { nonNullable: true }),
-    label: new FormControl(field.label, { nonNullable: true, validators: [Validators.required] }),
-    helpText: new FormControl(field.helpText ?? '', { nonNullable: true }),
-  });
+  const textRules = isTextEntryField(field) ? field.validation : undefined;
+  return new FormGroup(
+    {
+      id: new FormControl(field.id, { nonNullable: true }),
+      type: new FormControl(field.type, { nonNullable: true }),
+      label: new FormControl(field.label, { nonNullable: true, validators: [Validators.required] }),
+      helpText: new FormControl(field.helpText ?? '', { nonNullable: true }),
+      requiredRule: new FormControl(textRules?.some((rule) => rule.type === 'required') ?? false, {
+        nonNullable: true,
+      }),
+      minLength: new FormControl(ruleValue(textRules, 'minLength'), {
+        validators: [nonNegativeSafeInteger],
+      }),
+      maxLength: new FormControl(ruleValue(textRules, 'maxLength'), {
+        validators: [nonNegativeSafeInteger],
+      }),
+    },
+    { validators: validLengthRange },
+  );
+}
+
+const TEXT_ENTRY_TYPES = new Set<FormField['type']>([
+  'text',
+  'email',
+  'password',
+  'tel',
+  'url',
+  'textarea',
+]);
+
+type TextEntryField = Extract<
+  FormField,
+  { type: 'text' | 'email' | 'password' | 'tel' | 'url' | 'textarea' }
+>;
+
+function isTextEntryType(type: FormField['type']): type is TextEntryField['type'] {
+  return TEXT_ENTRY_TYPES.has(type);
+}
+
+function isTextEntryField(field: FormField): field is TextEntryField {
+  return isTextEntryType(field.type);
+}
+
+function ruleValue(
+  rules: readonly TextValidationRule[] | undefined,
+  type: 'minLength' | 'maxLength',
+): number | null {
+  const rule = rules?.find((candidate) => candidate.type === type);
+  return rule && 'value' in rule ? rule.value : null;
+}
+
+function nonNegativeSafeInteger(control: AbstractControl): ValidationErrors | null {
+  const value: unknown = control.value;
+  return value === null || (Number.isSafeInteger(value) && (value as number) >= 0)
+    ? null
+    : { nonNegativeSafeInteger: true };
+}
+
+function validLengthRange(control: AbstractControl): ValidationErrors | null {
+  const minLength: unknown = control.get('minLength')?.value;
+  const maxLength: unknown = control.get('maxLength')?.value;
+  return typeof minLength === 'number' && typeof maxLength === 'number' && minLength > maxLength
+    ? { invalidLengthRange: true }
+    : null;
+}
+
+function withTextValidation(
+  field: TextEntryField,
+  required: boolean,
+  minLength: number | null,
+  maxLength: number | null,
+): TextEntryField {
+  const validation: TextValidationRule[] = [];
+  if (required) validation.push({ type: 'required' });
+  if (minLength !== null) validation.push({ type: 'minLength', value: minLength });
+  if (maxLength !== null) validation.push({ type: 'maxLength', value: maxLength });
+  const updated = { ...field } as TextEntryField & { validation?: readonly TextValidationRule[] };
+  if (validation.length > 0) updated.validation = validation;
+  else delete updated.validation;
+  return updated;
 }
 
 function nextIdentifier(base: string, existing: ReadonlySet<string>): string {
