@@ -14,6 +14,16 @@ describe('owned forms HTTP routes', () => {
     const list = vi.fn(async () => [record()]);
     const app = createRoutes({ listPublishedForUser: list });
     expect((await app.inject({ method: 'GET', url: '/api/v1/forms' })).statusCode).toBe(401);
+    expect(
+      (
+        await app.inject({
+          method: 'GET',
+          url: '/api/v1/forms',
+          headers: { cookie: 'ff_session=expired-or-malformed' },
+        })
+      ).statusCode,
+    ).toBe(401);
+    expect(list).not.toHaveBeenCalled();
 
     const response = await app.inject({
       method: 'GET',
@@ -36,13 +46,15 @@ describe('owned forms HTTP routes', () => {
   });
 
   it('returns not found rather than revealing an inaccessible form', async () => {
-    const app = createRoutes({ findPublishedByIdForUser: async () => undefined });
+    const find = vi.fn(async () => undefined);
+    const app = createRoutes({ findPublishedByIdForUser: find });
     const response = await app.inject({
       method: 'GET',
       url: '/api/v1/forms/private-form',
       headers: { cookie: 'ff_session=valid-session' },
     });
     expect(response.statusCode).toBe(404);
+    expect(find).toHaveBeenCalledWith('private-form', 'user-1');
     expect(response.json()).toEqual({ error: { code: 'not_found', message: 'Form not found.' } });
     await app.close();
   });

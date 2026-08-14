@@ -248,3 +248,11 @@ PostgreSQL queries authorize every list/detail read: authenticated users can acc
 their own published user forms, while inaccessible IDs are indistinguishable from missing IDs. Dashboard
 responses exclude full definitions, persistence rows, and ownership metadata. Angular validates summaries at
 runtime and routes the selected ID to the provider-neutral viewer; guards remain navigation UX, not authorization.
+
+“Accessible to an authenticated user” and “owned by that user” are separate application concepts. The current
+landing query is published-only and includes curated system forms plus the actor's published forms. A future
+management dashboard must introduce an owner-only lifecycle query for drafts, archived forms, and editing; it
+must not stretch `AccessibleFormSource` into a write-authorization or management abstraction. The initial list
+is unpaginated only while users cannot create forms. Its SQL ordering is `updated_at DESC, id ASC`; pagination
+and relational dashboard projections must be designed before collections can grow enough for repeated full
+JSONB validation to become costly.
