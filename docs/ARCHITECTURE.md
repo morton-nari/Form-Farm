@@ -223,7 +223,7 @@ Users preview and approve generated forms before persistence or publication.
 
 ## Decisions still required
 
-- PostgreSQL persistence implementation
+- Acceptance of the proposed owner form write lifecycle in ADR 0006
 - Hosting architecture
 - AI provider and provider-abstraction boundary
 
@@ -267,3 +267,10 @@ Free-text guidance cannot prevent sensitive or emergency content and is not a se
 samples are intentionally system-owned and visible to all authenticated users. Seed reruns preserve already
 published lifecycle timestamps; `updated_at` is never manipulated as presentation rank. A future featured-form
 order must be modeled explicitly outside the provider-neutral definition and separately from lifecycle time.
+
+The proposed owner-write lifecycle is recorded in
+[`ADR 0006`](adr/0006-owner-form-write-lifecycle.md). It separates an owner-only mutable draft workspace from
+immutable published versions, uses optimistic concurrency for saves, and makes publication one authorized
+transaction that revalidates unknown JSON, allocates the next version, updates lifecycle pointers, and consumes
+the draft. Owner management queries remain distinct from accessible published-form queries. Implementation is
+split into backend creation, save/publication, and Angular builder slices before AI generation.
