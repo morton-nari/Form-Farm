@@ -26,6 +26,7 @@ import {
   type FormFieldOption,
   type FormSection,
   type NumberValidationRule,
+  type SelectionValidationRule,
   type TemporalValidationRule,
   type TextValidationRule,
 } from '@form-farm/form-domain';
@@ -342,6 +343,66 @@ import { HttpErrorResponse } from '@angular/common/http';
                       </fieldset>
                     }
                     @if (supportsChoiceOptions(field.controls.type.value)) {
+                      <fieldset class="border-top mt-3 pt-3">
+                        <legend class="fs-6">Selection validation</legend>
+                        <div class="form-check mb-3">
+                          <input
+                            class="form-check-input"
+                            type="checkbox"
+                            [id]="'selection-required-' + index + '-' + fieldIndex"
+                            formControlName="selectionRequired"
+                          />
+                          <label
+                            class="form-check-label"
+                            [for]="'selection-required-' + index + '-' + fieldIndex"
+                            >Required</label
+                          >
+                        </div>
+                        @if (supportsSelectionCounts(field.controls.type.value)) {
+                          <div class="row g-3">
+                            <div class="col-md-6">
+                              <label
+                                class="form-label"
+                                [for]="'minimum-selections-' + index + '-' + fieldIndex"
+                                >Minimum selections</label
+                              >
+                              <input
+                                class="form-control"
+                                type="number"
+                                min="0"
+                                step="1"
+                                [id]="'minimum-selections-' + index + '-' + fieldIndex"
+                                formControlName="minSelections"
+                              />
+                            </div>
+                            <div class="col-md-6">
+                              <label
+                                class="form-label"
+                                [for]="'maximum-selections-' + index + '-' + fieldIndex"
+                                >Maximum selections</label
+                              >
+                              <input
+                                class="form-control"
+                                type="number"
+                                min="0"
+                                step="1"
+                                [id]="'maximum-selections-' + index + '-' + fieldIndex"
+                                formControlName="maxSelections"
+                              />
+                            </div>
+                          </div>
+                        }
+                        @if (field.hasError('invalidSelectionRange')) {
+                          <p class="text-danger mt-2 mb-0" role="alert">
+                            Minimum selections cannot exceed maximum selections.
+                          </p>
+                        }
+                        @if (field.hasError('invalidSelectionCapacity')) {
+                          <p class="text-danger mt-2 mb-0" role="alert">
+                            The enabled options cannot satisfy this validation.
+                          </p>
+                        }
+                      </fieldset>
                       <fieldset class="border-top mt-3 pt-3" formArrayName="options">
                         <legend class="fs-6">Options</legend>
                         @for (
@@ -649,6 +710,9 @@ export class FormEditorPage implements OnInit {
   supportsChoiceOptions(type: FormField['type']): boolean {
     return isChoiceType(type);
   }
+  supportsSelectionCounts(type: FormField['type']): boolean {
+    return isMultipleChoiceType(type);
+  }
   isTemporalType(type: FormField['type']): boolean {
     return isTemporalFieldType(type);
   }
@@ -788,33 +852,40 @@ export class FormEditorPage implements OnInit {
         };
         if (fieldValue.helpText) updated.helpText = fieldValue.helpText;
         else delete updated.helpText;
-        fields.push(
-          isTextEntryField(updated)
-            ? withTextValidation(
+        let configured: FormField = isTextEntryField(updated)
+          ? withTextValidation(
+              updated,
+              fieldValue.requiredRule,
+              fieldValue.minLength,
+              fieldValue.maxLength,
+            )
+          : updated.type === 'number'
+            ? withNumberValidation(
                 updated,
-                fieldValue.requiredRule,
-                fieldValue.minLength,
-                fieldValue.maxLength,
+                fieldValue.numberRequired,
+                fieldValue.numberMin,
+                fieldValue.numberMax,
+                fieldValue.numberInteger,
               )
-            : updated.type === 'number'
-              ? withNumberValidation(
+            : isTemporalField(updated)
+              ? withTemporalValidation(
                   updated,
-                  fieldValue.numberRequired,
-                  fieldValue.numberMin,
-                  fieldValue.numberMax,
-                  fieldValue.numberInteger,
+                  fieldValue.temporalRequired,
+                  fieldValue.temporalEarliest,
+                  fieldValue.temporalLatest,
                 )
-              : isTemporalField(updated)
-                ? withTemporalValidation(
+              : isChoiceField(updated)
+                ? withChoiceValidation(
                     updated,
-                    fieldValue.temporalRequired,
-                    fieldValue.temporalEarliest,
-                    fieldValue.temporalLatest,
+                    fieldValue.selectionRequired,
+                    fieldValue.minSelections,
+                    fieldValue.maxSelections,
                   )
-                : isChoiceField(updated)
-                  ? withChoiceOptions(updated, field.controls.options.getRawValue())
-                  : updated,
-        );
+                : updated;
+        if (isChoiceField(configured)) {
+          configured = withChoiceOptions(configured, field.controls.options.getRawValue());
+        }
+        fields.push(configured);
       }
       sections.push({
         id: value.id,
@@ -937,6 +1008,9 @@ type FieldFormGroup = FormGroup<{
   temporalRequired: FormControl<boolean>;
   temporalEarliest: FormControl<string>;
   temporalLatest: FormControl<string>;
+  selectionRequired: FormControl<boolean>;
+  minSelections: FormControl<number | null>;
+  maxSelections: FormControl<number | null>;
   options: FormArray<OptionFormGroup>;
 }>;
 
@@ -965,6 +1039,7 @@ function fieldGroup(field: FormField): FieldFormGroup {
   const textRules = isTextEntryField(field) ? field.validation : undefined;
   const numberRules = field.type === 'number' ? field.validation : undefined;
   const temporalRules = isTemporalField(field) ? field.validation : undefined;
+  const selectionRules = isChoiceField(field) ? field.validation : undefined;
   const options = isChoiceField(field) ? field.options : [];
   const defaults = isChoiceField(field)
     ? Array.isArray(field.defaultValue)
@@ -1012,12 +1087,29 @@ function fieldGroup(field: FormField): FieldFormGroup {
       temporalLatest: new FormControl(temporalRuleValue(temporalRules, 'latest'), {
         nonNullable: true,
       }),
+      selectionRequired: new FormControl(
+        selectionRules?.some((rule) => rule.type === 'required') ?? false,
+        { nonNullable: true },
+      ),
+      minSelections: new FormControl(selectionRuleValue(selectionRules, 'minSelections'), {
+        validators: [nonNegativeSafeInteger],
+      }),
+      maxSelections: new FormControl(selectionRuleValue(selectionRules, 'maxSelections'), {
+        validators: [nonNegativeSafeInteger],
+      }),
       options: new FormArray(
         options.map(optionGroup),
         isChoiceField(field) ? { validators: [choiceOptionsValidator(defaults)] } : undefined,
       ),
     },
-    { validators: [validLengthRange, validNumberRange, validTemporalRange] },
+    {
+      validators: [
+        validLengthRange,
+        validNumberRange,
+        validTemporalRange,
+        validSelectionValidation,
+      ],
+    },
   );
 }
 
@@ -1064,8 +1156,16 @@ function isTemporalField(field: FormField): field is TemporalField {
   return isTemporalFieldType(field.type);
 }
 
-function isChoiceType(type: FormField['type']): type is ChoiceField['type'] {
-  return ['select', 'radio', 'multi-select', 'checkbox-group'].includes(type);
+function isChoiceType(type: unknown): type is ChoiceField['type'] {
+  return (
+    type === 'select' || type === 'radio' || type === 'multi-select' || type === 'checkbox-group'
+  );
+}
+
+function isMultipleChoiceType(
+  type: unknown,
+): type is Extract<ChoiceField, { type: 'multi-select' | 'checkbox-group' }>['type'] {
+  return type === 'multi-select' || type === 'checkbox-group';
 }
 
 function isChoiceField(field: FormField): field is ChoiceField {
@@ -1102,6 +1202,14 @@ function temporalRuleValue(
 ): string {
   const rule = rules?.find((candidate) => candidate.type === type);
   return rule && 'value' in rule ? rule.value : '';
+}
+
+function selectionRuleValue(
+  rules: readonly SelectionValidationRule[] | readonly { readonly type: 'required' }[] | undefined,
+  type: 'minSelections' | 'maxSelections',
+): number | null {
+  const rule = rules?.find((candidate) => candidate.type === type);
+  return rule && 'value' in rule ? rule.value : null;
 }
 
 function nonNegativeSafeInteger(control: AbstractControl): ValidationErrors | null {
@@ -1167,6 +1275,34 @@ function validTemporalRange(control: AbstractControl): ValidationErrors | null {
     compareTemporalValues(type, earliest, latest) > 0
     ? { invalidTemporalRange: true }
     : null;
+}
+
+function validSelectionValidation(control: AbstractControl): ValidationErrors | null {
+  const type: unknown = control.get('type')?.value;
+  if (!isChoiceType(type)) return null;
+
+  const required: unknown = control.get('selectionRequired')?.value;
+  const minimum: unknown = control.get('minSelections')?.value;
+  const maximum: unknown = control.get('maxSelections')?.value;
+  const requiredCount =
+    isMultipleChoiceType(type) && typeof minimum === 'number'
+      ? Math.max(required === true ? 1 : 0, minimum)
+      : required === true
+        ? 1
+        : 0;
+  if (isMultipleChoiceType(type) && typeof maximum === 'number' && requiredCount > maximum) {
+    return { invalidSelectionRange: true };
+  }
+
+  const options: unknown = control.get('options')?.value;
+  if (!Array.isArray(options)) return null;
+  const enabledOptionCount = options.filter(
+    (option: unknown) =>
+      typeof option === 'object' &&
+      option !== null &&
+      !('disabled' in option && option.disabled === true),
+  ).length;
+  return requiredCount > enabledOptionCount ? { invalidSelectionCapacity: true } : null;
 }
 
 function compareTemporalValues(
@@ -1250,6 +1386,12 @@ const TEMPORAL_RULE_POLICY = {
   latest: 'editable',
 } as const satisfies Record<TemporalValidationRule['type'], 'editable' | 'preserved'>;
 
+const SELECTION_RULE_POLICY = {
+  required: 'editable',
+  minSelections: 'editable',
+  maxSelections: 'editable',
+} as const satisfies Record<SelectionValidationRule['type'], 'editable' | 'preserved'>;
+
 function withTemporalValidation(
   field: TemporalField,
   required: boolean,
@@ -1283,6 +1425,35 @@ function withChoiceOptions(
       ...(option.disabled ? { disabled: true } : {}),
     })),
   };
+}
+
+function withChoiceValidation(
+  field: ChoiceField,
+  required: boolean,
+  minimum: number | null,
+  maximum: number | null,
+): ChoiceField {
+  const validation: SelectionValidationRule[] = [];
+  if (SELECTION_RULE_POLICY.required === 'editable' && required)
+    validation.push({ type: 'required' });
+  if (
+    isMultipleChoiceType(field.type) &&
+    SELECTION_RULE_POLICY.minSelections === 'editable' &&
+    minimum !== null
+  )
+    validation.push({ type: 'minSelections', value: minimum });
+  if (
+    isMultipleChoiceType(field.type) &&
+    SELECTION_RULE_POLICY.maxSelections === 'editable' &&
+    maximum !== null
+  )
+    validation.push({ type: 'maxSelections', value: maximum });
+  const updated = { ...field } as ChoiceField & {
+    validation?: readonly SelectionValidationRule[];
+  };
+  if (validation.length > 0) updated.validation = validation;
+  else delete updated.validation;
+  return updated;
 }
 
 const FIELD_CREATION_POLICY = {

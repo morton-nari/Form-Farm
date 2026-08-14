@@ -179,6 +179,57 @@ describe('validateFormDefinition', () => {
     }
   });
 
+  it.each([
+    [
+      'required single choice with no enabled options',
+      {
+        id: 'choice',
+        type: 'select',
+        label: 'Choice',
+        options: [{ label: 'Unavailable', value: 'unavailable', disabled: true }],
+        validation: [{ type: 'required' }],
+      },
+    ],
+    [
+      'minimum selections above enabled option count',
+      {
+        id: 'choices',
+        type: 'multi-select',
+        label: 'Choices',
+        options: [
+          { label: 'One', value: 'one' },
+          { label: 'Unavailable', value: 'unavailable', disabled: true },
+        ],
+        validation: [{ type: 'minSelections', value: 2 }],
+      },
+    ],
+    [
+      'required selection with a zero maximum',
+      {
+        id: 'choices',
+        type: 'checkbox-group',
+        label: 'Choices',
+        options: [{ label: 'One', value: 'one' }],
+        validation: [{ type: 'required' }, { type: 'maxSelections', value: 0 }],
+      },
+    ],
+  ])('rejects unsatisfiable selection validation: %s', (_case, field) => {
+    const form = cloneForm();
+    form.sections[0]!.fields[0] = field;
+
+    const result = validateFormDefinition(form);
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.issues).toContainEqual(
+        expect.objectContaining({
+          path: ['sections', 0, 'fields', 0, 'validation'],
+          code: 'invalid_range',
+        }),
+      );
+    }
+  });
+
   it('rejects duplicate and contradictory validation rules', () => {
     const form = cloneForm();
     form.sections[0]!.fields[0]!.validation = [
