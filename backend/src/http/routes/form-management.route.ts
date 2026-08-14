@@ -9,6 +9,7 @@ import type { PublishFormDraft } from '../../application/forms/publish-form-draf
 import type { BootstrapFormDraft } from '../../application/forms/bootstrap-form-draft.js';
 import type { ListOwnerManagedForms } from '../../application/forms/list-owner-managed-forms.js';
 import { ApplicationError } from '../../application/errors/application-error.js';
+import { FORM_IDENTIFIER_PATTERN } from '@form-farm/form-domain';
 import type { BackendConfig } from '../../config/backend-config.js';
 import { ForbiddenAuthenticationRequestError } from '../authentication/authentication-errors.js';
 import { resolveAuthenticatedRequest } from '../authentication/resolve-authenticated-user.js';
@@ -184,6 +185,8 @@ function parseLimit(value: string | undefined): number {
 
 function parseCursor(value: string | undefined): { updatedAt: Date; formId: string } | undefined {
   if (!value) return undefined;
+  if (value.length > 512)
+    throw new ApplicationError('invalid_input', 'The page cursor is invalid.');
   try {
     const parsed = JSON.parse(Buffer.from(value, 'base64url').toString('utf8')) as unknown;
     if (
@@ -194,7 +197,12 @@ function parseCursor(value: string | undefined): { updatedAt: Date; formId: stri
     )
       throw new Error();
     const updatedAt = new Date(parsed[0]);
-    if (Number.isNaN(updatedAt.valueOf())) throw new Error();
+    if (
+      Number.isNaN(updatedAt.valueOf()) ||
+      updatedAt.toISOString() !== parsed[0] ||
+      !new RegExp(FORM_IDENTIFIER_PATTERN).test(parsed[1])
+    )
+      throw new Error();
     return { updatedAt, formId: parsed[1] };
   } catch {
     throw new ApplicationError('invalid_input', 'The page cursor is invalid.');

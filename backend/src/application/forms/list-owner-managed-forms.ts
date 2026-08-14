@@ -35,6 +35,26 @@ export class ListOwnerManagedForms {
           (!Number.isSafeInteger(record.draftRevision) || record.draftRevision < 1))
       )
         throw new InvalidStoredFormDefinitionError(record.rowFormId, 1);
+      const expectedDefinitionVersion =
+        record.draftRevision === null ? record.currentPublishedVersion : record.latestVersion + 1;
+      const lifecycleValid =
+        (record.status === 'draft' &&
+          record.latestVersion === 0 &&
+          record.currentPublishedVersion === null &&
+          record.draftRevision !== null) ||
+        (record.status === 'published' &&
+          record.latestVersion >= 1 &&
+          record.currentPublishedVersion === record.latestVersion) ||
+        (record.status === 'archived' &&
+          record.latestVersion >= 1 &&
+          record.currentPublishedVersion !== null &&
+          record.draftRevision === null);
+      if (
+        !lifecycleValid ||
+        expectedDefinitionVersion !== record.definitionVersion ||
+        (record.draftRevision !== null && record.latestVersion >= 2_147_483_647)
+      )
+        throw new InvalidStoredFormDefinitionError(record.rowFormId, 1);
       const result = validateFormDefinition(record.definition);
       if (
         !result.success ||

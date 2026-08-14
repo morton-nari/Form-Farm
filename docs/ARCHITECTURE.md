@@ -315,3 +315,6 @@ The owner-management list is separate from accessible published reads. One owner
 the optional draft and current immutable version, orders by `updated_at DESC, id ASC`, and returns bounded cursor
 pages. Application code validates the selected JSONB and relational identity/version fields before deriving safe
 summaries; definitions and owner IDs never enter the HTTP representation.
+Lifecycle combinations and next-definition arithmetic are checked explicitly, including the archived no-draft rule
+and PostgreSQL integer boundary. The existing partial `(owner_user_id, updated_at DESC)` index supports this bounded
+release; adding `id` is deferred until query plans at realistic volume justify a migration.

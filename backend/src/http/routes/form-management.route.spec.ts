@@ -207,6 +207,21 @@ describe('form management creation route', () => {
     });
     await app.close();
   });
+
+  it.each([
+    Buffer.from(JSON.stringify(['2026-08-14', 'customer-feedback'])).toString('base64url'),
+    Buffer.from(JSON.stringify(['2026-08-14T00:00:00.000Z', 'Invalid ID'])).toString('base64url'),
+    'x'.repeat(513),
+  ])('rejects malformed management cursor input', async (cursor) => {
+    const app = createRoutes(vi.fn());
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/v1/management/forms?cursor=${cursor}`,
+      headers: { cookie: 'ff_session=valid-session' },
+    });
+    expect(response.statusCode).toBe(400);
+    await app.close();
+  });
 });
 
 function createRoutes(
