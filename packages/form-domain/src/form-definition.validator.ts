@@ -253,6 +253,10 @@ function validateDomainInvariants(
         validateNumberDefault(issues, field, fieldPath);
       }
 
+      if (field.type === 'checkbox') {
+        validateBooleanDefault(issues, field, fieldPath);
+      }
+
       if (field.type === 'date' || field.type === 'datetime' || field.type === 'time') {
         validateTemporalDefault(issues, field, fieldPath);
       }
@@ -293,6 +297,25 @@ function validateNumberDefault(
       message: 'Number default does not satisfy its validation rules.',
     });
   }
+}
+
+function validateBooleanDefault(
+  issues: FormDefinitionValidationIssue[],
+  field: {
+    readonly defaultValue?: boolean | undefined;
+    readonly validation?: readonly { readonly type: 'required' | 'accepted' }[] | undefined;
+  },
+  fieldPath: readonly (string | number)[],
+): void {
+  if (field.defaultValue !== false) return;
+  if (!field.validation?.some((rule) => rule.type === 'required' || rule.type === 'accepted'))
+    return;
+
+  issues.push({
+    path: [...fieldPath, 'defaultValue'],
+    code: 'invalid_default',
+    message: 'Checkbox default does not satisfy its validation rules.',
+  });
 }
 
 function validateTemporalDefault(

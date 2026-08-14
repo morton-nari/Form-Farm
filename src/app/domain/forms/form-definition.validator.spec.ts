@@ -275,6 +275,44 @@ describe('validateFormDefinition', () => {
     expect(validateFormDefinition(form).success).toBe(true);
   });
 
+  it.each(['required', 'accepted'] as const)(
+    'rejects an explicit false checkbox default for the %s rule',
+    (ruleType) => {
+      const form = cloneForm();
+      form.sections[0]!.fields[0] = {
+        id: 'consent',
+        type: 'checkbox',
+        label: 'Consent',
+        defaultValue: false,
+        validation: [{ type: ruleType }],
+      };
+
+      const result = validateFormDefinition(form);
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.issues).toContainEqual(
+          expect.objectContaining({
+            path: ['sections', 0, 'fields', 0, 'defaultValue'],
+            code: 'invalid_default',
+          }),
+        );
+      }
+    },
+  );
+
+  it('allows a required checkbox without an initial default', () => {
+    const form = cloneForm();
+    form.sections[0]!.fields[0] = {
+      id: 'consent',
+      type: 'checkbox',
+      label: 'Consent',
+      validation: [{ type: 'accepted' }],
+    };
+
+    expect(validateFormDefinition(form).success).toBe(true);
+  });
+
   it('rejects duplicate and contradictory validation rules', () => {
     const form = cloneForm();
     form.sections[0]!.fields[0]!.validation = [

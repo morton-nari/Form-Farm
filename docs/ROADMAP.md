@@ -5,8 +5,8 @@
 The form runner, owned backend, PostgreSQL submissions, authentication, owner-authorized published reads,
 dashboard, health sample, owner draft create/load/save, atomic publication, structured section/basic field
 operations, text-entry validation editing, fixed choice-option editing, and publishable field creation are
-implemented. Number-, temporal-, and selection-field validation are also editable. Existing-field type
-conversion, boolean validation, and AI editing are not.
+implemented. Number-, temporal-, selection-, and checkbox-acceptance validation are also editable.
+Existing-field type conversion and AI editing are not.
 
 ## Phase 0 — Product foundation
 
@@ -58,7 +58,7 @@ Status: **in progress**
 - [x] Configure number-field validation
 - [x] Configure temporal-field validation
 - [x] Configure selection-field validation
-- Add remaining boolean validation editing
+- [x] Configure checkbox acceptance validation
 - Add and arrange sections and fields
 - Configure field options and validation
 - Preview forms through the existing runner

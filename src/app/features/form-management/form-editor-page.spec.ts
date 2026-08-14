@@ -88,6 +88,8 @@ describe('FormEditorPage', () => {
 
     const select = component.sections.at(0).controls.fields.at(10);
     select.controls.selectionRequired.setValue(true);
+    const checkbox = component.sections.at(0).controls.fields.at(13);
+    checkbox.controls.checkboxAccepted.setValue(true);
     component.form.controls.id.setValue('all-field-types');
     component.form.controls.title.setValue('All field types');
     component.save();
@@ -113,6 +115,92 @@ describe('FormEditorPage', () => {
       { type: 'minSelections', value: 0 },
       { type: 'maxSelections', value: 2 },
     ]);
+    expect(fields[13]!.validation).toEqual([{ type: 'accepted' }]);
+  });
+
+  it('edits checkbox acceptance while preserving an existing required rule', async () => {
+    const definition = {
+      schemaVersion: 1 as const,
+      id: 'consent-form',
+      formVersion: 1,
+      title: 'Consent form',
+      sections: [
+        {
+          id: 'main',
+          title: 'Main',
+          fields: [
+            {
+              id: 'consent',
+              type: 'checkbox' as const,
+              label: 'Consent',
+              validation: [{ type: 'required' as const }],
+            },
+          ],
+        },
+      ],
+      submission: { submitLabel: 'Send', successMessage: 'Sent.' },
+    };
+    let savedDefinition: unknown;
+    let revision = 1;
+    const body = {
+      formId: definition.id,
+      status: 'draft',
+      draftRevision: 1,
+      definition,
+      createdAt: '2026-08-14T00:00:00.000Z',
+      updatedAt: '2026-08-14T00:00:00.000Z',
+    };
+    const save = vi.fn((_formId: string, candidate: unknown) => {
+      savedDefinition = candidate;
+      revision += 1;
+      return of(
+        new HttpResponse({
+          body: { ...body, draftRevision: revision, definition: candidate },
+          headers: new HttpHeaders({ etag: `"draft-${revision}"` }),
+        }),
+      );
+    });
+    const api = {
+      loadDraft: () =>
+        of(new HttpResponse({ body, headers: new HttpHeaders({ etag: '"draft-1"' }) })),
+      save,
+      publish: () => of({}),
+      bootstrap: () => of(new HttpResponse()),
+      create: () => of({}),
+      listForms: () => of({}),
+    };
+    await TestBed.configureTestingModule({
+      imports: [FormEditorPage],
+      providers: [
+        provideRouter([]),
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { paramMap: { get: () => definition.id } } },
+        },
+        { provide: FormManagementApiService, useValue: api },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(FormEditorPage);
+    fixture.detectChanges();
+    const checkbox = fixture.componentInstance.sections.at(0).controls.fields.at(0);
+
+    expect(checkbox.controls.checkboxAccepted.value).toBe(false);
+    checkbox.controls.checkboxAccepted.setValue(true);
+    fixture.componentInstance.save();
+
+    expect(save).toHaveBeenCalledOnce();
+    expect(
+      (savedDefinition as { sections: { fields: { validation?: unknown }[] }[] }).sections[0]!
+        .fields[0]!.validation,
+    ).toEqual([{ type: 'required' }, { type: 'accepted' }]);
+
+    const reloaded = fixture.componentInstance.sections.at(0).controls.fields.at(0);
+    reloaded.controls.checkboxAccepted.setValue(false);
+    fixture.componentInstance.save();
+    expect(
+      (savedDefinition as { sections: { fields: { validation?: unknown }[] }[] }).sections[0]!
+        .fields[0]!.validation,
+    ).toEqual([{ type: 'required' }]);
   });
 
   it('disables publish for dirty visible edits and preserves error for malformed save response', async () => {

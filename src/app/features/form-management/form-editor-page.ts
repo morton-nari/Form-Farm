@@ -21,6 +21,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
   FORM_IDENTIFIER_PATTERN,
   validateFormDefinition,
+  type BooleanValidationRule,
   type FormDefinition,
   type FormField,
   type FormFieldOption,
@@ -340,6 +341,24 @@ import { HttpErrorResponse } from '@angular/common/http';
                             Earliest cannot be later than latest.
                           </p>
                         }
+                      </fieldset>
+                    }
+                    @if (field.controls.type.value === 'checkbox') {
+                      <fieldset class="border-top mt-3 pt-3">
+                        <legend class="fs-6">Checkbox validation</legend>
+                        <div class="form-check">
+                          <input
+                            class="form-check-input"
+                            type="checkbox"
+                            [id]="'checkbox-accepted-' + index + '-' + fieldIndex"
+                            formControlName="checkboxAccepted"
+                          />
+                          <label
+                            class="form-check-label"
+                            [for]="'checkbox-accepted-' + index + '-' + fieldIndex"
+                            >Must be checked</label
+                          >
+                        </div>
                       </fieldset>
                     }
                     @if (supportsChoiceOptions(field.controls.type.value)) {
@@ -874,14 +893,16 @@ export class FormEditorPage implements OnInit {
                   fieldValue.temporalEarliest,
                   fieldValue.temporalLatest,
                 )
-              : isChoiceField(updated)
-                ? withChoiceValidation(
-                    updated,
-                    fieldValue.selectionRequired,
-                    fieldValue.minSelections,
-                    fieldValue.maxSelections,
-                  )
-                : updated;
+              : updated.type === 'checkbox'
+                ? withBooleanValidation(updated, fieldValue.checkboxAccepted)
+                : isChoiceField(updated)
+                  ? withChoiceValidation(
+                      updated,
+                      fieldValue.selectionRequired,
+                      fieldValue.minSelections,
+                      fieldValue.maxSelections,
+                    )
+                  : updated;
         if (isChoiceField(configured)) {
           configured = withChoiceOptions(configured, field.controls.options.getRawValue());
         }
@@ -1011,6 +1032,7 @@ type FieldFormGroup = FormGroup<{
   selectionRequired: FormControl<boolean>;
   minSelections: FormControl<number | null>;
   maxSelections: FormControl<number | null>;
+  checkboxAccepted: FormControl<boolean>;
   options: FormArray<OptionFormGroup>;
 }>;
 
@@ -1040,6 +1062,7 @@ function fieldGroup(field: FormField): FieldFormGroup {
   const numberRules = field.type === 'number' ? field.validation : undefined;
   const temporalRules = isTemporalField(field) ? field.validation : undefined;
   const selectionRules = isChoiceField(field) ? field.validation : undefined;
+  const booleanRules = field.type === 'checkbox' ? field.validation : undefined;
   const options = isChoiceField(field) ? field.options : [];
   const defaults = isChoiceField(field)
     ? Array.isArray(field.defaultValue)
@@ -1097,6 +1120,10 @@ function fieldGroup(field: FormField): FieldFormGroup {
       maxSelections: new FormControl(selectionRuleValue(selectionRules, 'maxSelections'), {
         validators: [nonNegativeSafeInteger],
       }),
+      checkboxAccepted: new FormControl(
+        booleanRules?.some((rule) => rule.type === 'accepted') ?? false,
+        { nonNullable: true },
+      ),
       options: new FormArray(
         options.map(optionGroup),
         isChoiceField(field) ? { validators: [choiceOptionsValidator(defaults)] } : undefined,
@@ -1392,6 +1419,11 @@ const SELECTION_RULE_POLICY = {
   maxSelections: 'editable',
 } as const satisfies Record<SelectionValidationRule['type'], 'editable' | 'preserved'>;
 
+const BOOLEAN_RULE_POLICY = {
+  required: 'preserved',
+  accepted: 'editable',
+} as const satisfies Record<BooleanValidationRule['type'], 'editable' | 'preserved'>;
+
 function withTemporalValidation(
   field: TemporalField,
   required: boolean,
@@ -1425,6 +1457,23 @@ function withChoiceOptions(
       ...(option.disabled ? { disabled: true } : {}),
     })),
   };
+}
+
+function withBooleanValidation(
+  field: Extract<FormField, { type: 'checkbox' }>,
+  accepted: boolean,
+): Extract<FormField, { type: 'checkbox' }> {
+  const validation: BooleanValidationRule[] = [
+    ...(field.validation?.filter((rule) => BOOLEAN_RULE_POLICY[rule.type] === 'preserved') ?? []),
+  ];
+  if (BOOLEAN_RULE_POLICY.accepted === 'editable' && accepted)
+    validation.push({ type: 'accepted' });
+  const updated = { ...field } as Extract<FormField, { type: 'checkbox' }> & {
+    validation?: readonly BooleanValidationRule[];
+  };
+  if (validation.length > 0) updated.validation = validation;
+  else delete updated.validation;
+  return updated;
 }
 
 function withChoiceValidation(

@@ -400,3 +400,12 @@ including required choice fields with no enabled options. When a multi-choice de
 count must also satisfy required/minimum/maximum rules; a missing default remains valid because required governs
 submitted answers rather than initial state. Invalid defaults fail closed and are never silently changed. Full
 runtime definition validation remains authoritative before persistence.
+
+Fixed checkbox fields expose one product-facing `Must be checked` control backed by the schema-version-1
+`accepted` rule. Although schema version 1 also permits `required` on a checkbox, the answer validator currently
+gives it the same must-be-true behavior. The builder therefore preserves existing `required` rules but does not
+offer a second misleading control; changing that schema redundancy requires a separate versioned domain
+decision. Rule reconstruction edits only `accepted`, retains preserved rules deterministically, and removes
+`validation` only when no rules remain. The domain rejects an explicit `false` default when either rule requires
+acceptance, while an omitted default remains valid because the rule governs submitted answers. Defaults are
+never silently rewritten.
