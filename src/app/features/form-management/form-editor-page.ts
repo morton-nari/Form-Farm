@@ -72,9 +72,23 @@ import { FormDraftPreview } from './form-draft-preview';
         <fieldset class="border rounded p-3 mb-3" formArrayName="sections">
           <legend class="float-none w-auto px-2 fs-5">Sections</legend>
           @for (section of sections.controls; track section.controls.id.value; let index = $index) {
-            <div class="border rounded p-3 mb-3" [formGroupName]="index">
+            <button
+              class="btn btn-light border w-100 text-start fw-semibold mb-1"
+              type="button"
+              [attr.aria-expanded]="sectionExpanded(section.controls.id.value)"
+              [attr.aria-controls]="'section-panel-' + section.controls.id.value"
+              (click)="toggleSection(section.controls.id.value)"
+            >
+              Section {{ index + 1 }} &mdash; {{ section.controls.title.value || 'Untitled' }}
+            </button>
+            <div
+              class="border rounded p-3 mb-3"
+              [id]="'section-panel-' + section.controls.id.value"
+              [class.d-none]="!sectionExpanded(section.controls.id.value)"
+              [formGroupName]="index"
+            >
               <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
-                <h2 class="h6 mb-0">Section {{ index + 1 }}</h2>
+                <h2 class="visually-hidden">Section {{ index + 1 }} actions</h2>
                 <div class="btn-group" aria-label="Section order and removal">
                   <button
                     class="btn btn-sm btn-outline-secondary"
@@ -609,6 +623,7 @@ export class FormEditorPage implements OnInit {
   );
   readonly message = signal('');
   readonly previewDefinition = signal<FormDefinition | null>(null);
+  readonly expandedSectionIds = signal<ReadonlySet<string>>(new Set(this.formId ? [] : ['main']));
   private definition?: FormDefinition;
   private etag?: string;
   readonly form = new FormGroup({
@@ -672,6 +687,15 @@ export class FormEditorPage implements OnInit {
   closePreview(): void {
     this.previewDefinition.set(null);
   }
+  sectionExpanded(sectionId: string): boolean {
+    return this.expandedSectionIds().has(sectionId);
+  }
+  toggleSection(sectionId: string): void {
+    const expanded = new Set(this.expandedSectionIds());
+    if (expanded.has(sectionId)) expanded.delete(sectionId);
+    else expanded.add(sectionId);
+    this.expandedSectionIds.set(expanded);
+  }
   addSection(): void {
     const sectionId = nextIdentifier(
       'section',
@@ -682,6 +706,7 @@ export class FormEditorPage implements OnInit {
     const field: FormField = { id: fieldId, type: 'text', label: 'Response' };
     this.fieldSnapshotsById.set(fieldId, field);
     this.sections.push(sectionGroup(sectionId, `Section ${this.sections.length + 1}`, '', [field]));
+    this.expandedSectionIds.update((current) => new Set([...current, sectionId]));
     this.form.markAsDirty();
     this.focusSection(this.sections.length - 1);
   }
@@ -699,6 +724,11 @@ export class FormEditorPage implements OnInit {
     if (this.sections.length <= 1 || index < 0 || index >= this.sections.length) return;
     const removed = this.sections.at(index);
     this.sections.removeAt(index);
+    this.expandedSectionIds.update((current) => {
+      const next = new Set(current);
+      next.delete(removed.controls.id.value);
+      return next;
+    });
     removed.controls.fields.controls.forEach((field) =>
       this.fieldSnapshotsById.delete(field.controls.id.value),
     );
@@ -1016,6 +1046,9 @@ export class FormEditorPage implements OnInit {
         { emitEvent: false },
       );
     });
+    this.expandedSectionIds.set(
+      new Set(result.value.sections.slice(0, 1).map((section) => section.id)),
+    );
     this.form.patchValue({
       id: result.value.id,
       title: result.value.title,
