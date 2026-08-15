@@ -289,6 +289,8 @@ describe('FormEditorPage', () => {
     expect(
       (fixture.nativeElement.querySelector('.btn-success') as HTMLButtonElement).disabled,
     ).toBe(true);
+    component.toggleSection('main');
+    expect(component.sectionExpanded('main')).toBe(false);
     component.preview();
     fixture.detectChanges();
     expect(component.previewDefinition()?.title).toBe('Unsaved title');
@@ -300,6 +302,7 @@ describe('FormEditorPage', () => {
     expect(save).not.toHaveBeenCalled();
     expect(publish).not.toHaveBeenCalled();
     component.closePreview();
+    expect(component.sectionExpanded('main')).toBe(false);
     expect(component.form.dirty).toBe(true);
     expect(component.canPublish()).toBe(false);
     component.save();
@@ -689,7 +692,11 @@ describe('FormEditorPage', () => {
     expect(component.sections.at(1).controls.fields.at(0).controls.id.value).toBe('response-2');
     expect(document.activeElement?.id).toBe('section-title-1');
     component.sections.at(1).controls.title.setValue('Follow up');
+    component.toggleSection('main');
+    expect(component.sectionExpanded('main')).toBe(false);
     component.moveSection(1, -1);
+    expect(component.sectionExpanded('section')).toBe(true);
+    expect(component.sectionExpanded('main')).toBe(false);
     expect(document.activeElement?.id).toBe('section-title-0');
     component.save();
 
