@@ -87,9 +87,10 @@ npm run backend:dev
 ```
 
 It listens on `http://127.0.0.1:3000` by default. `GET /health` returns `{ "status": "ok" }`, and
-authenticated `GET /api/v1/forms` lists accessible forms, and authenticated
-`GET /api/v1/forms/health-questionnaire` reads the richer health sample from PostgreSQL. The health questionnaire
-is demonstration content, not medical advice, diagnosis, or treatment.
+authenticated `GET /api/v1/forms` lists accessible forms. The deterministic development catalog includes
+`customer-feedback`, `health-questionnaire`, `contact-request`, and `event-registration`. Every sample uses the
+same provider-neutral resource and submission endpoints. They are demonstration content, not production approval
+for medical collection, account creation, booking, payment, or another privileged workflow.
 The Compose credentials are development examples only and must never be reused in a hosted environment.
 The seed command requires `ALLOW_DATABASE_SEED=true` and refuses to run when `NODE_ENV=production`.
 
@@ -203,8 +204,8 @@ The UI includes native labelled controls, required/error announcements, visible 
 
 ## Assumptions
 
-- The seeded customer-feedback form is a deterministic first example, not a special product workflow.
-- Owner-scoped form management is deferred; published form reads remain public at the API lifecycle boundary.
+- Seeded system forms are deterministic examples, not special product workflows.
+- Angular route guards are navigation UX; backend use cases remain the authorization boundary.
 - Bootstrap utilities may be supplemented with small, application-specific SCSS rules.
 
 ## Known limitations
