@@ -558,11 +558,7 @@ import { FormDraftPreview } from './form-draft-preview';
           </button>
         </fieldset>
         <div class="d-flex gap-2">
-          @if (formId) {
-            <button class="btn btn-outline-primary" type="button" (click)="preview()">
-              Preview
-            </button>
-          }
+          <button class="btn btn-outline-primary" type="button" (click)="preview()">Preview</button>
           <button
             class="btn btn-primary"
             type="submit"
@@ -647,21 +643,11 @@ export class FormEditorPage implements OnInit {
     if (this.form.invalid) return;
     if (!this.formId) return this.create();
     if (!this.definition || !this.etag) return this.fail('Reload the draft before saving.');
-    const sections = this.buildSections();
-    if (!sections) return;
-    const candidate = {
-      ...this.definition,
-      title: this.form.controls.title.value,
-      sections,
-    };
-    if (this.form.controls.description.value)
-      candidate.description = this.form.controls.description.value;
-    else delete candidate.description;
-    const validatedCandidate = validateFormDefinition(candidate);
-    if (!validatedCandidate.success) return this.fail('The draft contains invalid builder state.');
+    const candidate = this.buildCandidateDefinition();
+    if (!candidate) return;
     this.status.set('saving');
     this.api
-      .save(this.formId, validatedCandidate.value, this.etag)
+      .save(this.formId, candidate, this.etag)
       .pipe(take(1))
       .subscribe({
         next: (response) => {
@@ -674,24 +660,14 @@ export class FormEditorPage implements OnInit {
       });
   }
   preview(): void {
-    if (this.form.invalid || !this.definition) {
+    if (this.form.invalid) {
       this.fail('The draft contains invalid builder state.');
       return;
     }
-    const sections = this.buildSections();
-    if (!sections) return;
-    const candidate = {
-      ...this.definition,
-      title: this.form.controls.title.value,
-      sections,
-    };
-    if (this.form.controls.description.value)
-      candidate.description = this.form.controls.description.value;
-    else delete candidate.description;
-    const validated = validateFormDefinition(candidate);
-    if (!validated.success) return this.fail('The draft contains invalid builder state.');
+    const candidate = this.buildCandidateDefinition();
+    if (!candidate) return;
     this.message.set('');
-    this.previewDefinition.set(validated.value);
+    this.previewDefinition.set(candidate);
   }
   closePreview(): void {
     this.previewDefinition.set(null);
@@ -867,21 +843,8 @@ export class FormEditorPage implements OnInit {
       });
   }
   private create(): void {
-    const value = this.form.getRawValue();
-    const sections = this.buildSections();
-    if (!sections) return;
-    const candidate = {
-      schemaVersion: 1,
-      id: value.id,
-      formVersion: 1,
-      title: value.title,
-      ...(value.description ? { description: value.description } : {}),
-      sections,
-      submission: { submitLabel: 'Submit', successMessage: 'Thank you.' },
-    };
-    const validatedDefinition = validateFormDefinition(candidate);
-    if (!validatedDefinition.success) return this.fail('The draft contains invalid builder state.');
-    const definition = validatedDefinition.value;
+    const definition = this.buildCandidateDefinition();
+    if (!definition) return;
     this.status.set('saving');
     this.api
       .create(definition)
@@ -894,6 +857,32 @@ export class FormEditorPage implements OnInit {
         },
         error: () => this.fail('The draft could not be created. Check that the ID is available.'),
       });
+  }
+  private buildCandidateDefinition(): FormDefinition | undefined {
+    const value = this.form.getRawValue();
+    const sections = this.buildSections();
+    if (!sections) return undefined;
+    const description = value.description ? { description: value.description } : {};
+    const existingDefinition = this.definition
+      ? (({ description: _description, ...definition }) => definition)(this.definition)
+      : undefined;
+    const candidate = existingDefinition
+      ? { ...existingDefinition, title: value.title, ...description, sections }
+      : {
+          schemaVersion: 1 as const,
+          id: value.id,
+          formVersion: 1,
+          title: value.title,
+          ...description,
+          sections,
+          submission: { submitLabel: 'Submit', successMessage: 'Thank you.' },
+        };
+    const validated = validateFormDefinition(candidate);
+    if (!validated.success) {
+      this.fail('The draft contains invalid builder state.');
+      return undefined;
+    }
+    return validated.value;
   }
   private buildSections(): readonly FormSection[] | undefined {
     const sections: FormSection[] = [];
