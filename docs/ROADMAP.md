@@ -61,7 +61,7 @@ Status: **in progress**
 - [x] Configure checkbox acceptance validation
 - [x] Preview owner drafts through the existing runner primitives without submission
 - [x] Add accessible collapsible builder sections
-- Provide several interview-ready example forms
+- [x] Provide several interview-ready example forms
 
 ## Phase 4 — PostgreSQL persistence and versioning
 

@@ -65,10 +65,14 @@ PostgreSQL query. Missing and inaccessible IDs both return `404`, preventing own
 `v1` is the HTTP API version. It is separate from both `schemaVersion`, which versions the shape of the
 Form Farm contract, and `formVersion`, which identifies a content revision of one logical form.
 
-The deterministic development form is available to authenticated users at:
+The deterministic development samples are available to authenticated users through the same resource route, for
+example:
 
 ```http
 GET /api/v1/forms/customer-feedback
+GET /api/v1/forms/health-questionnaire
+GET /api/v1/forms/contact-request
+GET /api/v1/forms/event-registration
 ```
 
 A successful response is the validated provider-neutral `FormDefinition` JSON with status `200`. The
@@ -109,10 +113,15 @@ and internal exception messages are not exposed to clients.
 
 The runtime endpoint uses PostgreSQL and selects only the current published version. The JSONB definition
 remains `unknown` until it passes `validateFormDefinition`; Drizzle inference is never treated as domain
-trust. Deterministic development seeds supply `health-questionnaire` and `customer-feedback`. Both are
-system-owned published samples and are therefore intentionally visible to every authenticated user under the
-current accessible-form policy. Unit tests may inject the in-memory source, but production composition does not
-use it.
+trust. Deterministic development seeds supply `customer-feedback`, `health-questionnaire`, `contact-request`,
+and `event-registration`. All are system-owned published samples and are therefore intentionally visible to every
+authenticated user under the current accessible-form policy. Unit tests may inject the in-memory source, but
+production composition does not use it.
+
+The contact and event samples collect ordinary demonstration answers only. They do not authorize account
+creation, confirm a booking, take payment, upload files, or choose an HTTP action from schema data. Those are
+separate trusted application workflows. Even ordinary contact data requires an appropriate production privacy,
+retention, deletion, and access policy.
 
 The health questionnaire is sample content, not medical advice and not approval to collect real health data.
 Health/contact answers may be sensitive personal information. Production use requires explicit review of

@@ -2,6 +2,8 @@ import { Pool } from 'pg';
 import { validateFormDefinition } from '@form-farm/form-domain';
 
 import { CUSTOMER_FEEDBACK_FORM } from '../forms/customer-feedback.form.js';
+import { CONTACT_REQUEST_FORM } from '../forms/contact-request.form.js';
+import { EVENT_REGISTRATION_FORM } from '../forms/event-registration.form.js';
 import { HEALTH_QUESTIONNAIRE_FORM } from '../forms/health-questionnaire.form.js';
 import { assertDatabaseSeedAllowed } from './seed-policy.js';
 
@@ -12,7 +14,12 @@ if (!databaseUrl) throw new Error('DATABASE_URL is required to seed the database
 const pool = new Pool({ connectionString: databaseUrl, max: 1 });
 try {
   await pool.query('begin');
-  for (const candidate of [CUSTOMER_FEEDBACK_FORM, HEALTH_QUESTIONNAIRE_FORM]) {
+  for (const candidate of [
+    CUSTOMER_FEEDBACK_FORM,
+    HEALTH_QUESTIONNAIRE_FORM,
+    CONTACT_REQUEST_FORM,
+    EVENT_REGISTRATION_FORM,
+  ]) {
     const validation = validateFormDefinition(candidate);
     if (!validation.success) {
       throw new Error(`Refusing to seed invalid form definition "${candidate.id}".`);
