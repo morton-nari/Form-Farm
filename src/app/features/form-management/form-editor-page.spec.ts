@@ -289,6 +289,8 @@ describe('FormEditorPage', () => {
     expect(
       (fixture.nativeElement.querySelector('.btn-success') as HTMLButtonElement).disabled,
     ).toBe(true);
+    component.toggleSection('main');
+    expect(component.sectionExpanded('main')).toBe(false);
     component.preview();
     fixture.detectChanges();
     expect(component.previewDefinition()?.title).toBe('Unsaved title');
@@ -300,6 +302,7 @@ describe('FormEditorPage', () => {
     expect(save).not.toHaveBeenCalled();
     expect(publish).not.toHaveBeenCalled();
     component.closePreview();
+    expect(component.sectionExpanded('main')).toBe(false);
     expect(component.form.dirty).toBe(true);
     expect(component.canPublish()).toBe(false);
     component.save();
@@ -643,6 +646,21 @@ describe('FormEditorPage', () => {
     fixture.detectChanges();
     const component = fixture.componentInstance;
 
+    const firstDisclosure = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+      'button[aria-controls="section-panel-main"]',
+    );
+    expect(firstDisclosure).not.toBeNull();
+    expect(firstDisclosure!.getAttribute('aria-expanded')).toBe('true');
+    component.sections.at(0).controls.description.setValue('Unsaved while collapsed');
+    component.sections.at(0).controls.description.markAsDirty();
+    firstDisclosure!.click();
+    fixture.detectChanges();
+    expect(component.sectionExpanded('main')).toBe(false);
+    expect(component.sections.at(0).controls.description.value).toBe('Unsaved while collapsed');
+    expect(component.form.dirty).toBe(true);
+    firstDisclosure!.click();
+    expect(component.sectionExpanded('main')).toBe(true);
+
     component.addOption(0, 0);
     const addedOption = component.sections.at(0).controls.fields.at(0).controls.options.at(2);
     expect(addedOption.controls.value.value).toBe('option');
@@ -663,11 +681,22 @@ describe('FormEditorPage', () => {
     expect(document.activeElement?.id).toBe('field-label-0-0');
     expect(component.canPublish()).toBe(false);
     component.addSection();
+    fixture.detectChanges();
+    expect(
+      (fixture.nativeElement as HTMLElement)
+        .querySelectorAll<HTMLButtonElement>('button[aria-controls^="section-panel-"]')
+        .item(1)
+        .getAttribute('aria-expanded'),
+    ).toBe('true');
     expect(component.sections.at(1).controls.id.value).toBe('section');
     expect(component.sections.at(1).controls.fields.at(0).controls.id.value).toBe('response-2');
     expect(document.activeElement?.id).toBe('section-title-1');
     component.sections.at(1).controls.title.setValue('Follow up');
+    component.toggleSection('main');
+    expect(component.sectionExpanded('main')).toBe(false);
     component.moveSection(1, -1);
+    expect(component.sectionExpanded('section')).toBe(true);
+    expect(component.sectionExpanded('main')).toBe(false);
     expect(document.activeElement?.id).toBe('section-title-0');
     component.save();
 

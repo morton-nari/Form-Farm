@@ -418,3 +418,10 @@ component, and its only submit action marks controls for local validation. It ha
 and cannot publish. Returning to the editor preserves the Reactive Form dirty state, persisted draft ETag, and
 current builder controls; reopening preview builds a fresh candidate and resets preview answers. Public preview
 links, persisted preview answers, and sharing remain separate concerns.
+
+Owner-builder sections use keyboard-native buttons with `aria-expanded` and `aria-controls` disclosure semantics
+so long forms can be navigated without serializing presentation state into `FormDefinition`. Section controls
+remain mounted while visually collapsed, preserving unsaved values, validation, dirty state, immutable snapshots,
+and ordering. The first loaded section starts open; new sections open automatically before their title receives
+focus. Expansion state follows stable section IDs and is removed with a deleted section. This presentation
+behavior does not relax schema version 1's requirement that every section contain at least one field.
