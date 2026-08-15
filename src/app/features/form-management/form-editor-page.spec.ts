@@ -12,19 +12,20 @@ describe('FormEditorPage', () => {
     let createdDefinition:
       | { sections: { fields: { type: string; options?: unknown; validation?: unknown }[] }[] }
       | undefined;
+    const create = vi.fn((definition: unknown) => {
+      createdDefinition = definition as {
+        sections: { fields: { type: string; options?: unknown; validation?: unknown }[] }[];
+      };
+      return of({
+        formId: (definition as { id: string }).id,
+        status: 'draft',
+        draftRevision: 1,
+        definition,
+        createdAt: '2026-08-14T00:00:00.000Z',
+      });
+    });
     const api = {
-      create: (definition: unknown) => {
-        createdDefinition = definition as {
-          sections: { fields: { type: string; options?: unknown; validation?: unknown }[] }[];
-        };
-        return of({
-          formId: (definition as { id: string }).id,
-          status: 'draft',
-          draftRevision: 1,
-          definition,
-          createdAt: '2026-08-14T00:00:00.000Z',
-        });
-      },
+      create,
       loadDraft: () => of(new HttpResponse()),
       save: () => of(new HttpResponse()),
       publish: () => of({}),
@@ -92,8 +93,33 @@ describe('FormEditorPage', () => {
     checkbox.controls.checkboxAccepted.setValue(true);
     component.form.controls.id.setValue('all-field-types');
     component.form.controls.title.setValue('All field types');
+    const wasDirty = component.form.dirty;
+    component.preview();
+    fixture.detectChanges();
+    expect(create).not.toHaveBeenCalled();
+    expect(component.previewDefinition()?.id).toBe('all-field-types');
+    expect(component.previewDefinition()?.title).toBe('All field types');
+    const previewInput = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
+      'app-form-draft-preview input[type="text"]',
+    );
+    expect(previewInput).not.toBeNull();
+    previewInput!.value = 'Preview-only answer';
+    previewInput!.dispatchEvent(new Event('input'));
+    component.closePreview();
+    expect(component.form.dirty).toBe(wasDirty);
+    component.form.controls.title.setValue('Updated before preview');
+    component.preview();
+    fixture.detectChanges();
+    expect(component.previewDefinition()?.title).toBe('Updated before preview');
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
+        'app-form-draft-preview input[type="text"]',
+      )?.value,
+    ).toBe('');
+    component.closePreview();
     component.save();
 
+    expect(create).toHaveBeenCalledOnce();
     expect(createdDefinition).toBeDefined();
     const fields = createdDefinition!.sections[0]!.fields;
     expect(fields.slice(1).map((field: { type: string }) => field.type)).toEqual(offeredTypes);
@@ -226,17 +252,20 @@ describe('FormEditorPage', () => {
       createdAt: '2026-08-14T00:00:00.000Z',
       updatedAt: '2026-08-14T00:00:00.000Z',
     };
+    const save = vi.fn((_formId: string, _candidate: unknown, _etag: string) =>
+      of(
+        new HttpResponse({
+          body: { invalid: true },
+          headers: new HttpHeaders({ etag: '"draft-2"' }),
+        }),
+      ),
+    );
+    const publish = vi.fn(() => of({}));
     const api = {
       loadDraft: () =>
         of(new HttpResponse({ body, headers: new HttpHeaders({ etag: '"draft-1"' }) })),
-      save: () =>
-        of(
-          new HttpResponse({
-            body: { invalid: true },
-            headers: new HttpHeaders({ etag: '"draft-2"' }),
-          }),
-        ),
-      publish: () => of({}),
+      save,
+      publish,
       bootstrap: () => of(new HttpResponse()),
       create: () => of({}),
       listForms: () => of({}),
@@ -260,7 +289,22 @@ describe('FormEditorPage', () => {
     expect(
       (fixture.nativeElement.querySelector('.btn-success') as HTMLButtonElement).disabled,
     ).toBe(true);
+    component.preview();
+    fixture.detectChanges();
+    expect(component.previewDefinition()?.title).toBe('Unsaved title');
+    expect(fixture.nativeElement.querySelector('app-dynamic-field')).not.toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('cannot be submitted');
+    (fixture.nativeElement as HTMLElement)
+      .querySelector<HTMLButtonElement>('app-form-draft-preview button[type="submit"]')
+      ?.click();
+    expect(save).not.toHaveBeenCalled();
+    expect(publish).not.toHaveBeenCalled();
+    component.closePreview();
+    expect(component.form.dirty).toBe(true);
+    expect(component.canPublish()).toBe(false);
     component.save();
+    expect(save).toHaveBeenCalledOnce();
+    expect(save).toHaveBeenCalledWith('my-form', expect.any(Object), '"draft-1"');
     expect(component.status()).toBe('error');
     expect(component.message()).toContain('invalid draft');
   });

@@ -409,3 +409,12 @@ decision. Rule reconstruction edits only `accepted`, retains preserved rules det
 `validation` only when no rules remain. The domain rejects an explicit `false` default when either rule requires
 acceptance, while an omitted default remains valid because the rule governs submitted answers. Defaults are
 never silently rewritten.
+
+The owner editor can preview its current unsaved candidate—including a new form before its first save—only after
+rebuilding and validating a complete `FormDefinition`. Create, save, and preview share this candidate-construction
+boundary so their schema representation cannot drift. Preview reuses `DynamicFormFactory` and `DynamicField`; it
+does not introduce a second field renderer. Preview answers and validation state stay inside a dedicated Angular
+component, and its only submit action marks controls for local validation. It has no submission API dependency
+and cannot publish. Returning to the editor preserves the Reactive Form dirty state, persisted draft ETag, and
+current builder controls; reopening preview builds a fresh candidate and resets preview answers. Public preview
+links, persisted preview answers, and sharing remain separate concerns.
