@@ -83,6 +83,21 @@ its public models and validator through the Angular compatibility tests, and bot
 package through workspace pre-scripts. If domain tests move into the package, CI must invoke that test
 script explicitly rather than relying on this transitional arrangement.
 
+## Angular CLI MCP server
+
+The repository includes `.vscode/mcp.json` for the official Angular CLI MCP server. It runs the
+workspace-pinned CLI through `npx --no-install ng mcp --local-only`, so it neither downloads an
+unreviewed CLI version nor enables tools that require internet access.
+
+Use Angular MCP for Angular workspace discovery, version-aligned best practices, development-server
+management, and configured build/test targets. Use Playwright separately to verify real browser
+navigation, accessibility, network, and interaction behaviour. MCP is local development tooling only:
+it is not part of the Angular bundle, Fastify backend, CI, deployed product, or runtime AI architecture.
+
+VS Code may require MCP servers to be enabled or restarted after opening the workspace. Review tool
+requests before allowing write-capable operations; repository guidance and the normal issue/branch/PR
+workflow continue to apply.
+
 ## Documentation and ADRs
 
 Update documentation when a change affects architecture, APIs, domain concepts, setup, workflow, deployment, security, or major dependencies.
