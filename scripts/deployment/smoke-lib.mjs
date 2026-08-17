@@ -25,7 +25,6 @@ export async function runDeployedSmoke(environment, fetchImplementation = fetch,
     try {
       const headers = new Headers(options.headers);
       headers.set('x-vercel-protection-bypass', bypass);
-      headers.set('x-vercel-set-bypass-cookie', 'true');
       if (cookies.size > 0) {
         headers.set(
           'cookie',

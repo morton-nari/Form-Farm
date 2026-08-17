@@ -1,8 +1,14 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
 import { createSmokeReporter } from './smoke-lib.mjs';
+
+test('smoke requests do not ask Vercel to redirect into a bypass cookie', () => {
+  const source = readFileSync(new URL('./smoke-lib.mjs', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /x-vercel-set-bypass-cookie/i);
+});
 
 test('normal smoke reporting emits check names without supplied secret values', () => {
   const output = [];
