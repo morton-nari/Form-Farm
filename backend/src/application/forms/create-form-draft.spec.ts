@@ -5,6 +5,24 @@ import type { CreateFormDraftTransaction } from '../ports/create-form-draft-tran
 import { CreateFormDraft, MAXIMUM_OWNED_FORMS } from './create-form-draft.js';
 
 describe('CreateFormDraft', () => {
+  it('accepts an initial draft with an empty section', async () => {
+    const execute = vi.fn(async () => ({
+      status: 'created' as const,
+      createdAt: new Date('2026-08-14T00:00:00.000Z'),
+    }));
+    const definition = {
+      ...CUSTOMER_FEEDBACK_FORM,
+      sections: [{ ...CUSTOMER_FEEDBACK_FORM.sections[0], fields: [] }],
+    };
+
+    await expect(
+      new CreateFormDraft({ execute }).execute({ userId: 'user-1' }, definition),
+    ).resolves.toMatchObject({
+      definition,
+    });
+    expect(execute).toHaveBeenCalledWith(expect.objectContaining({ definition }));
+  });
+
   it('validates unknown input and passes actor-derived ownership to the transaction', async () => {
     const execute = vi.fn(async () => ({
       status: 'created' as const,
@@ -38,10 +56,15 @@ describe('CreateFormDraft', () => {
     expect(execute).not.toHaveBeenCalled();
   });
 
-  it.each(['conflict', 'owner_limit_reached'] as const)('maps %s to a safe conflict', async (status) => {
-    const useCase = new CreateFormDraft({ execute: async () => ({ status }) });
-    await expect(useCase.execute({ userId: 'user-1' }, CUSTOMER_FEEDBACK_FORM)).rejects.toMatchObject({
-      code: 'conflict',
-    });
-  });
+  it.each(['conflict', 'owner_limit_reached'] as const)(
+    'maps %s to a safe conflict',
+    async (status) => {
+      const useCase = new CreateFormDraft({ execute: async () => ({ status }) });
+      await expect(
+        useCase.execute({ userId: 'user-1' }, CUSTOMER_FEEDBACK_FORM),
+      ).rejects.toMatchObject({
+        code: 'conflict',
+      });
+    },
+  );
 });

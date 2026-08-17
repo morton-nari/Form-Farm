@@ -1,4 +1,4 @@
-import type { FormDefinition } from '@form-farm/form-domain';
+import type { FormDraftDefinition } from '@form-farm/form-domain';
 
 import type { AuthenticatedActor } from './create-form-draft-transaction.js';
 
@@ -26,6 +26,6 @@ export interface OwnerFormDraftStore {
     readonly formId: string;
     readonly actor: AuthenticatedActor;
     readonly expectedRevision: number;
-    readonly definition: FormDefinition;
+    readonly definition: FormDraftDefinition;
   }): Promise<SaveOwnerFormDraftResult>;
 }

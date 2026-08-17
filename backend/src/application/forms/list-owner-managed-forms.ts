@@ -1,4 +1,4 @@
-import { validateFormDefinition } from '@form-farm/form-domain';
+import { validateFormDefinition, validateFormDraftDefinition } from '@form-farm/form-domain';
 import type { OwnerFormManagementSource } from '../ports/owner-form-management-source.js';
 import { InvalidStoredFormDefinitionError } from './get-form-definition.js';
 
@@ -55,7 +55,10 @@ export class ListOwnerManagedForms {
         (record.draftRevision !== null && record.latestVersion >= 2_147_483_647)
       )
         throw new InvalidStoredFormDefinitionError(record.rowFormId, 1);
-      const result = validateFormDefinition(record.definition);
+      const result =
+        record.draftRevision === null
+          ? validateFormDefinition(record.definition)
+          : validateFormDraftDefinition(record.definition);
       if (
         !result.success ||
         result.value.id !== record.rowFormId ||

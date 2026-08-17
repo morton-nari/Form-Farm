@@ -1,4 +1,4 @@
-import { validateFormDefinition } from '@form-farm/form-domain';
+import { validateFormDefinition, validateFormDraftDefinition } from '@form-farm/form-domain';
 
 import { ApplicationError } from '../errors/application-error.js';
 import type { AuthenticatedActor } from '../ports/create-form-draft-transaction.js';
@@ -43,17 +43,34 @@ export class PublishFormDraft {
 }
 
 function validateLockedDraft(formId: string, locked: LockedFormDraft): LockedDraftValidation {
-  const validation = validateFormDefinition(locked.definition);
+  const draftValidation = validateFormDraftDefinition(locked.definition);
   if (
-    !validation.success ||
+    !draftValidation.success ||
     locked.rowFormId !== formId ||
-    validation.value.id !== locked.rowFormId ||
-    validation.value.formVersion !== locked.latestVersion + 1
+    draftValidation.value.id !== locked.rowFormId ||
+    draftValidation.value.formVersion !== locked.latestVersion + 1
   ) {
     throw new InvalidStoredFormDefinitionError(
       formId,
-      validation.success ? 1 : validation.issues.length,
+      draftValidation.success ? 1 : draftValidation.issues.length,
     );
+  }
+  const validation = validateFormDefinition(draftValidation.value);
+  if (!validation.success) {
+    const issues = draftValidation.value.sections
+      .map((section, sectionIndex) => ({ section, sectionIndex }))
+      .filter(({ section }) => section.fields.length === 0)
+      .map(({ sectionIndex }) => ({
+        path: ['sections', sectionIndex, 'fields'] as const,
+        code: 'incomplete_definition' as const,
+      }));
+    if (issues.length === 0) {
+      throw new InvalidStoredFormDefinitionError(formId, validation.issues.length);
+    }
+    return {
+      success: false,
+      issues,
+    };
   }
   const issues: PublishabilityIssue[] = [];
   validation.value.sections.forEach((section, sectionIndex) =>

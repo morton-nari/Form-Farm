@@ -46,9 +46,12 @@ Add one `form_drafts` row per logical form:
 - `revision bigint not null`, beginning at 1 and incremented by successful saves;
 - database-owned `created_at` and `updated_at`.
 
-The JSON is a complete schema-v1 `FormDefinition`. Its identity must match the relational form, and its
-`formVersion` must equal `forms.latest_version + 1`. Revision, lifecycle, ownership, and timestamps never enter
-`FormDefinition`. PostgreSQL applies narrow identity checks only; `validateFormDefinition` remains authoritative.
+The JSON is a schema-v1 `FormDraftDefinition`. It shares the provider-neutral field semantics of
+`FormDefinition`, but a section may temporarily contain zero fields while an owner is working. Its identity must
+match the relational form, and its `formVersion` must equal `forms.latest_version + 1`. Revision, lifecycle,
+ownership, and timestamps enter neither contract. PostgreSQL applies narrow identity checks only;
+`validateFormDraftDefinition` is authoritative for stored working state, while `validateFormDefinition` remains
+authoritative for preview, public runners, immutable versions, and publication.
 
 A draft is mutable working state, not a published version and never submission-eligible. Draft history,
 collaboration, approval, and recovery logs are deferred.
@@ -64,7 +67,7 @@ retention controls, deletion guarantees, backup expiry, and administrator access
 Use a fixed route such as `POST /api/v1/management/forms` with `{ "definition": unknown }`. The use case:
 
 1. requires an authenticated actor;
-2. runs `validateFormDefinition` and requires `formVersion = 1`;
+2. runs `validateFormDraftDefinition` and requires `formVersion = 1`;
 3. atomically inserts a user-owned `forms` row in draft state with `latest_version = 0` and draft revision 1;
 4. returns an owned management representation, not a persistence row.
 
@@ -142,14 +145,17 @@ logical form is archived.
 ### Validity, publishability, and AI
 
 Successful `validateFormDefinition` means structurally/domain valid—not authorized, publishable, or safe for a
-workflow. Create/save keep invalid JSON out of normal draft storage. Publish validates again inside the
-transaction, then applies explicit policy, initially rejecting password collection, unsupported schema versions,
+workflow. Create/save use `validateFormDraftDefinition`, which keeps malformed JSON out of draft storage while
+allowing empty sections as explicit work in progress. Publication validates the locked JSON as a draft and then
+requires conversion through `validateFormDefinition` inside the transaction. An incomplete draft is safely
+unpublishable rather than corrupt stored data. Publication then applies explicit policy, initially rejecting
+password collection, unsupported schema versions,
 and the explicit high-risk release restriction already documented by ADR 0004. The first implementation names
 every publishability rule and stable issue code; it cannot add an open-ended “governance” callback or mix policy
 failures into schema validation. New rules require documented product/security rationale and contract tests.
 
-AI output eventually enters as unknown draft input through exactly the same validation, owner review, and
-publication boundary. It receives no direct persistence or publishing path.
+Future AI output will eventually enter as unknown draft input through exactly the same draft validation, owner
+review, and strict publication boundary. It receives no direct persistence or publishing path.
 
 ### Owner management query
 

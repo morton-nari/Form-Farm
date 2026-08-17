@@ -28,6 +28,28 @@ export interface FormSection {
   readonly fields: readonly FormField[];
 }
 
+/**
+ * Mutable owner workspace content. It shares schema-v1 field semantics with FormDefinition but may contain
+ * temporarily empty sections. It must pass validateFormDefinition before entering a runner or publication.
+ */
+export interface FormDraftDefinition {
+  readonly schemaVersion: FormSchemaVersion;
+  readonly id: string;
+  readonly formVersion: number;
+  readonly title: string;
+  readonly description?: string;
+  readonly sections: readonly FormDraftSection[];
+  readonly submission: FormSubmissionConfiguration;
+}
+
+export interface FormDraftSection {
+  readonly id: string;
+  readonly title: string;
+  readonly description?: string;
+  /** May be empty only while this definition remains an owner draft. */
+  readonly fields: readonly FormField[];
+}
+
 export interface FormSubmissionConfiguration {
   readonly submitLabel: string;
   readonly successMessage: string;
