@@ -87,6 +87,12 @@ and failed initialization is retryable. This proves repository compilation and h
 hosted behavior. ADR 0007 therefore remains Proposed until an isolated preview verifies same-origin routing,
 cookies, XSRF/origin checks, trusted proxy input, and measured database connection behavior.
 
+Deployment configuration now distinguishes application stage from Node.js runtime mode. Hosted preview and
+production startup require explicit, matching application, database, authentication-secret, and Vercel-owned
+stage identities. Application traffic accepts only a Neon pooled URL, while migrations and Drizzle tooling use a
+separate direct administrative URL outside startup and build. Hosted pool size has no default; the initial value
+of one is supported by a repeatable local queue observation and must be re-measured in the isolated preview.
+
 The owned backend uses Fastify 5 directly as a lean modular TypeScript application. Domain models,
 validation, and use cases remain framework-independent; Fastify routes and plugins form the HTTP and
 infrastructure edge. The decision and alternatives are recorded in

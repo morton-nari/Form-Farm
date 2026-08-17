@@ -2,8 +2,9 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { Pool } from 'pg';
 
-const databaseUrl = process.env['DATABASE_URL'];
-if (!databaseUrl) throw new Error('DATABASE_URL is required to run migrations.');
+import { requireDirectDatabaseAdminUrl } from './database-url-policy.js';
+
+const databaseUrl = requireDirectDatabaseAdminUrl(process.env);
 
 const migrations = [
   '0000_initial_form_read.sql',

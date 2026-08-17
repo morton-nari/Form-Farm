@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 const environmentSchema = z.enum(['development', 'test', 'production']);
+const deploymentStageSchema = z.enum(['development', 'preview', 'production']);
 const logLevelSchema = z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']);
 const secretSchema = z.string().min(32);
 
@@ -51,6 +52,7 @@ const authConfigSchema = z
 
 const backendConfigSchema = z.strictObject({
   environment: environmentSchema,
+  deploymentStage: deploymentStageSchema,
   host: z.string().trim().min(1),
   port: z.number().int().min(1).max(65_535),
   logLevel: logLevelSchema,
@@ -70,16 +72,20 @@ export class BackendConfigurationError extends Error {
 }
 
 export function loadBackendConfig(environment: NodeJS.ProcessEnv = process.env): BackendConfig {
-  const deploymentEnvironment = environment['NODE_ENV'] ?? 'development';
-  const development = deploymentEnvironment !== 'production';
+  const deploymentStage = environment['APP_ENV'] ?? 'development';
+  const development = deploymentStage === 'development';
   const port = parsePort(environment['PORT']);
   const result = backendConfigSchema.safeParse({
     environment: environment['NODE_ENV'] ?? 'development',
+    deploymentStage,
     host: environment['HOST'] ?? '127.0.0.1',
     port,
     logLevel: environment['LOG_LEVEL'] ?? 'info',
     databaseUrl: environment['DATABASE_URL'],
-    databasePoolMax: parsePositiveInteger(environment['DATABASE_POOL_MAX'], 10),
+    databasePoolMax: parsePositiveInteger(
+      environment['DATABASE_POOL_MAX'],
+      development ? 10 : Number.NaN,
+    ),
     auth: {
       publicOrigin:
         environment['PUBLIC_APP_ORIGIN'] ?? (development ? 'http://localhost:4200' : undefined),
@@ -125,7 +131,9 @@ export function loadBackendConfig(environment: NodeJS.ProcessEnv = process.env):
     throw new BackendConfigurationError(fields);
   }
 
-  if (result.data.environment === 'production') {
+  validateDeploymentOwnership(result.data, environment);
+
+  if (!development) {
     const origin = new URL(result.data.auth.publicOrigin);
     if (!result.data.auth.secureCookies || origin.protocol !== 'https:') {
       throw new BackendConfigurationError(['auth']);
@@ -167,6 +175,50 @@ export function loadBackendConfig(environment: NodeJS.ProcessEnv = process.env):
 
   Object.freeze(result.data.auth);
   return Object.freeze(result.data);
+}
+
+function validateDeploymentOwnership(
+  config: z.infer<typeof backendConfigSchema>,
+  environment: NodeJS.ProcessEnv,
+): void {
+  if (config.deploymentStage === 'development') {
+    if (environment['VERCEL'] === '1') throw new BackendConfigurationError(['deploymentStage']);
+    return;
+  }
+
+  const invalidFields: string[] = [];
+  if (config.environment !== 'production') invalidFields.push('environment');
+  if (environment['DATABASE_ENVIRONMENT'] !== config.deploymentStage) {
+    invalidFields.push('databaseEnvironment');
+  }
+  if (environment['AUTH_SECRET_ENVIRONMENT'] !== config.deploymentStage) {
+    invalidFields.push('authSecretEnvironment');
+  }
+  if (!isNeonPooledApplicationUrl(config.databaseUrl)) invalidFields.push('databaseUrl');
+
+  if (environment['VERCEL'] === '1') {
+    if (environment['VERCEL_ENV'] !== config.deploymentStage) invalidFields.push('deploymentStage');
+    const vercelUrl = environment['VERCEL_URL'];
+    if (!vercelUrl || config.auth.publicOrigin !== `https://${vercelUrl}`) {
+      invalidFields.push('publicOrigin');
+    }
+  }
+
+  if (invalidFields.length > 0) throw new BackendConfigurationError([...new Set(invalidFields)]);
+}
+
+function isNeonPooledApplicationUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === 'postgresql:' &&
+      url.hostname.endsWith('.neon.tech') &&
+      url.hostname.split('.')[0]?.endsWith('-pooler') === true &&
+      url.searchParams.get('sslmode') === 'require'
+    );
+  } catch {
+    return false;
+  }
 }
 
 function hasProductionSecretEntropy(value: string): boolean {

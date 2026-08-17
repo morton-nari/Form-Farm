@@ -216,6 +216,14 @@ This is local compatibility evidence only. It does not prove Vercel's hosted rew
 behavior, exact-origin/XSRF checks, proxy trust, or database connection budgeting. The ADR remains Proposed until
 those behaviors are exercised in an isolated preview without production data or secrets.
 
+The next repository-only slice makes deployment stage explicit and cross-checks preview/production application,
+database, secret-set, origin, and Vercel stage ownership. Hosted application traffic requires a Neon pooled URL;
+administrative migration tooling requires a separate direct URL. Hosted pool size no longer inherits the local
+maximum of 10. A provider-free PostgreSQL observation with maximum 1 and eight concurrent held queries recorded
+one client, seven queued operations, and one idle client after completion. This supports an initial maximum of 1,
+not a production capacity claim. Hosted routing, proxy behavior, and connection evidence are still outstanding,
+so this ADR remains Proposed.
+
 ### Positive
 
 - One public origin preserves the established browser security model.

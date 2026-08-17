@@ -80,6 +80,7 @@ Before starting the backend, run PostgreSQL and apply the committed migration an
 ```powershell
 docker compose up -d postgres
 $env:DATABASE_URL = 'postgresql://form_farm:form_farm_local@127.0.0.1:5432/form_farm'
+$env:DATABASE_ADMIN_URL = $env:DATABASE_URL
 npm run db:migrate
 $env:ALLOW_DATABASE_SEED = 'true'
 npm run db:seed
@@ -154,16 +155,23 @@ Backend configuration is read and validated once at startup. Invalid configurati
 | Variable                 | Default                  | Accepted values                                              |
 | ------------------------ | ------------------------ | ------------------------------------------------------------ |
 | `NODE_ENV`               | `development`            | `development`, `test`, `production`                          |
+| `APP_ENV`                | `development`            | `development`, `preview`, `production`                       |
 | `HOST`                   | `127.0.0.1`              | Any non-empty host                                           |
 | `PORT`                   | `3000`                   | Integer from 1 through 65535                                 |
 | `LOG_LEVEL`              | `info`                   | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent` |
 | `DATABASE_URL`           | none                     | PostgreSQL connection URL; required and never logged         |
-| `DATABASE_POOL_MAX`      | `10`                     | Integer from 1 through 100; deployment-specific pool limit   |
+| `DATABASE_ADMIN_URL`     | none                     | Direct URL for migration and Drizzle tooling only            |
+| `DATABASE_POOL_MAX`      | local `10`               | Integer from 1 through 100; required when hosted              |
 | `PUBLIC_APP_ORIGIN`      | local Angular            | Exact public origin; production requires HTTPS               |
 | `AUTH_SECURE_COOKIES`    | local `false`            | Boolean; production requires `true`                          |
 | `TRUSTED_PROXY_HOPS`     | `0`                      | Exact trusted reverse-proxy hop count                        |
 | `XSRF_HMAC_SECRET`       | development-only default | Production: independent 32-byte base64url secret             |
 | `RATE_LIMIT_HMAC_SECRET` | development-only default | Production: separate 32-byte base64url secret                |
+
+Preview and production also require matching `DATABASE_ENVIRONMENT` and `AUTH_SECRET_ENVIRONMENT` labels.
+Hosted application traffic must use a Neon pooled `DATABASE_URL`; explicit migrations and Drizzle tooling use a
+direct `DATABASE_ADMIN_URL`. See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for the complete inventory, pool-budget
+evidence, secret rotation, and trusted-proxy ownership.
 
 Session idle/absolute timeouts, bounded activity cadence, XSRF lifetime, registration/login limits, limiter
 window, and immediately previous rotation secrets also use validated environment configuration. See

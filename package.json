@@ -17,6 +17,7 @@
     "backend:build": "npm run build --workspace @form-farm/backend",
     "deployment:check": "tsc --project tsconfig.vercel.json --noEmit",
     "db:migrate": "npm run db:migrate --workspace @form-farm/backend",
+    "db:measure-pool": "npm run db:measure-pool --workspace @form-farm/backend",
     "db:seed": "npm run db:seed --workspace @form-farm/backend",
     "domain:build": "npm run build --workspace @form-farm/form-domain",
     "test:all": "npm test && npm run backend:test",
