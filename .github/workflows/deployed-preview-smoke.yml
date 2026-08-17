@@ -1,0 +1,52 @@
+name: Deployed preview smoke
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deployed-preview-smoke
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    name: Retained preview smoke
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: preview-smoke
+    env:
+      SMOKE_ORIGIN: ${{ vars.PREVIEW_SMOKE_ORIGIN }}
+      SMOKE_ACCOUNT_EMAIL: form-farm-smoke-${{ github.run_id }}-${{ github.run_attempt }}@example.invalid
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24.15.0
+          cache: npm
+
+      - name: Set up npm
+        run: npm install --global npm@12.0.2
+
+      - name: Install dependencies from lockfile
+        run: npm ci
+
+      - name: Verify redacted smoke reporting policy
+        run: npm run deployment:smoke:test
+
+      - name: Exercise retained preview
+        env:
+          SMOKE_PROTECTION_BYPASS: ${{ secrets.PREVIEW_SMOKE_PROTECTION_BYPASS }}
+        run: npm run deployment:smoke
+
+      - name: Clean exact synthetic account and expired limiter buckets
+        if: ${{ always() }}
+        env:
+          DATABASE_ADMIN_URL: ${{ secrets.PREVIEW_DATABASE_ADMIN_URL }}
+          SMOKE_DATABASE_ENVIRONMENT: preview
+        run: npm run db:cleanup-smoke

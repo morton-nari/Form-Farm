@@ -12,6 +12,30 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  form-domain:
+    name: Form domain
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24.15.0
+          cache: npm
+
+      - name: Set up npm
+        run: npm install --global npm@12.0.2
+
+      - name: Install dependencies from lockfile
+        run: npm ci
+
+      - name: Build shared form domain
+        run: npm run domain:build
+
   frontend-and-domain:
     name: Frontend and domain
     runs-on: ubuntu-24.04
@@ -73,3 +97,54 @@ jobs:
 
       - name: Build backend
         run: npm run backend:build
+
+  backend-integration:
+    name: Backend integration
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24.15.0
+          cache: npm
+
+      - name: Set up npm
+        run: npm install --global npm@12.0.2
+
+      - name: Install dependencies from lockfile
+        run: npm ci
+
+      - name: Run PostgreSQL integration tests
+        run: npm run test --workspace @form-farm/backend -- integration.spec.ts
+
+  deployment:
+    name: Deployment
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24.15.0
+          cache: npm
+
+      - name: Set up npm
+        run: npm install --global npm@12.0.2
+
+      - name: Install dependencies from lockfile
+        run: npm ci
+
+      - name: Type-check deployment entry graph
+        run: npm run deployment:check
+
+      - name: Test deployment workflow policy and redacted reporting
+        run: npm run deployment:smoke:test

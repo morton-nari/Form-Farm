@@ -1,0 +1,71 @@
+name: Production promotion gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      application_commit:
+        description: Reviewed application commit SHA
+        required: true
+        type: string
+      migration_level:
+        description: Reviewed migration level (for example 0003_owner_form_drafts.sql)
+        required: true
+        type: string
+      required_checks_green:
+        description: Required GitHub checks were reviewed and are green
+        required: true
+        type: boolean
+      migration_state_reviewed:
+        description: Target identity and migration state were reviewed
+        required: true
+        type: boolean
+      approval_reference:
+        description: Change or approval reference (never a secret)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  record-readiness:
+    name: Record production readiness
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    environment: Production
+
+    steps:
+      - name: Check out reviewed history
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Validate manual promotion evidence
+        env:
+          APPLICATION_COMMIT: ${{ inputs.application_commit }}
+          MIGRATION_LEVEL: ${{ inputs.migration_level }}
+          REQUIRED_CHECKS_GREEN: ${{ inputs.required_checks_green }}
+          MIGRATION_STATE_REVIEWED: ${{ inputs.migration_state_reviewed }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$REQUIRED_CHECKS_GREEN" = "true"
+          test "$MIGRATION_STATE_REVIEWED" = "true"
+          [[ "$APPLICATION_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$MIGRATION_LEVEL" =~ ^[0-9]{4}_[A-Za-z0-9_-]+\.sql$ ]]
+          git cat-file -e "$APPLICATION_COMMIT^{commit}"
+
+      - name: Record approved inputs without deploying
+        env:
+          APPLICATION_COMMIT: ${{ inputs.application_commit }}
+          MIGRATION_LEVEL: ${{ inputs.migration_level }}
+          APPROVAL_REFERENCE: ${{ inputs.approval_reference }}
+        shell: bash
+        run: |
+          {
+            echo '## Production readiness record'
+            echo "- Application commit: \`$APPLICATION_COMMIT\`"
+            echo "- Migration level: \`$MIGRATION_LEVEL\`"
+            echo "- Approval reference: $APPROVAL_REFERENCE"
+            echo '- Deployment action: none (policy gate only)'
+          } >> "$GITHUB_STEP_SUMMARY"
