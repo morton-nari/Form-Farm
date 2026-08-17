@@ -15,6 +15,7 @@
     "backend:start": "npm run start --workspace @form-farm/backend",
     "backend:test": "npm run test --workspace @form-farm/backend",
     "backend:build": "npm run build --workspace @form-farm/backend",
+    "predeployment:check": "npm run domain:build",
     "deployment:check": "tsc --project tsconfig.vercel.json --noEmit",
     "deployment:smoke": "node scripts/deployment/run-deployed-smoke.mjs",
     "deployment:smoke:test": "node --test scripts/deployment/*.test.mjs",
