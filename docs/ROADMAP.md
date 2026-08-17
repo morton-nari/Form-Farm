@@ -110,6 +110,7 @@ CI foundations should start earlier; this phase completes public delivery.
 
 - [x] Enforce frontend and backend checks on pull requests
 - Define the free portfolio deployment architecture in ADR 0007
+- [x] Add the Vercel Fastify adapter and monorepo build/routing configuration
 - Add integration and end-to-end test jobs
 - Deploy a public portfolio demo
 - Document environments, configuration, rollback, and operational limits

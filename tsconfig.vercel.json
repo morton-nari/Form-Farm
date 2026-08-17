@@ -1,0 +1,11 @@
+{
+  "extends": "./backend/tsconfig.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noEmit": true,
+    "rootDir": "."
+  },
+  "include": ["api/**/*.ts", "backend/src/**/*.ts"],
+  "exclude": ["backend/src/**/*.spec.ts"]
+}

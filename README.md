@@ -190,6 +190,24 @@ host must provide equivalent same-origin `/api` forwarding. After local validati
 Angular submits only the provider-neutral answer map and exact rendered version to the owned generic
 endpoint. Failed attempts retain their idempotency key for safe retry; changed answers use a new key.
 
+## Proposed Vercel deployment adapter
+
+The repository includes the first compatibility spike for proposed ADR 0007. `api/index.ts` is a
+Vercel-specific Node request handler that prepares the existing Fastify composition without opening a port or
+installing process signal handlers. `backend/src/main.ts` remains the persistent local-process entry point.
+The handler may reuse one prepared application within a warm function instance, but a fresh instance creates
+the same application from validated environment configuration and a failed initialization can be retried.
+
+`vercel.json` builds all workspaces, publishes `dist/form-farm-ai/browser`, routes `/api/*` to the Fastify
+handler, and sends non-API routes to Angular's `index.html`. Run `npm run deployment:check` to type-check the
+Vercel entry point together with its backend imports. Migrations and seed commands are intentionally absent
+from the Vercel build and function initialization paths.
+
+This configuration is not yet a production deployment. ADR 0007 remains Proposed until a deliberately
+isolated hosted preview proves the rewrite behavior, host-only secure cookie, exact-origin/XSRF, trusted-proxy,
+and measured database-connection assumptions. Do not attach production secrets or a production database to an
+automatic preview deployment.
+
 ## Quality and verification
 
 The implementation is verified with:
@@ -210,7 +228,7 @@ The UI includes native labelled controls, required/error announcements, visible 
 
 ## Known limitations
 
-- Production hosting must provide the documented same-origin `/api` forwarding rule.
+- The proposed Vercel same-origin routing and function adapter still require verification in an isolated hosted preview.
 - The `/forms` landing page uses the deterministic sample until the owner-scoped dashboard API is implemented.
 - `npm audit` currently reports four moderate development-tooling advisories through Drizzle Kit's legacy esbuild loader chain. `npm audit --omit=dev` reports no production dependency vulnerabilities. npm's suggested remediation downgrades Drizzle Kit across a breaking boundary, so it has not been applied; Drizzle dependencies remain exactly pinned and will be upgraded through a focused review.
 

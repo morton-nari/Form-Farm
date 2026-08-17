@@ -200,6 +200,22 @@ It should be reconsidered before real users or sensitive data are accepted.
 
 ## Consequences
 
+### Compatibility-spike evidence
+
+The first implementation slice adds a generic Vercel Node request handler rather than using Vercel's
+Fastify-specific listener detection. It prepares the existing composed Fastify application, forwards the Node
+request/response pair through Fastify's server, and never opens a port or installs signal handlers. Local
+`main.ts` still owns those persistent-process responsibilities. Module-scoped readiness is reused when a warm
+instance survives, but failed initialization is cleared so another cold initialization attempt can succeed.
+
+Repository checks now compile the Angular output, backend, and Vercel entry graph. Routing configuration sends
+`/api/*` to the handler and excludes that namespace from the Angular SPA fallback. Migrations remain absent from
+both build and initialization paths.
+
+This is local compatibility evidence only. It does not prove Vercel's hosted rewrite semantics, secure cookie
+behavior, exact-origin/XSRF checks, proxy trust, or database connection budgeting. The ADR remains Proposed until
+those behaviors are exercised in an isolated preview without production data or secrets.
+
 ### Positive
 
 - One public origin preserves the established browser security model.

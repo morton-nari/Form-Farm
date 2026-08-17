@@ -15,11 +15,12 @@
     "backend:start": "npm run start --workspace @form-farm/backend",
     "backend:test": "npm run test --workspace @form-farm/backend",
     "backend:build": "npm run build --workspace @form-farm/backend",
+    "deployment:check": "tsc --project tsconfig.vercel.json --noEmit",
     "db:migrate": "npm run db:migrate --workspace @form-farm/backend",
     "db:seed": "npm run db:seed --workspace @form-farm/backend",
     "domain:build": "npm run build --workspace @form-farm/form-domain",
     "test:all": "npm test && npm run backend:test",
-    "build:all": "npm run build && npm run backend:build"
+    "build:all": "npm run build && npm run backend:build && npm run deployment:check"
   },
   "private": true,
   "workspaces": [
