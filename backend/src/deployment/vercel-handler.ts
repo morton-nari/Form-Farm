@@ -8,11 +8,18 @@ export type VercelHandler = (
 ) => Promise<void>;
 
 const VERCEL_PATH_PARAMETER = '__form_farm_path';
+const VERCEL_HEALTH_PARAMETER = '__form_farm_health';
 
 export function restoreVercelRequestPath(request: IncomingMessage): void {
   if (request.url === undefined) return;
 
   const rewrittenUrl = new URL(request.url, 'http://vercel.internal');
+  if (rewrittenUrl.searchParams.get(VERCEL_HEALTH_PARAMETER) === '1') {
+    rewrittenUrl.searchParams.delete(VERCEL_HEALTH_PARAMETER);
+    const search = rewrittenUrl.searchParams.toString();
+    request.url = `/health${search.length > 0 ? `?${search}` : ''}`;
+    return;
+  }
   const path = rewrittenUrl.searchParams.get(VERCEL_PATH_PARAMETER);
   if (path === null) return;
 

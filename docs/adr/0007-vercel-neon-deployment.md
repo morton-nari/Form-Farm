@@ -248,6 +248,15 @@ identity. The isolated preview therefore sets the deployment-owned hop count to 
 hop in front of the function. This is preview evidence for the selected runtime, not a portable default for other
 hosts or topologies.
 
+An authenticated 16-request management-list burst exercised Neon through three observed warm Vercel instances.
+All requests returned successfully, application timings were approximately 74--235 ms, and repeated Neon activity
+snapshots showed one server-side connection for the restricted application role. The preview therefore retains
+`DATABASE_POOL_MAX=1`; broader traffic and latency evidence is still required before raising it.
+
+The deployed route table also gives the shallow `/health` path an exact rewrite to the existing function. The
+adapter restores `/health` for Fastify, while wildcard `/api/*` traffic retains its full API pathname and all
+other paths remain eligible for Angular's SPA fallback.
+
 ### Positive
 
 - One public origin preserves the established browser security model.

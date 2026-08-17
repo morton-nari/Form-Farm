@@ -21,6 +21,14 @@ describe('restoreVercelRequestPath', () => {
 
     expect(request.url).toBe('/api/v1/forms?limit=20');
   });
+
+  it('restores the shallow health path without placing it in the API namespace', () => {
+    const request = { url: '/api/index?__form_farm_health=1' } as IncomingMessage;
+
+    restoreVercelRequestPath(request);
+
+    expect(request.url).toBe('/health');
+  });
 });
 
 describe('createVercelHandler', () => {

@@ -96,6 +96,13 @@ The command prints numeric pool metrics only. Do not capture the invoking enviro
 The isolated-preview issue must repeat this observation under managed-function concurrency and compare Neon
 monitoring before changing the budget.
 
+The isolated preview kept `DATABASE_POOL_MAX=1`. A 16-request authenticated burst completed successfully across
+three observed warm Vercel instances. Application response times in the platform logs ranged from roughly 74 ms
+to 235 ms, while repeated Neon activity snapshots showed one server-side connection for the restricted
+application role. This small sample supports retaining `1`; it is not evidence to increase the per-instance pool.
+Neon activity does not expose each warm instance's internal `pg.Pool.waitingCount`, so hosted queued-count
+evidence remains a limitation of this black-box preview check rather than a reason to weaken or raise the bound.
+
 The Vercel function explicitly includes the Argon2 prebuilt native binaries. Authentication is part of the
 composed backend even when a shallow route is requested, and Vercel's file tracing otherwise selects only the
 build host's native asset. Keep this inclusion at the infrastructure packaging edge; it does not change the
@@ -105,7 +112,8 @@ The `api` deployment entry point has its own ESM package boundary. Vercel emits 
 JavaScript under that boundary, so Node loads its generated imports with the same module semantics as the backend.
 The `/api/:path*` rewrite carries its captured path to the single function through a private query marker. The
 Vercel entry point restores the original `/api/*` pathname and removes that marker before Fastify routing; the SPA
-fallback continues to exclude the complete API namespace.
+fallback continues to exclude the complete API namespace. A separate exact `/health` rewrite reaches the same
+function and restores the backend's shallow health path without adding database work.
 
 ## Secret generation and rotation
 

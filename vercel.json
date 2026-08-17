@@ -8,6 +8,7 @@
     }
   },
   "rewrites": [
+    { "source": "/health", "destination": "/api/index?__form_farm_health=1" },
     {
       "source": "/api/:__form_farm_path*",
       "destination": "/api/index?__form_farm_path=:__form_farm_path"
