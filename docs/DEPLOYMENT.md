@@ -101,6 +101,9 @@ composed backend even when a shallow route is requested, and Vercel's file traci
 build host's native asset. Keep this inclusion at the infrastructure packaging edge; it does not change the
 authentication or application boundary.
 
+The `api` deployment entry point has its own ESM package boundary. Vercel emits the TypeScript entry point as
+JavaScript under that boundary, so Node loads its generated imports with the same module semantics as the backend.
+
 ## Secret generation and rotation
 
 Generate each current secret independently using a cryptographically secure source, for example

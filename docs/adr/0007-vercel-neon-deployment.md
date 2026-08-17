@@ -234,6 +234,10 @@ prebuild required during backend module initialization. The Vercel function pack
 only Argon2's prebuilt native assets. This remains an infrastructure packaging concern and does not move password
 hashing, authentication, or provider behavior into the deployment adapter.
 
+Vercel also emitted the TypeScript function entry point as ESM JavaScript while loading it from a CommonJS package
+boundary. A narrow `api/package.json` now declares the deployment entry point as ESM, matching the backend without
+changing the Angular workspace package semantics.
+
 ### Positive
 
 - One public origin preserves the established browser security model.
