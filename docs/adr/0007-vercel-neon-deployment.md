@@ -224,6 +224,11 @@ one client, seven queued operations, and one idle client after completion. This 
 not a production capacity claim. Hosted routing, proxy behavior, and connection evidence are still outstanding,
 so this ADR remains Proposed.
 
+Hosted preflight found that Vercel's deployment-specific `VERCEL_URL` changes across deployments and therefore
+cannot be the configured exact origin. Preview validation instead uses the deployment-owned stable
+`VERCEL_BRANCH_URL`, while production uses `VERCEL_PROJECT_PRODUCTION_URL`. This correction preserves exact-origin
+validation without coupling configuration to one ephemeral deployment URL.
+
 ### Positive
 
 - One public origin preserves the established browser security model.

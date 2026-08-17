@@ -198,7 +198,10 @@ function validateDeploymentOwnership(
 
   if (environment['VERCEL'] === '1') {
     if (environment['VERCEL_ENV'] !== config.deploymentStage) invalidFields.push('deploymentStage');
-    const vercelUrl = environment['VERCEL_URL'];
+    const vercelUrl =
+      config.deploymentStage === 'preview'
+        ? environment['VERCEL_BRANCH_URL']
+        : environment['VERCEL_PROJECT_PRODUCTION_URL'];
     if (!vercelUrl || config.auth.publicOrigin !== `https://${vercelUrl}`) {
       invalidFields.push('publicOrigin');
     }

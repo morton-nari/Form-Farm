@@ -17,8 +17,10 @@ runtime behavior. Hosted functions require `NODE_ENV=production` and one of thes
 
 Hosted configuration also requires `DATABASE_ENVIRONMENT` and `AUTH_SECRET_ENVIRONMENT` to equal `APP_ENV`.
 These labels make cross-environment attachment an explicit configuration act; they do not replace provider access
-controls. When Vercel system variables are present, `VERCEL_ENV` must match `APP_ENV` and `PUBLIC_APP_ORIGIN`
-must be exactly `https://${VERCEL_URL}`. The production project URL is never inferred in a preview.
+controls. When Vercel system variables are present, `VERCEL_ENV` must match `APP_ENV`. Preview
+`PUBLIC_APP_ORIGIN` must be exactly `https://${VERCEL_BRANCH_URL}`; production must match
+`https://${VERCEL_PROJECT_PRODUCTION_URL}`. The deployment-specific `VERCEL_URL` is not a stable configured
+origin, and the production project URL is never inferred in a preview.
 
 Vercel values must be scoped separately to Preview and Production. Do not select both environments when adding
 a database URL or secret. An isolated preview should use branch-specific Preview values where practical. Inspect
