@@ -109,7 +109,7 @@ Status: **in progress**
 CI foundations should start earlier; this phase completes public delivery.
 
 - [x] Enforce frontend and backend checks on pull requests
-- Define the free portfolio deployment architecture in ADR 0007
+- [x] Define and accept the free portfolio deployment architecture in ADR 0007
 - [x] Add the Vercel Fastify adapter and monorepo build/routing configuration
 - [x] Add explicit domain, backend integration, deployment, and retained-preview smoke gates
 - Deploy a public portfolio demo

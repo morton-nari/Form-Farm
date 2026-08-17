@@ -66,9 +66,9 @@ External AI provider APIs
 
 Microservices are not planned. They would add operational complexity without solving a current scaling or ownership problem.
 
-### Proposed portfolio deployment
+### Accepted portfolio deployment
 
-ADR 0007 proposes one Vercel project as the public origin for Angular static assets and the existing Fastify
+ADR 0007 selects one Vercel project as the public origin for Angular static assets and the existing Fastify
 `/api`, backed by a separate Neon PostgreSQL project. The Fastify Vercel entry point will be an infrastructure
 adapter: application use cases, domain validation, HTTP contracts, ownership, and persistence ports remain host
 independent. Local `main.ts` retains the persistent-process listener and signal lifecycle; managed-function
@@ -78,7 +78,8 @@ Production-like deployment keeps migrations explicit, uses Neon's pooled endpoin
 application pool, validates deployment-owned origins and secrets centrally, and gives previews no production
 database or secrets by default. The initial free public environment is a portfolio demo only and prohibits real
 sensitive personal or health data. One isolated Vercel/Neon preview is retained for black-box verification; no
-production resources are provisioned. ADR 0007 remains Proposed.
+production resources are provisioned. ADR 0007 is Accepted; that architecture decision does not authorize
+production provisioning or promotion.
 
 The deployment boundary provides a Vercel Node request handler and explicit Angular/API routing
 configuration. It shares the same backend composition as local `main.ts` but does not listen on a port or install
@@ -86,7 +87,8 @@ process lifecycle hooks. Warm application reuse is an optimization only; cold in
 and failed initialization is retryable. The isolated preview verified same-origin routing, cookies,
 XSRF/origin checks, trusted proxy input, and measured database connection behavior. A manual deployed smoke
 workflow repeats the critical routing and authentication flow against only that named preview and removes its
-exact synthetic account after every run. ADR 0007 remains Proposed pending explicit architectural acceptance.
+exact synthetic account after every run. Production remains a separate no-go decision until the ownership,
+recovery, monitoring, migration, rollback, protected-secret, and approval gates in the release policy are met.
 
 Deployment configuration now distinguishes application stage from Node.js runtime mode. Hosted preview and
 production startup require explicit, matching application, database, authentication-secret, and Vercel-owned
