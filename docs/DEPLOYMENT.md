@@ -8,9 +8,10 @@ remains Proposed until the hosted evidence and operating decision receive archit
 
 The preview uses Neon project `wandering-flower-45162707`, branch `br-polished-mud-aywzxibq`, database `neondb`,
 AWS region `us-east-2`, PostgreSQL 18, and a 0.25 CU free-plan compute. The Vercel project is `form-farm`; Git
-previews run the branch `deployment/isolated-vercel-neon-preview` in function region `iad1`. Verification at commit
-`b59a80d` used deployment `dpl_GRbesPWtL1oncLWDzYLQjPSvjYWj` and the stable branch alias configured as the exact
-public origin.
+previews run the retained branch `deployment/retained-preview` in function region `iad1`. Verification at
+application commit `abf7d98` used preview deployment `dpl_4ZDWy3PqPVvt77vPhvB2VRSck3fe` and the stable branch
+alias configured as the exact public origin. Deployed smoke run `32014044841` exercised runner commit `d8efb1c`
+against that application deployment.
 
 Committed migrations `0000` through `0003` were applied explicitly and recorded in `form_farm_migrations`.
 Application traffic uses the dedicated least-privileged role through the pooled endpoint. The direct
@@ -25,7 +26,15 @@ Hosted verification established:
   fail-closed responses for missing, mismatched, and cross-origin evidence;
 - one trusted Vercel proxy hop, with caller-supplied forwarded identity rejected by the platform boundary;
 - successful cold starts and a 16-request authenticated burst across three observed warm instances while
-  retaining `DATABASE_POOL_MAX=1`.
+  retaining `DATABASE_POOL_MAX=1`;
+- a complete protected deployed-smoke run whose fixed-name checks all passed, whose exact cleanup deleted one
+  synthetic account and session, and whose independent follow-up query found no matching user, session, or form.
+
+When the missing Vercel project was restored, Vercel forcibly classified the new project's first bootstrap
+deployment as Production even though no Production-scoped configuration or secrets existed. That unusable
+bootstrap deployment and its alias were removed immediately; `https://form-farm.vercel.app/health` then returned
+provider `404`. The retained deployment is explicitly `target=preview`. This provider bootstrap behavior does not
+authorize a future Production deployment and must not be repeated as a promotion procedure.
 
 The resources are retained as the named non-production verification environment for deployed smoke automation
 and promotion-policy work. The repository owner owns the environment; it must remain on the providers' free
