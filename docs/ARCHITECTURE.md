@@ -78,7 +78,14 @@ Production-like deployment keeps migrations explicit, uses Neon's pooled endpoin
 application pool, validates deployment-owned origins and secrets centrally, and gives previews no production
 database or secrets by default. The initial free public environment is a portfolio demo only and prohibits real
 sensitive personal or health data. This is a proposed decision; no Vercel or Neon resources are currently
-provisioned and no deployment behavior is implemented.
+provisioned, and the adapter has not been hosted.
+
+The first local compatibility slice now provides a Vercel Node request handler and explicit Angular/API routing
+configuration. It shares the same backend composition as local `main.ts` but does not listen on a port or install
+process lifecycle hooks. Warm application reuse is an optimization only; cold initialization remains complete
+and failed initialization is retryable. This proves repository compilation and host-adapter separation, not
+hosted behavior. ADR 0007 therefore remains Proposed until an isolated preview verifies same-origin routing,
+cookies, XSRF/origin checks, trusted proxy input, and measured database connection behavior.
 
 The owned backend uses Fastify 5 directly as a lean modular TypeScript application. Domain models,
 validation, and use cases remain framework-independent; Fastify routes and plugins form the HTTP and
