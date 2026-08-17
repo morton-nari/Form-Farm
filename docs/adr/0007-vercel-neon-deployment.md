@@ -229,6 +229,11 @@ cannot be the configured exact origin. Preview validation instead uses the deplo
 `VERCEL_BRANCH_URL`, while production uses `VERCEL_PROJECT_PRODUCTION_URL`. This correction preserves exact-origin
 validation without coupling configuration to one ephemeral deployment URL.
 
+The first hosted preview also showed that automatic function tracing did not reliably retain the Argon2 native
+prebuild required during backend module initialization. The Vercel function packaging now explicitly includes
+only Argon2's prebuilt native assets. This remains an infrastructure packaging concern and does not move password
+hashing, authentication, or provider behavior into the deployment adapter.
+
 ### Positive
 
 - One public origin preserves the established browser security model.

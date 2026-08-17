@@ -96,6 +96,11 @@ The command prints numeric pool metrics only. Do not capture the invoking enviro
 The isolated-preview issue must repeat this observation under managed-function concurrency and compare Neon
 monitoring before changing the budget.
 
+The Vercel function explicitly includes the Argon2 prebuilt native binaries. Authentication is part of the
+composed backend even when a shallow route is requested, and Vercel's file tracing otherwise selects only the
+build host's native asset. Keep this inclusion at the infrastructure packaging edge; it does not change the
+authentication or application boundary.
+
 ## Secret generation and rotation
 
 Generate each current secret independently using a cryptographically secure source, for example
