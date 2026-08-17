@@ -257,6 +257,11 @@ The deployed route table also gives the shallow `/health` path an exact rewrite 
 adapter restores `/health` for Fastify, while wildcard `/api/*` traffic retains its full API pathname and all
 other paths remain eligible for Angular's SPA fallback.
 
+The rewrite markers are infrastructure-private and never become trusted application parameters. Duplicate or
+mixed markers and paths that could escape the `/api/` namespace fail before Fastify with a generic response. The
+boundary retains normal queries, encoded identifiers, trailing slashes, and the API root, with regression tests
+covering traversal and marker-collision cases.
+
 At commit `b59a80d`, the isolated preview verified secure host-only session issuance, XSRF bootstrap and rotation,
 logout clearing, exact-Origin rejection, API-owned failures, SPA deep links, provider-derived client identity,
 cold function initialization, and database-backed traffic. These observations substantially reduce the adapter

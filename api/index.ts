@@ -9,6 +9,11 @@ import {
 const handler = createVercelHandler(createComposedApplication);
 
 export default (request: IncomingMessage, response: ServerResponse): Promise<void> => {
-  restoreVercelRequestPath(request);
+  if (!restoreVercelRequestPath(request)) {
+    response.statusCode = 400;
+    response.setHeader('content-type', 'application/json; charset=utf-8');
+    response.end(JSON.stringify({ error: { code: 'bad_request', message: 'Bad request.' } }));
+    return Promise.resolve();
+  }
   return handler(request, response);
 };

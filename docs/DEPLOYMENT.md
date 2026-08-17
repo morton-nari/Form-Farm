@@ -142,6 +142,11 @@ Vercel entry point restores the original `/api/*` pathname and removes that mark
 fallback continues to exclude the complete API namespace. A separate exact `/health` rewrite reaches the same
 function and restores the backend's shallow health path without adding database work.
 
+`__form_farm_path` and `__form_farm_health` are reserved infrastructure metadata. A public request that collides
+with, duplicates, or combines these markers fails with a generic `400` before application routing. Restored API
+paths reject traversal segments, absolute-looking separators, backslashes, malformed encoding, and repeatedly
+encoded variants while preserving legitimate encoded path segments and ordinary query parameters.
+
 ## Secret generation and rotation
 
 Generate each current secret independently using a cryptographically secure source, for example
