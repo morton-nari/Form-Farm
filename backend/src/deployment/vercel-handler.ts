@@ -28,21 +28,15 @@ export function createVercelHandler(createApplication: VercelApplicationFactory)
       app = readyApplication ?? (await initialization);
     } catch {
       initialization = undefined;
-      if (!response.headersSent) {
-        response.statusCode = 500;
-        response.setHeader('content-type', 'application/json; charset=utf-8');
-      }
-      if (!response.writableEnded && !response.headersSent) {
-        response.end(
-          JSON.stringify({ error: { code: 'internal_error', message: 'Internal server error.' } }),
-        );
-      } else if (!response.writableEnded) {
-        response.end();
-      }
+      sendSafeInternalError(response);
       return;
     }
 
-    await forwardRequest(app, request, response);
+    try {
+      await forwardRequest(app, request, response);
+    } catch {
+      sendSafeInternalError(response);
+    }
   };
 }
 
@@ -52,11 +46,46 @@ function forwardRequest(
   response: ServerResponse,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
-    const settle = () => resolve();
-    response.once('finish', settle);
-    response.once('close', settle);
-    response.once('error', reject);
-    app.server.emit('request', request, response);
-    if (response.writableEnded) resolve();
+    let settled = false;
+    const cleanup = () => {
+      response.removeListener('finish', succeed);
+      response.removeListener('close', succeed);
+      response.removeListener('error', fail);
+    };
+    const succeed = () => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve();
+    };
+    const fail = (error: Error) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(error);
+    };
+    response.once('finish', succeed);
+    response.once('close', succeed);
+    response.once('error', fail);
+    try {
+      app.server.emit('request', request, response);
+      if (response.writableEnded) succeed();
+    } catch (error) {
+      fail(error instanceof Error ? error : new Error('Request forwarding failed.'));
+    }
   });
+}
+
+function sendSafeInternalError(response: ServerResponse): void {
+  if (!response.headersSent) {
+    response.statusCode = 500;
+    response.setHeader('content-type', 'application/json; charset=utf-8');
+  }
+  if (!response.writableEnded && !response.headersSent) {
+    response.end(
+      JSON.stringify({ error: { code: 'internal_error', message: 'Internal server error.' } }),
+    );
+  } else if (!response.writableEnded) {
+    response.end();
+  }
 }
