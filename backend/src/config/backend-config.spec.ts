@@ -179,7 +179,7 @@ describe('loadBackendConfig', () => {
       APP_ENV: 'preview',
       VERCEL: '1',
       VERCEL_ENV: 'preview',
-      VERCEL_URL: 'form-farm-preview.vercel.app',
+      VERCEL_BRANCH_URL: 'form-farm-preview.vercel.app',
       DATABASE_URL:
         'postgresql://app@example-pooler.us-east-2.aws.neon.tech/form_farm_preview?sslmode=require',
       DATABASE_POOL_MAX: '1',
@@ -199,7 +199,34 @@ describe('loadBackendConfig', () => {
       loadBackendConfig({ ...preview, PUBLIC_APP_ORIGIN: 'https://production.example.com' }),
     ).toThrow(BackendConfigurationError);
     expect(() =>
+      loadBackendConfig({ ...preview, VERCEL_BRANCH_URL: undefined }),
+    ).toThrow(BackendConfigurationError);
+    expect(() =>
       loadBackendConfig({ DATABASE_URL: 'postgresql://localhost/form_farm', VERCEL: '1' }),
+    ).toThrow(BackendConfigurationError);
+  });
+
+  it('uses the stable Vercel project URL for production identity', () => {
+    const production = {
+      NODE_ENV: 'production',
+      APP_ENV: 'production',
+      VERCEL: '1',
+      VERCEL_ENV: 'production',
+      VERCEL_PROJECT_PRODUCTION_URL: 'form-farm.vercel.app',
+      DATABASE_URL:
+        'postgresql://app@example-pooler.us-east-2.aws.neon.tech/form_farm?sslmode=require',
+      DATABASE_POOL_MAX: '1',
+      DATABASE_ENVIRONMENT: 'production',
+      AUTH_SECRET_ENVIRONMENT: 'production',
+      PUBLIC_APP_ORIGIN: 'https://form-farm.vercel.app',
+      AUTH_SECURE_COOKIES: 'true',
+      XSRF_HMAC_SECRET: 'AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE',
+      RATE_LIMIT_HMAC_SECRET: 'AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI',
+    };
+
+    expect(loadBackendConfig(production).deploymentStage).toBe('production');
+    expect(() =>
+      loadBackendConfig({ ...production, VERCEL_PROJECT_PRODUCTION_URL: undefined }),
     ).toThrow(BackendConfigurationError);
   });
 

@@ -3,7 +3,74 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { FastifyInstance } from 'fastify';
 import { describe, expect, it, vi } from 'vitest';
 
-import { createVercelHandler } from './vercel-handler.js';
+import { createVercelHandler, restoreVercelRequestPath } from './vercel-handler.js';
+
+describe('restoreVercelRequestPath', () => {
+  it('restores a nested API path and preserves application query parameters', () => {
+    const request = { url: '/api/index?limit=20&__form_farm_path=v1/management/forms' } as IncomingMessage;
+
+    expect(restoreVercelRequestPath(request)).toBe(true);
+
+    expect(request.url).toBe('/api/v1/management/forms?limit=20');
+  });
+
+  it('leaves requests without the Vercel routing marker unchanged', () => {
+    const request = { url: '/api/v1/forms?limit=20' } as IncomingMessage;
+
+    expect(restoreVercelRequestPath(request)).toBe(true);
+
+    expect(request.url).toBe('/api/v1/forms?limit=20');
+  });
+
+  it('restores the shallow health path without placing it in the API namespace', () => {
+    const request = { url: '/api/index?__form_farm_health=1' } as IncomingMessage;
+
+    expect(restoreVercelRequestPath(request)).toBe(true);
+
+    expect(request.url).toBe('/health');
+  });
+
+  it('preserves encoded path segments and trailing slashes', () => {
+    const encoded = { url: '/api/index?__form_farm_path=v1/forms/feedback%252Fform' } as IncomingMessage;
+    const trailing = { url: '/api/index?__form_farm_path=v1/forms/' } as IncomingMessage;
+
+    expect(restoreVercelRequestPath(encoded)).toBe(true);
+    expect(restoreVercelRequestPath(trailing)).toBe(true);
+
+    expect(encoded.url).toBe('/api/v1/forms/feedback%2Fform');
+    expect(trailing.url).toBe('/api/v1/forms/');
+  });
+
+  it('rejects an API path combined with a spoofed health marker', () => {
+    const request = {
+      url: '/api/index?__form_farm_path=v1/forms&__form_farm_health=1&limit=20',
+    } as IncomingMessage;
+
+    expect(restoreVercelRequestPath(request)).toBe(false);
+  });
+
+  it('supports the API root while removing its private marker', () => {
+    const request = { url: '/api/index?__form_farm_path=&limit=20' } as IncomingMessage;
+
+    expect(restoreVercelRequestPath(request)).toBe(true);
+
+    expect(request.url).toBe('/api/?limit=20');
+  });
+
+  it.each([
+    '/api/index?__form_farm_path=v1/forms&__form_farm_path=health',
+    '/api/index?__form_farm_path=../health',
+    '/api/index?__form_farm_path=%252e%252e/health',
+    '/api/index?__form_farm_path=%252Fhealth',
+    '/api/index?__form_farm_path=v1%255Chealth',
+    '/api/index?__form_farm_path=%E0%A4%A',
+    '/api/index?__form_farm_health=1&__form_farm_health=1',
+  ])('rejects ambiguous or unsafe private routing metadata: %s', (url) => {
+    const request = { url } as IncomingMessage;
+
+    expect(restoreVercelRequestPath(request)).toBe(false);
+  });
+});
 
 describe('createVercelHandler', () => {
   it('prepares one application and forwards warm requests without opening a listener', async () => {

@@ -2,8 +2,17 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "npm run build:all",
   "outputDirectory": "dist/form-farm-ai/browser",
+  "functions": {
+    "api/**/*.ts": {
+      "includeFiles": "node_modules/argon2/prebuilds/**"
+    }
+  },
   "rewrites": [
-    { "source": "/api/:path*", "destination": "/api/index" },
+    { "source": "/health", "destination": "/api/index?__form_farm_health=1" },
+    {
+      "source": "/api/:__form_farm_path*",
+      "destination": "/api/index?__form_farm_path=:__form_farm_path"
+    },
     { "source": "/((?!api(?:/|$)).*)", "destination": "/index.html" }
   ]
 }

@@ -7,6 +7,61 @@ export type VercelHandler = (
   response: ServerResponse,
 ) => Promise<void>;
 
+const VERCEL_PATH_PARAMETER = '__form_farm_path';
+const VERCEL_HEALTH_PARAMETER = '__form_farm_health';
+
+export function restoreVercelRequestPath(request: IncomingMessage): boolean {
+  if (request.url === undefined) return true;
+
+  const rewrittenUrl = new URL(request.url, 'http://vercel.internal');
+  const paths = rewrittenUrl.searchParams.getAll(VERCEL_PATH_PARAMETER);
+  const healthMarkers = rewrittenUrl.searchParams.getAll(VERCEL_HEALTH_PARAMETER);
+  rewrittenUrl.searchParams.delete(VERCEL_PATH_PARAMETER);
+  rewrittenUrl.searchParams.delete(VERCEL_HEALTH_PARAMETER);
+
+  if (paths.length > 0 && healthMarkers.length > 0) return false;
+
+  if (paths.length > 0) {
+    const path = paths[0];
+    if (paths.length !== 1 || path === undefined || (path.length > 0 && !isSafeApiPath(path))) {
+      return false;
+    }
+    const search = rewrittenUrl.searchParams.toString();
+    request.url = `/api/${path}${search.length > 0 ? `?${search}` : ''}`;
+    return true;
+  }
+
+  if (healthMarkers.length > 0) {
+    if (healthMarkers.length !== 1 || healthMarkers[0] !== '1') return false;
+    const search = rewrittenUrl.searchParams.toString();
+    request.url = `/health${search.length > 0 ? `?${search}` : ''}`;
+  }
+  return true;
+}
+
+function isSafeApiPath(path: string): boolean {
+  if (path.startsWith('/') || path.includes('\\') || path.includes('\0')) {
+    return false;
+  }
+
+  let decoded = path;
+  for (let index = 0; index < 3; index += 1) {
+    try {
+      const next = decodeURIComponent(decoded);
+      if (next === decoded) break;
+      decoded = next;
+    } catch {
+      return false;
+    }
+  }
+
+  return (
+    !decoded.startsWith('/') &&
+    !decoded.includes('\\') &&
+    decoded.split('/').every((segment) => segment !== '.' && segment !== '..')
+  );
+}
+
 export function createVercelHandler(createApplication: VercelApplicationFactory): VercelHandler {
   let readyApplication: FastifyInstance | undefined;
   let initialization: Promise<FastifyInstance> | undefined;

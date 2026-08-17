@@ -224,6 +224,51 @@ one client, seven queued operations, and one idle client after completion. This 
 not a production capacity claim. Hosted routing, proxy behavior, and connection evidence are still outstanding,
 so this ADR remains Proposed.
 
+Hosted preflight found that Vercel's deployment-specific `VERCEL_URL` changes across deployments and therefore
+cannot be the configured exact origin. Preview validation instead uses the deployment-owned stable
+`VERCEL_BRANCH_URL`, while production uses `VERCEL_PROJECT_PRODUCTION_URL`. This correction preserves exact-origin
+validation without coupling configuration to one ephemeral deployment URL.
+
+The first hosted preview also showed that automatic function tracing did not reliably retain the Argon2 native
+prebuild required during backend module initialization. The Vercel function packaging now explicitly includes
+only Argon2's prebuilt native assets. This remains an infrastructure packaging concern and does not move password
+hashing, authentication, or provider behavior into the deployment adapter.
+
+Vercel also emitted the TypeScript function entry point as ESM JavaScript while loading it from a CommonJS package
+boundary. A narrow `api/package.json` now declares the deployment entry point as ESM, matching the backend without
+changing the Angular workspace package semantics.
+
+The original rewrite to a fixed `/api/index` destination discarded the incoming API pathname. The same single
+infrastructure adapter now carries the captured wildcard in a private rewrite query marker, restores the original
+`/api/*` path, and removes the marker before Fastify routing. The Angular fallback remains explicitly outside that
+namespace.
+
+With proxy trust disabled, the hosted Node function reported its loopback socket as every request's client
+identity. The isolated preview therefore sets the deployment-owned hop count to `1`, matching the single Vercel
+hop in front of the function. This is preview evidence for the selected runtime, not a portable default for other
+hosts or topologies.
+
+An authenticated 16-request management-list burst exercised Neon through three observed warm Vercel instances.
+All requests returned successfully, application timings were approximately 74--235 ms, and repeated Neon activity
+snapshots showed one server-side connection for the restricted application role. The preview therefore retains
+`DATABASE_POOL_MAX=1`; broader traffic and latency evidence is still required before raising it.
+
+The deployed route table also gives the shallow `/health` path an exact rewrite to the existing function. The
+adapter restores `/health` for Fastify, while wildcard `/api/*` traffic retains its full API pathname and all
+other paths remain eligible for Angular's SPA fallback.
+
+The rewrite markers are infrastructure-private and never become trusted application parameters. Duplicate or
+mixed markers and paths that could escape the `/api/` namespace fail before Fastify with a generic response. The
+boundary retains normal queries, encoded identifiers, trailing slashes, and the API root, with regression tests
+covering traversal and marker-collision cases.
+
+At commit `b59a80d`, the isolated preview verified secure host-only session issuance, XSRF bootstrap and rotation,
+logout clearing, exact-Origin rejection, API-owned failures, SPA deep links, provider-derived client identity,
+cold function initialization, and database-backed traffic. These observations substantially reduce the adapter
+risk. The isolated resources are retained as the repository-owner-managed, free-plan, non-production verification
+environment for deployed smoke automation and promotion-policy work. The ADR remains Proposed until a separate
+architectural decision explicitly accepts or rejects it.
+
 ### Positive
 
 - One public origin preserves the established browser security model.

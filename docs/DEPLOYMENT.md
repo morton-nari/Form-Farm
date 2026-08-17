@@ -1,8 +1,38 @@
 # Deployment environment contract
 
-Form Farm AI has not yet provisioned Vercel or Neon resources. This contract defines the configuration that
-an isolated preview and the production portfolio demo must satisfy before the backend starts. ADR 0007 remains
-Proposed until hosted routing, browser security, proxy, and connection behavior are verified.
+Form Farm AI has one isolated Neon/Vercel preview for Milestone 8 verification. This contract defines the
+configuration that preview and a later production portfolio demo must satisfy before the backend starts. ADR 0007
+remains Proposed until the hosted evidence and operating decision receive architectural approval.
+
+## Isolated preview record
+
+The preview uses Neon project `wandering-flower-45162707`, branch `br-polished-mud-aywzxibq`, database `neondb`,
+AWS region `us-east-2`, PostgreSQL 18, and a 0.25 CU free-plan compute. The Vercel project is `form-farm`; Git
+previews run the branch `deployment/isolated-vercel-neon-preview` in function region `iad1`. Verification at commit
+`b59a80d` used deployment `dpl_GRbesPWtL1oncLWDzYLQjPSvjYWj` and the stable branch alias configured as the exact
+public origin.
+
+Committed migrations `0000` through `0003` were applied explicitly and recorded in `form_farm_migrations`.
+Application traffic uses the dedicated least-privileged role through the pooled endpoint. The direct
+administrative URL was never attached to Vercel, and no seed command or production configuration was applied.
+All ten application variables are branch-scoped Preview values; the database and two independent HMAC secrets
+are hidden. No equivalent production values were created by this work.
+
+Hosted verification established:
+
+- exact `/api/*` forwarding to Fastify, JSON API 404s, exact `/health`, and Angular deep-link fallback;
+- secure host-only session issuance, authenticated database access, XSRF rotation, logout clearing, and generic
+  fail-closed responses for missing, mismatched, and cross-origin evidence;
+- one trusted Vercel proxy hop, with caller-supplied forwarded identity rejected by the platform boundary;
+- successful cold starts and a 16-request authenticated burst across three observed warm instances while
+  retaining `DATABASE_POOL_MAX=1`.
+
+The resources are retained as the named non-production verification environment for deployed smoke automation
+and promotion-policy work. The repository owner owns the environment; it must remain on the providers' free
+plans, branch-scoped, synthetic-data-only, and separate from production. Review ownership, scope, and provider
+usage when completing each deployment issue. If it is no longer required or exceeds those limits, remove the
+branch-scoped Vercel variables/deployments, then delete the Neon project. Never place credentials or connection
+strings in teardown records.
 
 ## Environment ownership
 
@@ -17,8 +47,10 @@ runtime behavior. Hosted functions require `NODE_ENV=production` and one of thes
 
 Hosted configuration also requires `DATABASE_ENVIRONMENT` and `AUTH_SECRET_ENVIRONMENT` to equal `APP_ENV`.
 These labels make cross-environment attachment an explicit configuration act; they do not replace provider access
-controls. When Vercel system variables are present, `VERCEL_ENV` must match `APP_ENV` and `PUBLIC_APP_ORIGIN`
-must be exactly `https://${VERCEL_URL}`. The production project URL is never inferred in a preview.
+controls. When Vercel system variables are present, `VERCEL_ENV` must match `APP_ENV`. Preview
+`PUBLIC_APP_ORIGIN` must be exactly `https://${VERCEL_BRANCH_URL}`; production must match
+`https://${VERCEL_PROJECT_PRODUCTION_URL}`. The deployment-specific `VERCEL_URL` is not a stable configured
+origin, and the production project URL is never inferred in a preview.
 
 Vercel values must be scoped separately to Preview and Production. Do not select both environments when adding
 a database URL or secret. An isolated preview should use branch-specific Preview values where practical. Inspect
@@ -94,6 +126,30 @@ The command prints numeric pool metrics only. Do not capture the invoking enviro
 The isolated-preview issue must repeat this observation under managed-function concurrency and compare Neon
 monitoring before changing the budget.
 
+The isolated preview kept `DATABASE_POOL_MAX=1`. A 16-request authenticated burst completed successfully across
+three observed warm Vercel instances. Application response times in the platform logs ranged from roughly 74 ms
+to 235 ms, while repeated Neon activity snapshots showed one server-side connection for the restricted
+application role. This small sample supports retaining `1`; it is not evidence to increase the per-instance pool.
+Neon activity does not expose each warm instance's internal `pg.Pool.waitingCount`, so hosted queued-count
+evidence remains a limitation of this black-box preview check rather than a reason to weaken or raise the bound.
+
+The Vercel function explicitly includes the Argon2 prebuilt native binaries. Authentication is part of the
+composed backend even when a shallow route is requested, and Vercel's file tracing otherwise selects only the
+build host's native asset. Keep this inclusion at the infrastructure packaging edge; it does not change the
+authentication or application boundary.
+
+The `api` deployment entry point has its own ESM package boundary. Vercel emits the TypeScript entry point as
+JavaScript under that boundary, so Node loads its generated imports with the same module semantics as the backend.
+The `/api/:path*` rewrite carries its captured path to the single function through a private query marker. The
+Vercel entry point restores the original `/api/*` pathname and removes that marker before Fastify routing; the SPA
+fallback continues to exclude the complete API namespace. A separate exact `/health` rewrite reaches the same
+function and restores the backend's shallow health path without adding database work.
+
+`__form_farm_path` and `__form_farm_health` are reserved infrastructure metadata. A public request that collides
+with, duplicates, or combines these markers fails with a generic `400` before application routing. Restored API
+paths reject traversal segments, absolute-looking separators, backslashes, malformed encoding, and repeatedly
+encoded variants while preserving legitimate encoded path segments and ordinary query parameters.
+
 ## Secret generation and rotation
 
 Generate each current secret independently using a cryptographically secure source, for example
@@ -108,10 +164,11 @@ preview and production.
 
 ## Trusted proxy ownership
 
-`TRUSTED_PROXY_HOPS` is owned by the deployment configuration, not by request headers or schema data. Keep it at
-zero until the isolated Vercel preview establishes the exact trusted hop behavior. The preview must verify direct
-and forwarded client-IP cases before changing it. `PUBLIC_APP_ORIGIN` is never inferred from `Host`, `Forwarded`,
-or `X-Forwarded-*`.
+`TRUSTED_PROXY_HOPS` is owned by the deployment configuration, not by request headers or schema data. The isolated
+Vercel preview showed that the Node function receives Vercel's request on a loopback socket, with the client chain
+in the forwarded address metadata. Its branch-scoped preview value is therefore `1`: trust the one platform hop,
+then use the first untrusted address as the client identity. Re-verify this boundary before using another runtime
+or proxy topology. `PUBLIC_APP_ORIGIN` is never inferred from `Host`, `Forwarded`, or `X-Forwarded-*`.
 
 ## References
 
