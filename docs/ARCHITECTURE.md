@@ -66,6 +66,20 @@ External AI provider APIs
 
 Microservices are not planned. They would add operational complexity without solving a current scaling or ownership problem.
 
+### Proposed portfolio deployment
+
+ADR 0007 proposes one Vercel project as the public origin for Angular static assets and the existing Fastify
+`/api`, backed by a separate Neon PostgreSQL project. The Fastify Vercel entry point will be an infrastructure
+adapter: application use cases, domain validation, HTTP contracts, ownership, and persistence ports remain host
+independent. Local `main.ts` retains the persistent-process listener and signal lifecycle; managed-function
+correctness cannot depend on process shutdown hooks.
+
+Production-like deployment keeps migrations explicit, uses Neon's pooled endpoint with a measured small
+application pool, validates deployment-owned origins and secrets centrally, and gives previews no production
+database or secrets by default. The initial free public environment is a portfolio demo only and prohibits real
+sensitive personal or health data. This is a proposed decision; no Vercel or Neon resources are currently
+provisioned and no deployment behavior is implemented.
+
 The owned backend uses Fastify 5 directly as a lean modular TypeScript application. Domain models,
 validation, and use cases remain framework-independent; Fastify routes and plugins form the HTTP and
 infrastructure edge. The decision and alternatives are recorded in
