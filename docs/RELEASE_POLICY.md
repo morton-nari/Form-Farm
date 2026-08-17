@@ -101,6 +101,10 @@ independent Production secrets and domains, protected GitHub Environment reviewe
 roles, a rehearsed explicit migration, schema-compatible deployment rollback, monitoring/incident ownership, and
 a reviewed complete CI/CD implementation.
 
+The accountable operator, actionable evidence matrix, isolated rehearsal, and current no-go checklist are
+defined in `docs/PRODUCTION_READINESS.md`. A passing rehearsal is evidence for release controls, not permission to
+provision Production.
+
 ## References
 
 - [Vercel usage and pricing](https://vercel.com/docs/pricing)

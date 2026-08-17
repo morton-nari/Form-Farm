@@ -15,6 +15,7 @@
     "db:migrate": "tsx src/infrastructure/database/migrate.ts",
     "db:cleanup-smoke": "tsx src/infrastructure/database/cleanup-smoke-account.ts",
     "db:measure-pool": "tsx src/infrastructure/database/measure-pool.ts",
+    "db:rehearse-release": "tsx src/infrastructure/database/rehearse-release-controls.ts",
     "db:seed": "tsx src/infrastructure/database/seed.ts"
   },
   "engines": {

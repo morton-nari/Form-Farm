@@ -10,6 +10,10 @@ const promotionWorkflow = await readFile(
   new URL('../../.github/workflows/production-promotion-gate.yml', import.meta.url),
   'utf8',
 );
+const rehearsalWorkflow = await readFile(
+  new URL('../../.github/workflows/release-control-rehearsal.yml', import.meta.url),
+  'utf8',
+);
 
 test('deployed smoke is restricted to preview environment secrets and always cleans up', () => {
   assert.match(smokeWorkflow, /environment: preview-smoke/);
@@ -31,4 +35,17 @@ test('production gate is manual, protected, and contains no deployment or migrat
   );
   assert.doesNotMatch(promotionWorkflow, /vercel (?:deploy|promote|--prod)/);
   assert.doesNotMatch(promotionWorkflow, /npm run db:migrate/);
+});
+
+test('release rehearsal is isolated, explicit, and cannot consume Production secrets', () => {
+  assert.match(rehearsalWorkflow, /workflow_dispatch:/);
+  assert.match(rehearsalWorkflow, /environment: preview-smoke/);
+  assert.match(rehearsalWorkflow, /ref: \$\{\{ inputs\.application_commit \}\}/);
+  assert.match(rehearsalWorkflow, /secrets\.PREVIEW_DATABASE_ADMIN_URL/);
+  assert.match(rehearsalWorkflow, /npm run db:migrate/);
+  assert.match(rehearsalWorkflow, /npm run db:rehearse-release/g);
+  assert.doesNotMatch(rehearsalWorkflow, /secrets\.(?:PRODUCTION|DATABASE_URL|DATABASE_ADMIN_URL)/);
+  assert.doesNotMatch(rehearsalWorkflow, /vercel (?:deploy|promote|--prod)/);
+  assert.doesNotMatch(rehearsalWorkflow, /upload-artifact/);
+  assert.doesNotMatch(rehearsalWorkflow, /set -x|printenv|env\s*$/m);
 });

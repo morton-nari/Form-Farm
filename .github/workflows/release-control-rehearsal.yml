@@ -1,0 +1,91 @@
+name: Release control rehearsal
+
+on:
+  workflow_dispatch:
+    inputs:
+      application_commit:
+        description: Full reviewed commit SHA to rehearse
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-control-rehearsal
+  cancel-in-progress: false
+
+jobs:
+  rehearse:
+    name: Rehearse release controls
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: preview-smoke
+    env:
+      RELEASE_REHEARSAL_ENVIRONMENT: preview
+      RELEASE_REHEARSAL_DATABASE: ${{ vars.PREVIEW_DATABASE_NAME }}
+      RELEASE_REHEARSAL_RUN_ID: ${{ github.run_id }}
+
+    steps:
+      - name: Check out reviewed commit
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.application_commit }}
+          fetch-depth: 0
+
+      - name: Validate immutable reviewed commit
+        env:
+          APPLICATION_COMMIT: ${{ inputs.application_commit }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$APPLICATION_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$APPLICATION_COMMIT"
+          git merge-base --is-ancestor "$APPLICATION_COMMIT" refs/remotes/origin/dev
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24.15.0
+          cache: npm
+
+      - name: Set up npm
+        run: npm install --global npm@12.0.2
+
+      - name: Install dependencies from lockfile
+        run: npm ci
+
+      - name: Verify backend and deployment compatibility
+        run: |
+          npm run backend:test
+          npm run backend:build
+          npm run deployment:check
+
+      - name: Verify target, migration ledger, and failed-transaction rollback
+        env:
+          DATABASE_ADMIN_URL: ${{ secrets.PREVIEW_DATABASE_ADMIN_URL }}
+        run: npm run db:rehearse-release
+
+      - name: Reapply explicit migrations as an idempotent no-op
+        env:
+          DATABASE_ADMIN_URL: ${{ secrets.PREVIEW_DATABASE_ADMIN_URL }}
+        run: npm run db:migrate
+
+      - name: Verify unchanged migration ledger after migration command
+        env:
+          DATABASE_ADMIN_URL: ${{ secrets.PREVIEW_DATABASE_ADMIN_URL }}
+        run: npm run db:rehearse-release
+
+      - name: Record non-secret rehearsal evidence
+        env:
+          APPLICATION_COMMIT: ${{ inputs.application_commit }}
+        shell: bash
+        run: |
+          {
+            echo '## Isolated release-control rehearsal'
+            printf '%s\n' "- Application commit: \`$APPLICATION_COMMIT\`"
+            echo '- Environment: retained non-production preview'
+            echo '- Migration result: explicit idempotent no-op'
+            echo '- Failure-stop result: transaction rollback left zero objects'
+            echo '- Production action: none'
+          } >> "$GITHUB_STEP_SUMMARY"

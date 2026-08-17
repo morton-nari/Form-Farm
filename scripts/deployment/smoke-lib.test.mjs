@@ -47,3 +47,35 @@ test('smoke command redacts configuration when validation fails', () => {
   assert.equal(result.stderr, 'smoke:failed\n');
   assert.equal(`${result.stdout}${result.stderr}`.includes(sensitiveBypass), false);
 });
+
+test('release rehearsal redacts protected database configuration on failure', () => {
+  const sensitiveDatabaseUrl =
+    'postgresql://sensitive-user:sensitive-password@example.us-east-2.aws.neon.tech/neondb?sslmode=require';
+  const result = spawnSync(
+    process.execPath,
+    [
+      'node_modules/tsx/dist/cli.mjs',
+      'backend/src/infrastructure/database/rehearse-release-controls.ts',
+    ],
+    {
+      cwd: new URL('../..', import.meta.url),
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        DATABASE_ADMIN_URL: sensitiveDatabaseUrl,
+        RELEASE_REHEARSAL_ENVIRONMENT: 'production',
+        RELEASE_REHEARSAL_DATABASE: 'neondb',
+        RELEASE_REHEARSAL_RUN_ID: '123',
+      },
+    },
+  );
+
+  assert.equal(result.status, 1);
+  assert.equal(result.stdout, '');
+  assert.equal(
+    result.stderr,
+    'Release rehearsal failed; protected configuration and provider details were redacted.\n',
+  );
+  assert.equal(`${result.stdout}${result.stderr}`.includes(sensitiveDatabaseUrl), false);
+  assert.equal(`${result.stdout}${result.stderr}`.includes('sensitive-password'), false);
+});

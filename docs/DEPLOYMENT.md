@@ -38,7 +38,7 @@ provider `404`. The retained deployment is explicitly `target=preview`. This pro
 authorize a future Production deployment and must not be repeated as a promotion procedure.
 
 The resources are retained as the named non-production verification environment for deployed smoke automation
-and promotion-policy work. The repository owner owns the environment; it must remain on the providers' free
+and promotion-policy work. `morton-nari` owns the environment; it must remain on the providers' free
 plans, branch-scoped, synthetic-data-only, and separate from production. Review ownership, scope, and provider
 usage when completing each deployment issue. If it is no longer required or exceeds those limits, remove the
 branch-scoped Vercel variables/deployments, then delete the Neon project. Never place credentials or connection

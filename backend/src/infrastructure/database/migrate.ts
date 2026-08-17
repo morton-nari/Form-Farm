@@ -3,15 +3,10 @@ import { fileURLToPath } from 'node:url';
 import { Pool } from 'pg';
 
 import { requireDirectDatabaseAdminUrl } from './database-url-policy.js';
+import { migrationNames } from './migration-manifest.js';
 
 const databaseUrl = requireDirectDatabaseAdminUrl(process.env);
 
-const migrations = [
-  '0000_initial_form_read.sql',
-  '0001_versioned_form_submissions.sql',
-  '0002_authentication_ownership_core.sql',
-  '0003_owner_form_drafts.sql',
-] as const;
 const pool = new Pool({ connectionString: databaseUrl, max: 1 });
 
 try {
@@ -22,7 +17,7 @@ try {
       applied_at timestamptz not null default now()
     )
   `);
-  for (const name of migrations) {
+  for (const name of migrationNames) {
     const applied = await pool.query<{ name: string }>(
       'select name from form_farm_migrations where name = $1',
       [name],
