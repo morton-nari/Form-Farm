@@ -2,7 +2,8 @@
 
 This policy covers the retained non-production preview and any later production promotion. Issue 112 adds
 verification and approval gates only: it does not provision, migrate, deploy, or promote production resources.
-ADR 0007 remains Proposed.
+ADR 0007 is Accepted. Its acceptance selects the deployment architecture; it does not authorize production
+resources, migrations, deployment, or promotion.
 
 ## Required pull-request checks
 

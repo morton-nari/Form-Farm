@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Accepted (2026-08-17)
 
 ## Context
 
@@ -200,6 +200,25 @@ It should be reconsidered before real users or sensitive data are accepted.
 
 ## Consequences
 
+### Acceptance and production authorization
+
+The architecture is accepted based on the repository compatibility work, the isolated hosted preview evidence,
+and the protected deployed-smoke run recorded below. Acceptance confirms the single-origin Vercel adapter,
+isolated Neon database boundary, explicit migrations, environment separation, and initial
+`DATABASE_POOL_MAX=1` policy as the selected portfolio deployment design.
+
+Acceptance is not authorization to provision or promote production. The production decision remains **No-go**
+until a separately reviewed release records all of the following:
+
+- named owners for provider access, recovery, monitoring, incident response, cost, and retained resources;
+- independently scoped Production domains, configuration, and secrets behind protected approval;
+- reviewed target migration identity and level, a rehearsed migration procedure, and schema-compatible
+  application rollback or an explicit forward-fix plan;
+- immutable application commit and migration-level evidence with every promotion; and
+- the complete production CI/CD implementation proposed by issue 114, reviewed with all required checks green.
+
+No production Vercel or Neon resource, migration, deployment, or promotion is authorized by this ADR update.
+
 ### Compatibility-spike evidence
 
 The first implementation slice adds a generic Vercel Node request handler rather than using Vercel's
@@ -266,8 +285,8 @@ At commit `b59a80d`, the isolated preview verified secure host-only session issu
 logout clearing, exact-Origin rejection, API-owned failures, SPA deep links, provider-derived client identity,
 cold function initialization, and database-backed traffic. These observations substantially reduce the adapter
 risk. The isolated resources are retained as the repository-owner-managed, free-plan, non-production verification
-environment for deployed smoke automation and promotion-policy work. The ADR remains Proposed until a separate
-architectural decision explicitly accepts or rejects it.
+environment for deployed smoke automation and promotion-policy work. That evidence, followed by the protected
+deployed-smoke verification and explicit review, supports the acceptance recorded above.
 
 ### Positive
 

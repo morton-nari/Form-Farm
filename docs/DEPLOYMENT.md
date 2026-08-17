@@ -2,7 +2,8 @@
 
 Form Farm AI has one isolated Neon/Vercel preview for Milestone 8 verification. This contract defines the
 configuration that preview and a later production portfolio demo must satisfy before the backend starts. ADR 0007
-remains Proposed until the hosted evidence and operating decision receive architectural approval.
+is Accepted based on the isolated hosted evidence. Production remains unauthorized until the separate release
+criteria and approval in `docs/RELEASE_POLICY.md` are satisfied.
 
 ## Isolated preview record
 

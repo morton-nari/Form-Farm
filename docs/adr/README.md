@@ -29,4 +29,4 @@ Do not create ADRs for minor implementation details or decisions that have not y
 - [ADR 0004: Version-bound form submissions](0004-versioned-form-submissions.md)
 - [ADR 0005: Authentication, sessions, and form ownership](0005-authentication-sessions-and-ownership.md)
 - [ADR 0006: Owner form creation, draft editing, and publication](0006-owner-form-write-lifecycle.md)
-- [ADR 0007: Vercel and Neon portfolio deployment](0007-vercel-neon-deployment.md)
+- [ADR 0007: Vercel and Neon portfolio deployment](0007-vercel-neon-deployment.md) — Accepted 2026-08-17
