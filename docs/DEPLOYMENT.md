@@ -103,6 +103,9 @@ authentication or application boundary.
 
 The `api` deployment entry point has its own ESM package boundary. Vercel emits the TypeScript entry point as
 JavaScript under that boundary, so Node loads its generated imports with the same module semantics as the backend.
+The `/api/:path*` rewrite carries its captured path to the single function through a private query marker. The
+Vercel entry point restores the original `/api/*` pathname and removes that marker before Fastify routing; the SPA
+fallback continues to exclude the complete API namespace.
 
 ## Secret generation and rotation
 

@@ -3,7 +3,25 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { FastifyInstance } from 'fastify';
 import { describe, expect, it, vi } from 'vitest';
 
-import { createVercelHandler } from './vercel-handler.js';
+import { createVercelHandler, restoreVercelRequestPath } from './vercel-handler.js';
+
+describe('restoreVercelRequestPath', () => {
+  it('restores a nested API path and preserves application query parameters', () => {
+    const request = { url: '/api/index?limit=20&__form_farm_path=v1/management/forms' } as IncomingMessage;
+
+    restoreVercelRequestPath(request);
+
+    expect(request.url).toBe('/api/v1/management/forms?limit=20');
+  });
+
+  it('leaves requests without the Vercel routing marker unchanged', () => {
+    const request = { url: '/api/v1/forms?limit=20' } as IncomingMessage;
+
+    restoreVercelRequestPath(request);
+
+    expect(request.url).toBe('/api/v1/forms?limit=20');
+  });
+});
 
 describe('createVercelHandler', () => {
   it('prepares one application and forwards warm requests without opening a listener', async () => {

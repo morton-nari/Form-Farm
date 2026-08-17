@@ -238,6 +238,11 @@ Vercel also emitted the TypeScript function entry point as ESM JavaScript while 
 boundary. A narrow `api/package.json` now declares the deployment entry point as ESM, matching the backend without
 changing the Angular workspace package semantics.
 
+The original rewrite to a fixed `/api/index` destination discarded the incoming API pathname. The same single
+infrastructure adapter now carries the captured wildcard in a private rewrite query marker, restores the original
+`/api/*` path, and removes the marker before Fastify routing. The Angular fallback remains explicitly outside that
+namespace.
+
 ### Positive
 
 - One public origin preserves the established browser security model.

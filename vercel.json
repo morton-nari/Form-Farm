@@ -3,12 +3,15 @@
   "buildCommand": "npm run build:all",
   "outputDirectory": "dist/form-farm-ai/browser",
   "functions": {
-    "api/index.ts": {
+    "api/**/*.ts": {
       "includeFiles": "node_modules/argon2/prebuilds/**"
     }
   },
   "rewrites": [
-    { "source": "/api/:path*", "destination": "/api/index" },
+    {
+      "source": "/api/:path*",
+      "destination": "/api/index?__form_farm_path=:path"
+    },
     { "source": "/((?!api(?:/|$)).*)", "destination": "/index.html" }
   ]
 }

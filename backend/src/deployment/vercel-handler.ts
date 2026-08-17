@@ -7,6 +7,20 @@ export type VercelHandler = (
   response: ServerResponse,
 ) => Promise<void>;
 
+const VERCEL_PATH_PARAMETER = '__form_farm_path';
+
+export function restoreVercelRequestPath(request: IncomingMessage): void {
+  if (request.url === undefined) return;
+
+  const rewrittenUrl = new URL(request.url, 'http://vercel.internal');
+  const path = rewrittenUrl.searchParams.get(VERCEL_PATH_PARAMETER);
+  if (path === null) return;
+
+  rewrittenUrl.searchParams.delete(VERCEL_PATH_PARAMETER);
+  const search = rewrittenUrl.searchParams.toString();
+  request.url = `/api/${path}${search.length > 0 ? `?${search}` : ''}`;
+}
+
 export function createVercelHandler(createApplication: VercelApplicationFactory): VercelHandler {
   let readyApplication: FastifyInstance | undefined;
   let initialization: Promise<FastifyInstance> | undefined;
