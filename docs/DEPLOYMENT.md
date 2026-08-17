@@ -1,8 +1,35 @@
 # Deployment environment contract
 
-Form Farm AI has not yet provisioned Vercel or Neon resources. This contract defines the configuration that
-an isolated preview and the production portfolio demo must satisfy before the backend starts. ADR 0007 remains
-Proposed until hosted routing, browser security, proxy, and connection behavior are verified.
+Form Farm AI has one isolated Neon/Vercel preview for Milestone 8 verification. This contract defines the
+configuration that preview and a later production portfolio demo must satisfy before the backend starts. ADR 0007
+remains Proposed until the hosted evidence and operating decision receive architectural approval.
+
+## Isolated preview record
+
+The preview uses Neon project `wandering-flower-45162707`, branch `br-polished-mud-aywzxibq`, database `neondb`,
+AWS region `us-east-2`, PostgreSQL 18, and a 0.25 CU free-plan compute. The Vercel project is `form-farm`; Git
+previews run the branch `deployment/isolated-vercel-neon-preview` in function region `iad1`. Verification at commit
+`b59a80d` used deployment `dpl_GRbesPWtL1oncLWDzYLQjPSvjYWj` and the stable branch alias configured as the exact
+public origin.
+
+Committed migrations `0000` through `0003` were applied explicitly and recorded in `form_farm_migrations`.
+Application traffic uses the dedicated least-privileged role through the pooled endpoint. The direct
+administrative URL was never attached to Vercel, and no seed command or production configuration was applied.
+All ten application variables are branch-scoped Preview values; the database and two independent HMAC secrets
+are hidden. No equivalent production values were created by this work.
+
+Hosted verification established:
+
+- exact `/api/*` forwarding to Fastify, JSON API 404s, exact `/health`, and Angular deep-link fallback;
+- secure host-only session issuance, authenticated database access, XSRF rotation, logout clearing, and generic
+  fail-closed responses for missing, mismatched, and cross-origin evidence;
+- one trusted Vercel proxy hop, with caller-supplied forwarded identity rejected by the platform boundary;
+- successful cold starts and a 16-request authenticated burst across three observed warm instances while
+  retaining `DATABASE_POOL_MAX=1`.
+
+The resources remain isolated and non-production while the draft PR is reviewed. Teardown is still required if
+the preview is not explicitly retained after review: remove the branch-scoped Vercel variables/deployments, then
+delete the Neon project. Never place credentials or connection strings in teardown records.
 
 ## Environment ownership
 

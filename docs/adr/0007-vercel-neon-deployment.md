@@ -257,6 +257,12 @@ The deployed route table also gives the shallow `/health` path an exact rewrite 
 adapter restores `/health` for Fastify, while wildcard `/api/*` traffic retains its full API pathname and all
 other paths remain eligible for Angular's SPA fallback.
 
+At commit `b59a80d`, the isolated preview verified secure host-only session issuance, XSRF bootstrap and rotation,
+logout clearing, exact-Origin rejection, API-owned failures, SPA deep links, provider-derived client identity,
+cold function initialization, and database-backed traffic. These observations substantially reduce the adapter
+risk, but the ADR remains Proposed pending review of the evidence and an explicit decision about retaining or
+tearing down the non-production resources.
+
 ### Positive
 
 - One public origin preserves the established browser security model.
