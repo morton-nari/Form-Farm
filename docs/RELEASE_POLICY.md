@@ -33,10 +33,12 @@ database-backed management read, logout cookie clearing/revocation, and denial o
 
 Cleanup runs even when smoke verification fails. In one transaction it selects only the exact reserved email,
 refuses deletion if that account owns any form, deletes only its sessions and account, and reports numeric counts.
-It also removes authentication rate-limit buckets older than 24 hours. A cleanup error fails the workflow and is
-therefore visible. The safety refusal deliberately favors a visible retained account over deleting potentially
-valuable data. Investigate and remove a refused account manually only after confirming its exact identity and
-ownership; never broaden cleanup by wildcard, domain, age, or arbitrary user selection.
+It also enforces an intentional **preview-wide operational retention policy** by removing all authentication
+rate-limit buckets older than 24 hours. That housekeeping is broader than the exact smoke identity; it contains no
+account/form deletion and must not be described as identity-specific cleanup. A cleanup error fails the workflow
+and is therefore visible. The safety refusal deliberately favors a visible retained account over deleting
+potentially valuable data. Investigate and remove a refused account manually only after confirming its exact
+identity and ownership; never broaden account cleanup by wildcard, domain, age, or arbitrary user selection.
 
 ## Secret and output policy
 

@@ -46,6 +46,7 @@ jobs:
           MIGRATION_LEVEL: ${{ inputs.migration_level }}
           REQUIRED_CHECKS_GREEN: ${{ inputs.required_checks_green }}
           MIGRATION_STATE_REVIEWED: ${{ inputs.migration_state_reviewed }}
+          APPROVAL_REFERENCE: ${{ inputs.approval_reference }}
         shell: bash
         run: |
           set -euo pipefail
@@ -53,6 +54,7 @@ jobs:
           test "$MIGRATION_STATE_REVIEWED" = "true"
           [[ "$APPLICATION_COMMIT" =~ ^[0-9a-f]{40}$ ]]
           [[ "$MIGRATION_LEVEL" =~ ^[0-9]{4}_[A-Za-z0-9_-]+\.sql$ ]]
+          [[ "$APPROVAL_REFERENCE" =~ ^[A-Za-z0-9][A-Za-z0-9._:/#\ -]{0,199}$ ]]
           git cat-file -e "$APPLICATION_COMMIT^{commit}"
 
       - name: Record approved inputs without deploying
@@ -64,8 +66,8 @@ jobs:
         run: |
           {
             echo '## Production readiness record'
-            echo "- Application commit: \`$APPLICATION_COMMIT\`"
-            echo "- Migration level: \`$MIGRATION_LEVEL\`"
-            echo "- Approval reference: $APPROVAL_REFERENCE"
+            printf '%s\n' "- Application commit: \`$APPLICATION_COMMIT\`"
+            printf '%s\n' "- Migration level: \`$MIGRATION_LEVEL\`"
+            printf '%s\n' "- Approval reference: $APPROVAL_REFERENCE"
             echo '- Deployment action: none (policy gate only)'
           } >> "$GITHUB_STEP_SUMMARY"

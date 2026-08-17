@@ -25,6 +25,7 @@ test('production gate is manual, protected, and contains no deployment or migrat
   assert.match(promotionWorkflow, /environment: Production/);
   assert.match(promotionWorkflow, /required_checks_green:/);
   assert.match(promotionWorkflow, /migration_state_reviewed:/);
+  assert.match(promotionWorkflow, /APPROVAL_REFERENCE.*\n[\s\S]*\[\[ "\$APPROVAL_REFERENCE" =~/);
   assert.doesNotMatch(promotionWorkflow, /vercel (?:deploy|promote|--prod)/);
   assert.doesNotMatch(promotionWorkflow, /npm run db:migrate/);
 });
