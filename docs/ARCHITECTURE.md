@@ -77,15 +77,16 @@ correctness cannot depend on process shutdown hooks.
 Production-like deployment keeps migrations explicit, uses Neon's pooled endpoint with a measured small
 application pool, validates deployment-owned origins and secrets centrally, and gives previews no production
 database or secrets by default. The initial free public environment is a portfolio demo only and prohibits real
-sensitive personal or health data. This is a proposed decision; no Vercel or Neon resources are currently
-provisioned, and the adapter has not been hosted.
+sensitive personal or health data. One isolated Vercel/Neon preview is retained for black-box verification; no
+production resources are provisioned. ADR 0007 remains Proposed.
 
-The first local compatibility slice now provides a Vercel Node request handler and explicit Angular/API routing
+The deployment boundary provides a Vercel Node request handler and explicit Angular/API routing
 configuration. It shares the same backend composition as local `main.ts` but does not listen on a port or install
 process lifecycle hooks. Warm application reuse is an optimization only; cold initialization remains complete
-and failed initialization is retryable. This proves repository compilation and host-adapter separation, not
-hosted behavior. ADR 0007 therefore remains Proposed until an isolated preview verifies same-origin routing,
-cookies, XSRF/origin checks, trusted proxy input, and measured database connection behavior.
+and failed initialization is retryable. The isolated preview verified same-origin routing, cookies,
+XSRF/origin checks, trusted proxy input, and measured database connection behavior. A manual deployed smoke
+workflow repeats the critical routing and authentication flow against only that named preview and removes its
+exact synthetic account after every run. ADR 0007 remains Proposed pending explicit architectural acceptance.
 
 Deployment configuration now distinguishes application stage from Node.js runtime mode. Hosted preview and
 production startup require explicit, matching application, database, authentication-secret, and Vercel-owned
