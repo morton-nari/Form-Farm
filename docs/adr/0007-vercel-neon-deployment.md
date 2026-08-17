@@ -243,6 +243,11 @@ infrastructure adapter now carries the captured wildcard in a private rewrite qu
 `/api/*` path, and removes the marker before Fastify routing. The Angular fallback remains explicitly outside that
 namespace.
 
+With proxy trust disabled, the hosted Node function reported its loopback socket as every request's client
+identity. The isolated preview therefore sets the deployment-owned hop count to `1`, matching the single Vercel
+hop in front of the function. This is preview evidence for the selected runtime, not a portable default for other
+hosts or topologies.
+
 ### Positive
 
 - One public origin preserves the established browser security model.

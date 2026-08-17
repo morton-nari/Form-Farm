@@ -121,10 +121,11 @@ preview and production.
 
 ## Trusted proxy ownership
 
-`TRUSTED_PROXY_HOPS` is owned by the deployment configuration, not by request headers or schema data. Keep it at
-zero until the isolated Vercel preview establishes the exact trusted hop behavior. The preview must verify direct
-and forwarded client-IP cases before changing it. `PUBLIC_APP_ORIGIN` is never inferred from `Host`, `Forwarded`,
-or `X-Forwarded-*`.
+`TRUSTED_PROXY_HOPS` is owned by the deployment configuration, not by request headers or schema data. The isolated
+Vercel preview showed that the Node function receives Vercel's request on a loopback socket, with the client chain
+in the forwarded address metadata. Its branch-scoped preview value is therefore `1`: trust the one platform hop,
+then use the first untrusted address as the client identity. Re-verify this boundary before using another runtime
+or proxy topology. `PUBLIC_APP_ORIGIN` is never inferred from `Host`, `Forwarded`, or `X-Forwarded-*`.
 
 ## References
 
