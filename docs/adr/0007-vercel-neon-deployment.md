@@ -265,8 +265,9 @@ covering traversal and marker-collision cases.
 At commit `b59a80d`, the isolated preview verified secure host-only session issuance, XSRF bootstrap and rotation,
 logout clearing, exact-Origin rejection, API-owned failures, SPA deep links, provider-derived client identity,
 cold function initialization, and database-backed traffic. These observations substantially reduce the adapter
-risk, but the ADR remains Proposed pending review of the evidence and an explicit decision about retaining or
-tearing down the non-production resources.
+risk. The isolated resources are retained as the repository-owner-managed, free-plan, non-production verification
+environment for deployed smoke automation and promotion-policy work. The ADR remains Proposed until a separate
+architectural decision explicitly accepts or rejects it.
 
 ### Positive
 

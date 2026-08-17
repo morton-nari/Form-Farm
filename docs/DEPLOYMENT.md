@@ -27,9 +27,12 @@ Hosted verification established:
 - successful cold starts and a 16-request authenticated burst across three observed warm instances while
   retaining `DATABASE_POOL_MAX=1`.
 
-The resources remain isolated and non-production while the draft PR is reviewed. Teardown is still required if
-the preview is not explicitly retained after review: remove the branch-scoped Vercel variables/deployments, then
-delete the Neon project. Never place credentials or connection strings in teardown records.
+The resources are retained as the named non-production verification environment for deployed smoke automation
+and promotion-policy work. The repository owner owns the environment; it must remain on the providers' free
+plans, branch-scoped, synthetic-data-only, and separate from production. Review ownership, scope, and provider
+usage when completing each deployment issue. If it is no longer required or exceeds those limits, remove the
+branch-scoped Vercel variables/deployments, then delete the Neon project. Never place credentials or connection
+strings in teardown records.
 
 ## Environment ownership
 
