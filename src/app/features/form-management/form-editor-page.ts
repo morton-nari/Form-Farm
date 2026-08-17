@@ -25,9 +25,9 @@ import {
   type BooleanValidationRule,
   type FormDefinition,
   type FormDraftDefinition,
+  type FormDraftSection,
   type FormField,
   type FormFieldOption,
-  type FormSection,
   type NumberValidationRule,
   type SelectionValidationRule,
   type TemporalValidationRule,
@@ -170,7 +170,6 @@ import { FormDraftPreview } from './form-draft-preview';
                         <button
                           class="btn btn-sm btn-outline-danger"
                           type="button"
-                          [disabled]="section.controls.fields.length === 1"
                           (click)="removeField(index, fieldIndex)"
                           [attr.aria-label]="'Remove field ' + (fieldIndex + 1)"
                         >
@@ -543,10 +542,16 @@ import { FormDraftPreview } from './form-draft-preview';
                     }
                   </div>
                 }
+                @if (section.controls.fields.length === 0) {
+                  <p class="text-body-secondary">
+                    This section has no fields. Choose a field type below, then add the first field.
+                  </p>
+                }
                 <div class="row g-2 align-items-end">
                   <div class="col-sm-6">
                     <label class="form-label" [for]="'new-field-type-' + index">Field type</label>
                     <select
+                      #fieldTypeSelect
                       class="form-select"
                       [id]="'new-field-type-' + index"
                       [formControl]="section.controls.newFieldType"
@@ -614,6 +619,9 @@ export class FormEditorPage implements OnInit {
   @ViewChildren('fieldLabel') private readonly fieldLabels!: QueryList<
     ElementRef<HTMLInputElement>
   >;
+  @ViewChildren('fieldTypeSelect') private readonly fieldTypeSelects!: QueryList<
+    ElementRef<HTMLSelectElement>
+  >;
   @ViewChildren('optionLabel') private readonly optionLabels!: QueryList<
     ElementRef<HTMLInputElement>
   >;
@@ -648,9 +656,7 @@ export class FormEditorPage implements OnInit {
     private readonly changeDetector: ChangeDetectorRef,
   ) {
     if (!this.formId) {
-      const field: FormField = { id: 'response', type: 'text', label: 'Response' };
-      this.fieldSnapshotsById.set(field.id, field);
-      this.sections.push(sectionGroup('main', 'Main', '', [field]), { emitEvent: false });
+      this.sections.push(sectionGroup('main', 'Main', '', []), { emitEvent: false });
     }
   }
   ngOnInit(): void {
@@ -660,7 +666,7 @@ export class FormEditorPage implements OnInit {
     if (this.form.invalid) return;
     if (!this.formId) return this.create();
     if (!this.definition || !this.etag) return this.fail('Reload the draft before saving.');
-    const candidate = this.buildCandidateDefinition();
+    const candidate = this.buildDraftCandidateDefinition();
     if (!candidate) return;
     this.status.set('saving');
     this.api
@@ -681,7 +687,7 @@ export class FormEditorPage implements OnInit {
       this.fail('The draft contains invalid builder state.');
       return;
     }
-    const candidate = this.buildCandidateDefinition();
+    const candidate = this.buildStrictCandidateDefinition();
     if (!candidate) return;
     this.message.set('');
     this.previewDefinition.set(candidate);
@@ -703,11 +709,7 @@ export class FormEditorPage implements OnInit {
       'section',
       new Set(this.sections.controls.map((item) => item.controls.id.value)),
     );
-    const existingFieldIds = new Set(this.fieldSnapshotsById.keys());
-    const fieldId = nextIdentifier('response', existingFieldIds);
-    const field: FormField = { id: fieldId, type: 'text', label: 'Response' };
-    this.fieldSnapshotsById.set(fieldId, field);
-    this.sections.push(sectionGroup(sectionId, `Section ${this.sections.length + 1}`, '', [field]));
+    this.sections.push(sectionGroup(sectionId, `Section ${this.sections.length + 1}`, '', []));
     this.expandedSectionIds.update((current) => new Set([...current, sectionId]));
     this.form.markAsDirty();
     this.focusSection(this.sections.length - 1);
@@ -765,12 +767,13 @@ export class FormEditorPage implements OnInit {
   }
   removeField(sectionIndex: number, fieldIndex: number): void {
     const fields = this.sections.at(sectionIndex)?.controls.fields;
-    if (!fields || fields.length <= 1 || fieldIndex < 0 || fieldIndex >= fields.length) return;
+    if (!fields || fieldIndex < 0 || fieldIndex >= fields.length) return;
     const removed = fields.at(fieldIndex);
     fields.removeAt(fieldIndex);
     this.fieldSnapshotsById.delete(removed.controls.id.value);
     this.form.markAsDirty();
-    this.focusField(sectionIndex, Math.min(fieldIndex, fields.length - 1));
+    if (fields.length > 0) this.focusField(sectionIndex, Math.min(fieldIndex, fields.length - 1));
+    else this.focusFieldType(sectionIndex);
   }
   supportsTextValidation(type: FormField['type']): boolean {
     return isTextEntryType(type);
@@ -827,7 +830,8 @@ export class FormEditorPage implements OnInit {
       this.form.valid &&
       !this.form.dirty &&
       this.definition !== undefined &&
-      this.etag !== undefined
+      this.etag !== undefined &&
+      validateFormDefinition(this.definition).success
     );
   }
   private focusSection(index: number): void {
@@ -840,6 +844,10 @@ export class FormEditorPage implements OnInit {
       .slice(0, sectionIndex)
       .reduce((count, section) => count + section.controls.fields.length, 0);
     this.fieldLabels.get(precedingFieldCount + fieldIndex)?.nativeElement.focus();
+  }
+  private focusFieldType(sectionIndex: number): void {
+    this.changeDetector.detectChanges();
+    this.fieldTypeSelects.get(sectionIndex)?.nativeElement.focus();
   }
   private focusOption(sectionIndex: number, fieldIndex: number, optionIndex: number): void {
     this.changeDetector.detectChanges();
@@ -857,6 +865,12 @@ export class FormEditorPage implements OnInit {
   }
   publish(): void {
     if (!this.formId || !this.etag) return;
+    if (!this.canPublish()) {
+      if (this.definition && !validateFormDefinition(this.definition).success) {
+        this.fail('Add at least one field to every section before publishing.');
+      }
+      return;
+    }
     this.status.set('saving');
     this.api
       .publish(this.formId, this.etag)
@@ -875,7 +889,7 @@ export class FormEditorPage implements OnInit {
       });
   }
   private create(): void {
-    const definition = this.buildCandidateDefinition();
+    const definition = this.buildDraftCandidateDefinition();
     if (!definition) return;
     this.status.set('saving');
     this.api
@@ -890,7 +904,7 @@ export class FormEditorPage implements OnInit {
         error: () => this.fail('The draft could not be created. Check that the ID is available.'),
       });
   }
-  private buildCandidateDefinition(): FormDefinition | undefined {
+  private buildDraftCandidateDefinition(): FormDraftDefinition | undefined {
     const value = this.form.getRawValue();
     const sections = this.buildSections();
     if (!sections) return undefined;
@@ -909,15 +923,25 @@ export class FormEditorPage implements OnInit {
           sections,
           submission: { submitLabel: 'Submit', successMessage: 'Thank you.' },
         };
-    const validated = validateFormDefinition(candidate);
+    const validated = validateFormDraftDefinition(candidate);
     if (!validated.success) {
       this.fail('The draft contains invalid builder state.');
       return undefined;
     }
     return validated.value;
   }
-  private buildSections(): readonly FormSection[] | undefined {
-    const sections: FormSection[] = [];
+  private buildStrictCandidateDefinition(): FormDefinition | undefined {
+    const draft = this.buildDraftCandidateDefinition();
+    if (!draft) return undefined;
+    const validated = validateFormDefinition(draft);
+    if (!validated.success) {
+      this.fail('Add at least one field to every section before previewing or publishing.');
+      return undefined;
+    }
+    return validated.value;
+  }
+  private buildSections(): readonly FormDraftSection[] | undefined {
+    const sections: FormDraftSection[] = [];
     for (const section of this.sections.controls) {
       const value = section.getRawValue();
       const fields: FormField[] = [];
@@ -1664,7 +1688,7 @@ function canonicalTimestamp(value: unknown): value is string {
   const date = new Date(value);
   return !Number.isNaN(date.valueOf()) && date.toISOString() === value;
 }
-function validCreatedDraft(value: unknown, definition: FormDefinition): boolean {
+function validCreatedDraft(value: unknown, definition: FormDraftDefinition): boolean {
   if (
     !exact(value, ['formId', 'status', 'draftRevision', 'definition', 'createdAt']) ||
     value['formId'] !== definition.id ||
@@ -1673,7 +1697,7 @@ function validCreatedDraft(value: unknown, definition: FormDefinition): boolean 
     !canonicalTimestamp(value['createdAt'])
   )
     return false;
-  const parsed = validateFormDefinition(value['definition']);
+  const parsed = validateFormDraftDefinition(value['definition']);
   return (
     parsed.success &&
     parsed.value.id === definition.id &&

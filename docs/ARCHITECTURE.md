@@ -328,26 +328,27 @@ release; adding `id` is deferred until query plans at realistic volume justify a
 
 Angular now exposes a protected owner-management area separate from the accessible forms dashboard. Its HTTP
 adapter returns `unknown`; strict summary parsing and shared form-definition validation gate UI state. A minimal
-editor can create a deterministic starter draft and edit title/description while preserving the complete validated
-definition, exact draft ETag, and fixed save/publication endpoints. Schema content never selects actions or URLs.
+editor can create a deterministic draft and edit title/description while preserving the validated draft contract,
+exact draft ETag, and fixed save/publication endpoints. Schema content never selects actions or URLs.
 Structured field operations, autosave, and AI remain deferred.
 
 The owner editor now maps validated sections into Angular Reactive Form groups for title and optional
 description editing. Section array position remains the only ordering mechanism. Add, move, and remove
-operations reconstruct a complete candidate `FormDefinition` while retaining untouched field discriminants,
+operations reconstruct a candidate `FormDraftDefinition` while retaining untouched field discriminants,
 options, defaults, validation rules, and presentation data by stable section ID. Because schema version 1
-requires every section to contain a field, a newly added section receives one deterministic text-field starter;
-field configuration remains a separate builder slice. Publication stays disabled while the editor is dirty,
-and the complete candidate still crosses the existing ETag and runtime-validation boundaries. No schema data
-selects management endpoints or privileged operations.
+requires every published section to contain a field, new drafts and newly added sections start empty and display
+an explicit field-type choice instead of fabricating a starter field. Removing the last field is valid draft state.
+Draft save uses `validateFormDraftDefinition`, while preview and publication remain unavailable until the current
+candidate passes strict `validateFormDefinition`. Publication also stays disabled while the editor is dirty. No
+schema data selects management endpoints or privileged operations.
 
 Basic field editing follows the same boundary. Nested typed Reactive Form arrays own field label, optional help
 text, and within-section order, while a private stable-ID map retains immutable discriminated-union snapshots.
 Candidate reconstruction replaces presentation properties on a new field object and preserves type-specific
 configuration such as options, defaults, autocomplete, placeholders, rows, and validation. Missing snapshots or
 unexpected type changes fail closed before an HTTP request, and the complete candidate must pass shared runtime
-validation. New fields are text fields with globally collision-safe IDs because answer keys are unique across the
-whole form. Field-type switching and type-specific configuration remain separate operations.
+validation. New fields receive their explicitly selected type and globally collision-safe IDs because answer keys
+are unique across the whole form. Field-type switching and type-specific configuration remain separate operations.
 
 The first type-specific builder controls edit only validation rules shared by fixed text-entry discriminants:
 `required`, `minLength`, and `maxLength`. Values are nullable safe non-negative integers, and the nested field

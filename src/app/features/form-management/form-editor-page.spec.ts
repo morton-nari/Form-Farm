@@ -47,6 +47,27 @@ describe('FormEditorPage', () => {
     expect(fixture.nativeElement.querySelector('h1')?.textContent).toContain('Create form');
     expect(fixture.nativeElement.querySelector('form')).not.toBeNull();
     expect(fixture.nativeElement.querySelector('[formControlName="id"]')).not.toBeNull();
+    expect(component.sections.at(0).controls.fields.length).toBe(0);
+    expect(fixture.nativeElement.textContent).toContain('This section has no fields');
+
+    component.form.controls.id.setValue('all-field-types');
+    component.form.controls.title.setValue('All field types');
+    component.preview();
+    expect(component.previewDefinition()).toBeNull();
+    expect(component.message()).toBe(
+      'Add at least one field to every section before previewing or publishing.',
+    );
+    component.save();
+    expect(create).toHaveBeenCalledOnce();
+    expect(createdDefinition?.sections[0]?.fields).toEqual([]);
+    create.mockClear();
+    createdDefinition = undefined;
+
+    component.addField(0);
+    component.removeField(0, 0);
+    fixture.detectChanges();
+    expect(component.sections.at(0).controls.fields.length).toBe(0);
+    expect(document.activeElement?.id).toBe('new-field-type-0');
 
     const offeredTypes = component.creatableFieldTypes.map((item) => item.type);
     expect(offeredTypes).toEqual([
@@ -70,8 +91,8 @@ describe('FormEditorPage', () => {
       component.sections.at(0).controls.newFieldType.setValue(type);
       component.addField(0);
     }
-    const multiSelect = component.sections.at(0).controls.fields.at(12);
-    component.addOption(0, 12);
+    const multiSelect = component.sections.at(0).controls.fields.at(11);
+    component.addOption(0, 11);
     multiSelect.controls.options.at(1).controls.label.setValue('Option 2');
     multiSelect.controls.options.at(1).controls.value.setValue('option-2');
     multiSelect.controls.selectionRequired.setValue(true);
@@ -87,9 +108,9 @@ describe('FormEditorPage', () => {
     multiSelect.controls.minSelections.setValue(0);
     multiSelect.controls.maxSelections.setValue(2);
 
-    const select = component.sections.at(0).controls.fields.at(10);
+    const select = component.sections.at(0).controls.fields.at(9);
     select.controls.selectionRequired.setValue(true);
-    const checkbox = component.sections.at(0).controls.fields.at(13);
+    const checkbox = component.sections.at(0).controls.fields.at(12);
     checkbox.controls.checkboxAccepted.setValue(true);
     component.form.controls.id.setValue('all-field-types');
     component.form.controls.title.setValue('All field types');
@@ -122,7 +143,7 @@ describe('FormEditorPage', () => {
     expect(create).toHaveBeenCalledOnce();
     expect(createdDefinition).toBeDefined();
     const fields = createdDefinition!.sections[0]!.fields;
-    expect(fields.slice(1).map((field: { type: string }) => field.type)).toEqual(offeredTypes);
+    expect(fields.map((field: { type: string }) => field.type)).toEqual(offeredTypes);
     for (const field of fields.filter((candidate: { type: string }) =>
       ['select', 'radio', 'multi-select', 'checkbox-group'].includes(candidate.type),
     )) {
@@ -135,13 +156,13 @@ describe('FormEditorPage', () => {
           : [{ label: 'Option 1', value: 'option' }],
       );
     }
-    expect(fields[10]!.validation).toEqual([{ type: 'required' }]);
-    expect(fields[12]!.validation).toEqual([
+    expect(fields[9]!.validation).toEqual([{ type: 'required' }]);
+    expect(fields[11]!.validation).toEqual([
       { type: 'required' },
       { type: 'minSelections', value: 0 },
       { type: 'maxSelections', value: 2 },
     ]);
-    expect(fields[13]!.validation).toEqual([{ type: 'accepted' }]);
+    expect(fields[12]!.validation).toEqual([{ type: 'accepted' }]);
   });
 
   it('edits checkbox acceptance while preserving an existing required rule', async () => {
@@ -186,11 +207,12 @@ describe('FormEditorPage', () => {
         }),
       );
     });
+    const publish = vi.fn(() => of({}));
     const api = {
       loadDraft: () =>
         of(new HttpResponse({ body, headers: new HttpHeaders({ etag: '"draft-1"' }) })),
       save,
-      publish: () => of({}),
+      publish,
       bootstrap: () => of(new HttpResponse()),
       create: () => of({}),
       listForms: () => of({}),
@@ -622,11 +644,12 @@ describe('FormEditorPage', () => {
         }),
       );
     });
+    const publish = vi.fn(() => of({}));
     const api = {
       loadDraft: () =>
         of(new HttpResponse({ body: draftBody, headers: new HttpHeaders({ etag: '"draft-1"' }) })),
       save,
-      publish: () => of({}),
+      publish,
       bootstrap: () => of(new HttpResponse()),
       create: () => of({}),
       listForms: () => of({}),
@@ -689,7 +712,7 @@ describe('FormEditorPage', () => {
         .getAttribute('aria-expanded'),
     ).toBe('true');
     expect(component.sections.at(1).controls.id.value).toBe('section');
-    expect(component.sections.at(1).controls.fields.at(0).controls.id.value).toBe('response-2');
+    expect(component.sections.at(1).controls.fields.length).toBe(0);
     expect(document.activeElement?.id).toBe('section-title-1');
     component.sections.at(1).controls.title.setValue('Follow up');
     component.toggleSection('main');
@@ -705,7 +728,7 @@ describe('FormEditorPage', () => {
         {
           id: 'section',
           title: 'Follow up',
-          fields: [{ id: 'response-2', type: 'text', label: 'Response' }],
+          fields: [],
         },
         {
           id: 'main',
@@ -740,6 +763,10 @@ describe('FormEditorPage', () => {
     });
     expect(component.status()).toBe('saved');
     expect(component.form.pristine).toBe(true);
+    expect(component.canPublish()).toBe(false);
+    component.publish();
+    expect(publish).not.toHaveBeenCalled();
+    expect(component.message()).toBe('Add at least one field to every section before publishing.');
 
     const savedTextField = component.sections.at(1).controls.fields.at(0);
     savedTextField.controls.requiredRule.setValue(false);
@@ -779,8 +806,6 @@ describe('FormEditorPage', () => {
     expect(component.sections.length).toBe(1);
     component.removeField(0, 0);
     expect(component.sections.at(0).controls.fields.length).toBe(1);
-    component.removeField(0, 0);
-    expect(component.sections.at(0).controls.fields.length).toBe(1);
 
     const choiceOptions = component.sections.at(0).controls.fields.at(0).controls.options;
     component.removeOption(0, 0, 0);
@@ -814,5 +839,9 @@ describe('FormEditorPage', () => {
     expect(save).toHaveBeenCalledTimes(2);
     expect(component.status()).toBe('error');
     expect(component.message()).toContain('invalid builder state');
+
+    component.removeField(0, 0);
+    expect(component.sections.at(0).controls.fields.length).toBe(0);
+    expect(document.activeElement?.id).toBe('new-field-type-0');
   });
 });

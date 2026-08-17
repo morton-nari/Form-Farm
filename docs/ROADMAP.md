@@ -65,7 +65,7 @@ Status: **in progress**
 - [x] Add accessible collapsible builder sections
 - [x] Provide several interview-ready example forms
 - [x] Introduce a draft-specific contract for temporarily incomplete sections
-- Remove automatic starter fields and expose empty-section builder states
+- [x] Remove automatic starter fields and expose empty-section builder states
 
 ## Phase 4 — PostgreSQL persistence and versioning
 
