@@ -20,9 +20,11 @@ import {
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
   FORM_IDENTIFIER_PATTERN,
+  validateFormDraftDefinition,
   validateFormDefinition,
   type BooleanValidationRule,
   type FormDefinition,
+  type FormDraftDefinition,
   type FormField,
   type FormFieldOption,
   type FormSection,
@@ -624,7 +626,7 @@ export class FormEditorPage implements OnInit {
   readonly message = signal('');
   readonly previewDefinition = signal<FormDefinition | null>(null);
   readonly expandedSectionIds = signal<ReadonlySet<string>>(new Set(this.formId ? [] : ['main']));
-  private definition?: FormDefinition;
+  private definition?: FormDraftDefinition;
   private etag?: string;
   readonly form = new FormGroup({
     id: new FormControl('', {
@@ -1033,7 +1035,7 @@ export class FormEditorPage implements OnInit {
       ('created' in value && typeof value['created'] !== 'boolean')
     )
       return this.rejectDraft();
-    const result = validateFormDefinition(value['definition']);
+    const result = validateFormDraftDefinition(value['definition']);
     if (!result.success || result.value.id !== this.formId) return this.rejectDraft();
     this.definition = result.value;
     this.etag = etag;

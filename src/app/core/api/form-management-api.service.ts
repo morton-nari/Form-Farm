@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import type { FormDefinition } from '@form-farm/form-domain';
+import type { FormDraftDefinition } from '@form-farm/form-domain';
 
 @Injectable({ providedIn: 'root' })
 export class FormManagementApiService {
@@ -11,7 +11,7 @@ export class FormManagementApiService {
       params: cursor ? { limit: 20, cursor } : { limit: 20 },
     });
   }
-  create(definition: FormDefinition): Observable<unknown> {
+  create(definition: FormDraftDefinition): Observable<unknown> {
     return this.http.post<unknown>('/api/v1/management/forms', { definition });
   }
   loadDraft(formId: string) {
@@ -26,7 +26,7 @@ export class FormManagementApiService {
       { observe: 'response' as const },
     );
   }
-  save(formId: string, definition: FormDefinition, etag: string) {
+  save(formId: string, definition: FormDraftDefinition, etag: string) {
     return this.http.put<unknown>(
       `/api/v1/management/forms/${encodeURIComponent(formId)}/draft`,
       { definition },

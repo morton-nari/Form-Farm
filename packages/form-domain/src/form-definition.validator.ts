@@ -1,6 +1,6 @@
 import { z } from 'zod/mini';
 
-import type { FormDefinition } from './form-definition.models.js';
+import type { FormDefinition, FormDraftDefinition } from './form-definition.models.js';
 import { FORM_IDENTIFIER_PATTERN } from './form-identifier.js';
 
 const identifier = z
@@ -166,27 +166,33 @@ const formFieldSchema = z.discriminatedUnion('type', [
   z.strictObject({ ...multipleChoiceBase, type: z.literal('checkbox-group') }),
 ]);
 
-const formDefinitionStructure = z.strictObject({
-  schemaVersion: z.literal(1),
-  id: identifier,
-  formVersion: positiveInteger,
-  title: nonBlankText,
-  description: z.optional(nonBlankText),
-  sections: z
-    .array(
-      z.strictObject({
-        id: identifier,
-        title: nonBlankText,
-        description: z.optional(nonBlankText),
-        fields: z.array(formFieldSchema).check(z.minLength(1)),
-      }),
-    )
-    .check(z.minLength(1)),
-  submission: z.strictObject({
-    submitLabel: nonBlankText,
-    successMessage: nonBlankText,
-  }),
-});
+const formStructure = (requireFields: boolean) =>
+  z.strictObject({
+    schemaVersion: z.literal(1),
+    id: identifier,
+    formVersion: positiveInteger,
+    title: nonBlankText,
+    description: z.optional(nonBlankText),
+    sections: z
+      .array(
+        z.strictObject({
+          id: identifier,
+          title: nonBlankText,
+          description: z.optional(nonBlankText),
+          fields: requireFields
+            ? z.array(formFieldSchema).check(z.minLength(1))
+            : z.array(formFieldSchema),
+        }),
+      )
+      .check(z.minLength(1)),
+    submission: z.strictObject({
+      submitLabel: nonBlankText,
+      successMessage: nonBlankText,
+    }),
+  });
+
+const formDefinitionStructure = formStructure(true);
+const formDraftDefinitionStructure = formStructure(false);
 
 export interface FormDefinitionValidationIssue {
   readonly path: readonly (string | number)[];
@@ -210,6 +216,10 @@ export type FormDefinitionValidationResult =
   | { readonly success: true; readonly value: FormDefinition }
   | { readonly success: false; readonly issues: readonly FormDefinitionValidationIssue[] };
 
+export type FormDraftDefinitionValidationResult =
+  | { readonly success: true; readonly value: FormDraftDefinition }
+  | { readonly success: false; readonly issues: readonly FormDefinitionValidationIssue[] };
+
 export function validateFormDefinition(input: unknown): FormDefinitionValidationResult {
   const structuralResult = formDefinitionStructure.safeParse(input);
 
@@ -230,8 +240,25 @@ export function validateFormDefinition(input: unknown): FormDefinitionValidation
     : { success: true, value: structuralResult.data as FormDefinition };
 }
 
+export function validateFormDraftDefinition(input: unknown): FormDraftDefinitionValidationResult {
+  const structuralResult = formDraftDefinitionStructure.safeParse(input);
+  if (!structuralResult.success) {
+    return {
+      success: false,
+      issues: structuralResult.error.issues.map((issue) => ({
+        path: issue.path.map(StringOrNumber),
+        ...mapStructuralIssue(issue.code),
+      })),
+    };
+  }
+  const issues = validateDomainInvariants(structuralResult.data);
+  return issues.length > 0
+    ? { success: false, issues }
+    : { success: true, value: structuralResult.data as FormDraftDefinition };
+}
+
 function validateDomainInvariants(
-  form: z.infer<typeof formDefinitionStructure>,
+  form: z.infer<typeof formDraftDefinitionStructure>,
 ): FormDefinitionValidationIssue[] {
   const issues: FormDefinitionValidationIssue[] = [];
   const sectionIds = new Set<string>();

@@ -426,6 +426,14 @@ and cannot publish. Returning to the editor preserves the Reactive Form dirty st
 current builder controls; reopening preview builds a fresh candidate and resets preview answers. Public preview
 links, persisted preview answers, and sharing remain separate concerns.
 
+Builder drafts may temporarily be incomplete. `FormDraftDefinition` preserves schema-v1 identity, field, option,
+validation, default, and ordering invariants while allowing a section to contain zero fields during editing.
+Persisted draft JSON remains `unknown` until `validateFormDraftDefinition` succeeds. Published `FormDefinition`
+remains the trusted executable/runtime contract and continues to require at least one field per section. Preview,
+the public runner, immutable versions, and publication still require `validateFormDefinition`; publication makes
+that conversion from the locked draft inside its existing transaction. PostgreSQL checks and inferred types do
+not replace either runtime boundary.
+
 Owner-builder sections use keyboard-native buttons with `aria-expanded` and `aria-controls` disclosure semantics
 so long forms can be navigated without serializing presentation state into `FormDefinition`. Section controls
 remain mounted while visually collapsed, preserving unsaved values, validation, dirty state, immutable snapshots,

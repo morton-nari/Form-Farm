@@ -11,7 +11,7 @@ export interface LockedFormDraft {
 
 export interface PublishabilityIssue {
   readonly path: readonly (string | number)[];
-  readonly code: 'unsupported_field';
+  readonly code: 'unsupported_field' | 'incomplete_definition';
 }
 
 export type LockedDraftValidation =

@@ -8,6 +8,34 @@ const actor = { userId: 'owner-1' };
 const timestamp = new Date('2026-08-14T00:00:00.000Z');
 
 describe('owner form draft use cases', () => {
+  it('loads and saves a valid incomplete draft', async () => {
+    const definition = {
+      ...CUSTOMER_FEEDBACK_FORM,
+      sections: [{ ...CUSTOMER_FEEDBACK_FORM.sections[0], fields: [] }],
+    };
+    const store = createStore({ definition });
+    vi.mocked(store.save).mockResolvedValue({
+      status: 'saved',
+      draft: {
+        definition,
+        rowFormId: definition.id,
+        latestVersion: 0,
+        revision: 2,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      },
+    });
+
+    await expect(new GetOwnerFormDraft(store).execute(actor, definition.id)).resolves.toMatchObject(
+      {
+        definition,
+      },
+    );
+    await expect(
+      new SaveOwnerFormDraft(store).execute(actor, definition.id, 1, definition),
+    ).resolves.toMatchObject({ definition });
+  });
+
   it('fails closed when stored definition identity does not match the row', async () => {
     const store = createStore({ rowFormId: 'different-form' });
     await expect(

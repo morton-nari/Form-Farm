@@ -1,4 +1,4 @@
-import { validateFormDefinition, type FormDefinition } from '@form-farm/form-domain';
+import { validateFormDraftDefinition, type FormDraftDefinition } from '@form-farm/form-domain';
 
 import { ApplicationError } from '../errors/application-error.js';
 import type { AuthenticatedActor } from '../ports/create-form-draft-transaction.js';
@@ -9,7 +9,7 @@ export interface OwnerFormDraft {
   readonly formId: string;
   readonly status: 'draft';
   readonly draftRevision: number;
-  readonly definition: FormDefinition;
+  readonly definition: FormDraftDefinition;
   readonly createdAt: string;
   readonly updatedAt: string;
 }
@@ -33,7 +33,7 @@ export class SaveOwnerFormDraft {
     expectedRevision: number,
     candidate: unknown,
   ): Promise<OwnerFormDraft> {
-    const validation = validateFormDefinition(candidate);
+    const validation = validateFormDraftDefinition(candidate);
     if (!validation.success || validation.value.id !== formId) {
       throw new ApplicationError('invalid_input', 'The form definition is invalid.');
     }
@@ -57,7 +57,7 @@ export class SaveOwnerFormDraft {
 }
 
 export function toOwnerFormDraft(formId: string, stored: StoredOwnerFormDraft): OwnerFormDraft {
-  const validation = validateFormDefinition(stored.definition);
+  const validation = validateFormDraftDefinition(stored.definition);
   if (
     !validation.success ||
     validation.value.id !== stored.rowFormId ||

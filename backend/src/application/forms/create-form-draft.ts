@@ -1,4 +1,4 @@
-import { validateFormDefinition, type FormDefinition } from '@form-farm/form-domain';
+import { validateFormDraftDefinition, type FormDraftDefinition } from '@form-farm/form-domain';
 
 import { ApplicationError } from '../errors/application-error.js';
 import type {
@@ -12,7 +12,7 @@ export interface CreatedFormDraft {
   readonly formId: string;
   readonly status: 'draft';
   readonly draftRevision: 1;
-  readonly definition: FormDefinition;
+  readonly definition: FormDraftDefinition;
   readonly createdAt: string;
 }
 
@@ -20,7 +20,7 @@ export class CreateFormDraft {
   constructor(private readonly transaction: CreateFormDraftTransaction) {}
 
   async execute(actor: AuthenticatedActor, candidate: unknown): Promise<CreatedFormDraft> {
-    const validation = validateFormDefinition(candidate);
+    const validation = validateFormDraftDefinition(candidate);
     if (!validation.success || validation.value.formVersion !== 1) {
       throw new ApplicationError('invalid_input', 'The form definition is invalid.');
     }

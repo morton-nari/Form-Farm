@@ -3,6 +3,29 @@ import { CUSTOMER_FEEDBACK_FORM } from '../../infrastructure/forms/customer-feed
 import { ListOwnerManagedForms } from './list-owner-managed-forms.js';
 
 describe('ListOwnerManagedForms', () => {
+  it('derives a safe title from an incomplete owner draft', async () => {
+    const definition = {
+      ...CUSTOMER_FEEDBACK_FORM,
+      sections: [{ ...CUSTOMER_FEEDBACK_FORM.sections[0], fields: [] }],
+    };
+    const result = await new ListOwnerManagedForms({
+      list: async () => [
+        {
+          definition,
+          rowFormId: definition.id,
+          status: 'draft' as const,
+          latestVersion: 0,
+          currentPublishedVersion: null,
+          draftRevision: 1,
+          definitionVersion: 1,
+          updatedAt: new Date('2026-08-14T00:00:00.000Z'),
+        },
+      ],
+    }).execute('owner', 20);
+
+    expect(result.forms[0]).toMatchObject({ id: definition.id, title: definition.title });
+  });
+
   it('returns a bounded page and cursor without definitions', async () => {
     const records = ['first', 'second'].map((id, index) => ({
       definition: { ...CUSTOMER_FEEDBACK_FORM, id, title: id },

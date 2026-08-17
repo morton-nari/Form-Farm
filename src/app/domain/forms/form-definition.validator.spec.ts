@@ -1,4 +1,4 @@
-import { validateFormDefinition } from '@form-farm/form-domain';
+import { validateFormDefinition, validateFormDraftDefinition } from '@form-farm/form-domain';
 import { USER_REGISTRATION_FORM } from '@form-farm/form-domain/examples/user-registration';
 
 describe('validateFormDefinition', () => {
@@ -453,6 +453,77 @@ describe('validateFormDefinition', () => {
       success: false,
       issues: [{ path: [], code: 'invalid_type' }],
     });
+  });
+});
+
+describe('validateFormDraftDefinition', () => {
+  it('accepts every complete published definition as a draft definition', () => {
+    const definition = cloneForm();
+
+    expect(validateFormDraftDefinition(definition)).toEqual({
+      success: true,
+      value: definition,
+    });
+  });
+
+  it('accepts an empty section without weakening the published definition boundary', () => {
+    const draft = cloneForm();
+    draft.sections[0]!.fields = [];
+
+    expect(validateFormDraftDefinition(draft)).toEqual({ success: true, value: draft });
+    expect(validateFormDefinition(draft)).toMatchObject({ success: false });
+  });
+
+  it('preserves all other structural and domain invariants', () => {
+    const draft = cloneForm();
+    draft.sections[0]!.fields = [
+      {
+        id: 'choice',
+        type: 'select',
+        label: 'Choice',
+        options: [
+          { label: 'One', value: 'same' },
+          { label: 'Two', value: 'same' },
+        ],
+      },
+    ];
+
+    const result = validateFormDraftDefinition(draft);
+    expect(result).toMatchObject({ success: false });
+    if (!result.success)
+      expect(result.issues).toContainEqual(
+        expect.objectContaining({
+          code: 'duplicate',
+          path: ['sections', 0, 'fields', 0, 'options', 1, 'value'],
+        }),
+      );
+  });
+
+  it('rejects duplicate section and globally duplicate field IDs', () => {
+    const draft = cloneForm();
+    const duplicateIndex = draft.sections.length;
+    draft.sections.push({
+      ...structuredClone(draft.sections[0]),
+      fields: [structuredClone(draft.sections[0].fields[0])],
+    });
+
+    const result = validateFormDraftDefinition(draft);
+
+    expect(result).toMatchObject({ success: false });
+    if (!result.success) {
+      expect(result.issues).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            code: 'duplicate',
+            path: ['sections', duplicateIndex, 'id'],
+          }),
+          expect.objectContaining({
+            code: 'duplicate',
+            path: ['sections', duplicateIndex, 'fields', 0, 'id'],
+          }),
+        ]),
+      );
+    }
   });
 });
 

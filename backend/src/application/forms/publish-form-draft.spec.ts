@@ -5,6 +5,33 @@ import type { PublishFormDraftTransaction } from '../ports/publish-form-draft-tr
 import { PublishFormDraft } from './publish-form-draft.js';
 
 describe('PublishFormDraft', () => {
+  it('reports an incomplete draft as unpublishable without treating it as corrupt storage', async () => {
+    const definition = {
+      ...CUSTOMER_FEEDBACK_FORM,
+      sections: [{ ...CUSTOMER_FEEDBACK_FORM.sections[0], fields: [] }],
+    };
+    const transaction: PublishFormDraftTransaction = {
+      execute: vi.fn(async (_input, validate) => {
+        const result = validate({
+          definition,
+          rowFormId: definition.id,
+          latestVersion: 0,
+          revision: 1,
+        });
+        return result.success
+          ? { status: 'conflict' as const }
+          : { status: 'unpublishable' as const, issues: result.issues };
+      }),
+    };
+
+    await expect(
+      new PublishFormDraft(transaction).execute({ userId: 'owner' }, definition.id, 1),
+    ).rejects.toMatchObject({
+      name: 'UnpublishableFormError',
+      issues: [{ path: ['sections', 0, 'fields'], code: 'incomplete_definition' }],
+    });
+  });
+
   it('rejects password fields through explicit publishability issues', async () => {
     const definition = {
       ...CUSTOMER_FEEDBACK_FORM,

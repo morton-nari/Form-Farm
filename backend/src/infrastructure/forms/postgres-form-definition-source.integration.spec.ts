@@ -489,6 +489,93 @@ describe('PostgresFormDefinitionSource', () => {
     ).resolves.toMatchObject({ rows: [{ versions: 0, drafts: 1 }] });
   });
 
+  it('round-trips an incomplete draft and refuses to publish it', async () => {
+    const ownerId = '30000000-0000-4000-8000-000000000004';
+    await pool.query(
+      `insert into users (id, email, normalized_email, password_hash)
+       values ($1, 'incomplete-owner@example.com', 'incomplete-owner@example.com', 'hash')`,
+      [ownerId],
+    );
+    const definition = {
+      ...CUSTOMER_FEEDBACK_FORM,
+      id: 'incomplete-owner-draft',
+      sections: [{ ...CUSTOMER_FEEDBACK_FORM.sections[0], fields: [] }],
+    };
+    await new CreateFormDraft(new PostgresCreateFormDraftTransaction(formFarmDatabase)).execute(
+      { userId: ownerId },
+      definition,
+    );
+    const save = new SaveOwnerFormDraft(ownerDraftStore);
+    await expect(
+      save.execute({ userId: ownerId }, definition.id, 1, {
+        ...definition,
+        title: 'Incomplete saved draft',
+      }),
+    ).resolves.toMatchObject({
+      draftRevision: 2,
+      definition: { title: 'Incomplete saved draft', sections: [{ fields: [] }] },
+    });
+    await expect(
+      new GetOwnerFormDraft(ownerDraftStore).execute({ userId: ownerId }, definition.id),
+    ).resolves.toMatchObject({
+      draftRevision: 2,
+      definition: { title: 'Incomplete saved draft', sections: [{ fields: [] }] },
+    });
+    await expect(
+      new PublishFormDraft(new PostgresPublishFormDraftTransaction(formFarmDatabase)).execute(
+        { userId: ownerId },
+        definition.id,
+        2,
+      ),
+    ).rejects.toMatchObject({
+      name: 'UnpublishableFormError',
+      issues: [{ path: ['sections', 0, 'fields'], code: 'incomplete_definition' }],
+    });
+    await expect(
+      pool.query(
+        `select count(v.*)::integer as versions, count(d.*)::integer as drafts
+         from forms f left join form_versions v on v.form_id = f.id
+         left join form_drafts d on d.form_id = f.id where f.id = $1 group by f.id`,
+        [definition.id],
+      ),
+    ).resolves.toMatchObject({ rows: [{ versions: 0, drafts: 1 }] });
+
+    const completedDefinition = {
+      ...definition,
+      title: 'Completed saved draft',
+      sections: CUSTOMER_FEEDBACK_FORM.sections,
+    };
+    await expect(
+      save.execute({ userId: ownerId }, definition.id, 2, completedDefinition),
+    ).resolves.toMatchObject({ draftRevision: 3, definition: completedDefinition });
+    await expect(
+      new PublishFormDraft(new PostgresPublishFormDraftTransaction(formFarmDatabase)).execute(
+        { userId: ownerId },
+        definition.id,
+        3,
+      ),
+    ).resolves.toMatchObject({ status: 'published', formVersion: 1 });
+    await expect(
+      pool.query(
+        `select f.status, f.latest_version, f.current_published_version,
+                count(v.*)::integer as versions, count(d.*)::integer as drafts
+         from forms f left join form_versions v on v.form_id = f.id
+         left join form_drafts d on d.form_id = f.id where f.id = $1 group by f.id`,
+        [definition.id],
+      ),
+    ).resolves.toMatchObject({
+      rows: [
+        {
+          status: 'published',
+          latest_version: 1,
+          current_published_version: 1,
+          versions: 1,
+          drafts: 0,
+        },
+      ],
+    });
+  });
+
   it('publishes one immutable version atomically and resolves a concurrent publication once', async () => {
     const ownerId = '40000000-0000-4000-8000-000000000001';
     await pool.query(

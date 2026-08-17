@@ -6,7 +6,9 @@ The form runner, owned backend, PostgreSQL submissions, authentication, owner-au
 dashboard, health sample, owner draft create/load/save, atomic publication, structured section/basic field
 operations, text-entry validation editing, fixed choice-option editing, and publishable field creation are
 implemented. Number-, temporal-, selection-, and checkbox-acceptance validation are also editable.
-Builder sections are collapsible for larger forms. Existing-field type conversion and AI editing are not.
+Builder sections are collapsible for larger forms. Draft and published contracts are distinct: owner drafts may
+contain temporarily empty sections, while preview and publication retain the strict `FormDefinition` requirement.
+Existing-field type conversion and AI editing are not implemented.
 
 ## Phase 0 — Product foundation
 
@@ -62,6 +64,8 @@ Status: **in progress**
 - [x] Preview owner drafts through the existing runner primitives without submission
 - [x] Add accessible collapsible builder sections
 - [x] Provide several interview-ready example forms
+- [x] Introduce a draft-specific contract for temporarily incomplete sections
+- Remove automatic starter fields and expose empty-section builder states
 
 ## Phase 4 — PostgreSQL persistence and versioning
 
