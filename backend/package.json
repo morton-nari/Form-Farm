@@ -13,6 +13,7 @@
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/infrastructure/database/migrate.ts",
+    "db:measure-pool": "tsx src/infrastructure/database/measure-pool.ts",
     "db:seed": "tsx src/infrastructure/database/seed.ts"
   },
   "engines": {

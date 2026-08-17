@@ -57,8 +57,9 @@ npm run backend:dev
 ```
 
 Backend development and integration tests require Docker Desktop with its Linux engine running. Start
-PostgreSQL, set `DATABASE_URL`, apply migrations, and seed the deterministic development form as described
-in the README. Migrations are explicit commands and must never run implicitly during application startup.
+PostgreSQL, set `DATABASE_URL` plus the tooling-only `DATABASE_ADMIN_URL`, apply migrations, and seed
+the deterministic development form as described in the README. Migrations are explicit commands and must
+never run implicitly during application startup.
 
 Before opening a meaningful pull request, run:
 

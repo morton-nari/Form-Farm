@@ -204,12 +204,13 @@ queries should use relational columns. Ownership indexes are added with the auth
 ## Connection lifecycle
 
 Create one `pg.Pool` during backend composition and inject an infrastructure adapter built from it. Add
-`DATABASE_URL` to centralized startup validation without ever logging its value. A maximum of 10 is only
+`DATABASE_URL` to centralized startup validation without ever logging its value. Application traffic uses this
+URL; migration and Drizzle tooling now require a separate direct `DATABASE_ADMIN_URL`. A maximum of 10 is only
 the initial local default, alongside zero minimum idle connections, a finite connection timeout, and the
-driver's normal idle cleanup. It is not an architectural capacity assumption. Deployment configuration
-must budget total connections across every application instance, migration job, and provider limit;
-serverless or constrained environments may require a maximum of 1 or another substantially smaller value.
-Further tuning requires hosting constraints or measured concurrency.
+driver's normal idle cleanup. It is not an architectural capacity assumption. Hosted configuration has no pool
+default and begins at a measured maximum of 1 per warm function instance. Deployment configuration must budget
+total connections across every application instance, migration job, and provider limit. Further tuning requires
+hosted concurrency evidence.
 
 The pool participates in application cleanup and is closed once during graceful shutdown. Routes and use
 cases never create pools or read database environment variables. Pool errors are logged safely without

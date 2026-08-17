@@ -87,7 +87,7 @@ Status: **in progress**
 - [x] Protect frontend routes and backend form-read operations
 - [x] Add user form ownership and read authorization, with organizations deferred until justified
 - [x] Add a provider-neutral health questionnaire as the primary authenticated sample
-- Establish secure secret and environment management
+- [x] Establish secure secret and environment management
 
 ## Phase 6 — AI form generation
 
