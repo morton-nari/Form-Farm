@@ -55,10 +55,16 @@ an immutable full commit SHA, runs backend and deployment compatibility checks, 
 database name and administrative role without printing either credential, verifies the exact ordered migration
 ledger, and runs the explicit migrator as an idempotent no-op.
 
+This proves migration-command idempotence for a database whose ledger is already current: the migrator recognizes
+every recorded entry and does not reapply it. It does not prove that arbitrary migration SQL is intrinsically
+safe to execute twice. Every new migration still requires its own ordering, compatibility, and failure review.
+
 The rehearsal deliberately creates a uniquely named table inside a transaction, forces the failure path, rolls
 the transaction back, and proves that no object remains. This tests failure-stop behavior without deleting or
 modifying application data. It does not automate a SQL down migration. Application rollback remains a separate
-schema-compatibility decision; forward-fix is the default for irreversible schema changes.
+schema-compatibility decision. The result proves PostgreSQL transactional rollback for this compatible DDL
+fixture, not that every future schema change is reversible; forward-fix is the default for irreversible schema
+changes. Failure of the `ROLLBACK` command is itself a visible failed rehearsal and never ambiguous success.
 
 Normal output contains only the reviewed commit, fixed environment label, migration count, and numeric rollback
 object count. It must not upload artifacts or print URLs, credentials, roles, cookies, tokens, headers, SQL

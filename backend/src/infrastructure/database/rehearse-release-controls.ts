@@ -51,7 +51,12 @@ try {
     rollbackObjectCreated = true;
     await pool.query('select 1 / 0');
   } catch {
-    await pool.query('rollback');
+    try {
+      await pool.query('rollback');
+    } catch {
+      console.error('Release rehearsal ROLLBACK failed; protected provider details were redacted.');
+      throw new Error('Release rehearsal could not confirm transaction rollback.');
+    }
   }
   if (!rollbackObjectCreated) {
     throw new Error('Release rehearsal could not establish the rollback fixture.');
