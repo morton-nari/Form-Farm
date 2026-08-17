@@ -481,24 +481,12 @@ describe('PostgresFormDefinitionSource', () => {
     ).rejects.toMatchObject({ name: 'InvalidStoredFormDefinitionError' });
     await expect(
       pool.query(
-        `select f.latest_version, f.current_published_version,
-                count(v.*)::integer as versions, count(d.*)::integer as drafts,
-                min(d.revision)::text as draft_revision
+        `select count(v.*)::integer as versions, count(d.*)::integer as drafts
          from forms f left join form_versions v on v.form_id = f.id
          left join form_drafts d on d.form_id = f.id where f.id = $1 group by f.id`,
         [definition.id],
       ),
-    ).resolves.toMatchObject({
-      rows: [
-        {
-          latest_version: 0,
-          current_published_version: null,
-          versions: 0,
-          drafts: 1,
-          draft_revision: '2',
-        },
-      ],
-    });
+    ).resolves.toMatchObject({ rows: [{ versions: 0, drafts: 1 }] });
   });
 
   it('round-trips an incomplete draft and refuses to publish it', async () => {
@@ -545,12 +533,24 @@ describe('PostgresFormDefinitionSource', () => {
     });
     await expect(
       pool.query(
-        `select count(v.*)::integer as versions, count(d.*)::integer as drafts
+        `select f.latest_version, f.current_published_version,
+                count(v.*)::integer as versions, count(d.*)::integer as drafts,
+                min(d.revision)::text as draft_revision
          from forms f left join form_versions v on v.form_id = f.id
          left join form_drafts d on d.form_id = f.id where f.id = $1 group by f.id`,
         [definition.id],
       ),
-    ).resolves.toMatchObject({ rows: [{ versions: 0, drafts: 1 }] });
+    ).resolves.toMatchObject({
+      rows: [
+        {
+          latest_version: 0,
+          current_published_version: null,
+          versions: 0,
+          drafts: 1,
+          draft_revision: '2',
+        },
+      ],
+    });
 
     const completedDefinition = {
       ...definition,
