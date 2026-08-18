@@ -1,9 +1,10 @@
 # Deployment environment contract
 
-Form Farm AI has one isolated Neon/Vercel preview for Milestone 8 verification. This contract defines the
-configuration that preview and a later production portfolio demo must satisfy before the backend starts. ADR 0007
-is Accepted based on the isolated hosted evidence. Production remains unauthorized until the separate release
-criteria and approval in `docs/RELEASE_POLICY.md` are satisfied.
+Form Farm AI has one isolated Neon/Vercel preview for Milestone 8 verification and one empty, independently
+scoped Production resource boundary. This contract defines the configuration both environments must satisfy
+before the backend starts. ADR 0007 is Accepted based on the isolated hosted evidence. Empty Production
+resources are provisioned, but migration, deployment, promotion, traffic, and real data remain unauthorized
+until the separate release criteria and approval in `docs/RELEASE_POLICY.md` are satisfied.
 
 ## Isolated preview record
 
@@ -43,6 +44,38 @@ plans, branch-scoped, synthetic-data-only, and separate from production. Review 
 usage when completing each deployment issue. If it is no longer required or exceeds those limits, remove the
 branch-scoped Vercel variables/deployments, then delete the Neon project. Never place credentials or connection
 strings in teardown records.
+
+## Empty Production resource record
+
+Issue 121 provisioned an inert Production boundary on 18 August 2026. `morton-nari` owns it under the approved
+AUD 0 portfolio limit:
+
+- authoritative Vercel project `form-farm` (`prj_21V36935x87KWQOWvd5b34q4dUaq`), using its independently scoped
+  Production environment and assigned `form-farm.vercel.app` domain;
+- Neon Free project `form-farm-production` (`flat-shadow-07136156`) in `aws-us-east-2`, PostgreSQL 18;
+- default Production branch `production` (`br-icy-lake-axt1h4na`), database `neondb`, and read/write compute
+  `ep-shy-block-axm0q4w0` capped at 0.25 CU with free-plan scale-to-zero;
+- application login role `form_farm_app`, with database connect and `public` schema usage only: it is not a
+  superuser, cannot create databases or roles, has no inherited memberships, and cannot create schema objects.
+
+The Vercel Production scope contains only `APP_ENV`, `NODE_ENV`, `DATABASE_ENVIRONMENT`, `DATABASE_POOL_MAX`,
+`DATABASE_URL`, `PUBLIC_APP_ORIGIN`, `AUTH_SECURE_COOKIES`, `TRUSTED_PROXY_HOPS`,
+`AUTH_SECRET_ENVIRONMENT`, `XSRF_HMAC_SECRET`, and `RATE_LIMIT_HMAC_SECRET`. The pooled application URL and both
+independently generated HMAC secrets are sensitive values. `DATABASE_POOL_MAX` remains `1`. The direct owner URL
+exists only as the masked `PRODUCTION_DATABASE_ADMIN_URL` secret in the protected GitHub `Production`
+Environment; it is not attached to Vercel application runtime.
+
+Verification listed names, types, and scopes only. No value was downloaded or recorded. Preview retains its
+separate branch-scoped variables and separate Neon project. Production has no Form Farm table, migration ledger,
+seed, account, form, submission, application deployment, or serving traffic. The assigned domain therefore does
+not constitute a launched application. The Vercel Hobby and Neon Free dashboards showed no approved paid plan or
+spend; provider quotas remain release-time observations rather than guarantees.
+
+Review ownership, free-tier usage, secrets, and continued need at every Production release issue and at least
+quarterly. If this empty boundary must be removed, first remove Production-scoped Vercel variables and the GitHub
+Production administrative secret, confirm no deployment or alias is serving traffic, then delete Neon project
+`flat-shadow-07136156`. Remove the assigned Vercel domain/project only if the authoritative application project is
+also intentionally retired. Record identifiers and outcomes only, never credentials or connection strings.
 
 ## Environment ownership
 

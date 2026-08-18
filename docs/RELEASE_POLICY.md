@@ -2,8 +2,8 @@
 
 This policy covers the retained non-production preview and any later production promotion. Issue 112 adds
 verification and approval gates only: it does not provision, migrate, deploy, or promote production resources.
-ADR 0007 is Accepted. Its acceptance selects the deployment architecture; it does not authorize production
-resources, migrations, deployment, or promotion.
+ADR 0007 is Accepted. Its acceptance selects the deployment architecture. Issue 121 separately provisioned an
+empty, isolated Production resource boundary; neither action authorizes migrations, deployment, or promotion.
 
 ## Required pull-request checks
 
@@ -96,10 +96,11 @@ Remove unused branch-scoped values immediately. Tear down the retained preview w
 not been used for one quarter, exceeds a free-plan boundary, or production supersedes its verification purpose.
 Remove Vercel variables/deployments before deleting the Neon project, and record only non-secret resource IDs.
 
-Before production resources are provisioned, evidence is still required for approved ownership/cost limits,
-independent Production secrets and domains, protected GitHub Environment reviewers, provider access and recovery
-roles, a rehearsed explicit migration, schema-compatible deployment rollback, monitoring/incident ownership, and
-a reviewed complete CI/CD implementation.
+Before Production is migrated or deployed, evidence is still required for current ownership/cost limits,
+protected GitHub Environment reviewers, provider access and recovery roles, a rehearsed explicit migration,
+schema-compatible deployment rollback, monitoring/incident ownership, and a reviewed complete CI/CD
+implementation. The independently scoped empty resources, secrets, and assigned domain are recorded in
+`docs/DEPLOYMENT.md`; their existence is not release approval.
 
 The accountable operator, actionable evidence matrix, isolated rehearsal, and current no-go checklist are
 defined in `docs/PRODUCTION_READINESS.md`. A passing rehearsal is evidence for release controls, not permission to
