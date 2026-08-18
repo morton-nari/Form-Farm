@@ -51,6 +51,10 @@ test('production release is staged, approval protected, explicit, and seed-free'
     productionReleaseWorkflow.indexOf('--prod --skip-domain') <
       productionReleaseWorkflow.indexOf('vercel@59.1.3 promote'),
   );
+  assert.ok(
+    productionReleaseWorkflow.indexOf('deployment:production-smoke') <
+      productionReleaseWorkflow.indexOf('vercel@59.1.3 promote'),
+  );
   assert.equal(
     productionReleaseWorkflow.match(/DATABASE_ADMIN_URL: \$\{\{ secrets\.PRODUCTION_DATABASE_ADMIN_URL \}\}/g)
       ?.length,

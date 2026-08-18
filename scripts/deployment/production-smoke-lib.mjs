@@ -1,5 +1,6 @@
 export async function runProductionSmoke(environment, fetchImplementation = fetch, write = console.log) {
   const origin = requireOrigin(environment.PRODUCTION_SMOKE_ORIGIN);
+  const invalidSessionCredential = 'form-farm-production-smoke-invalid-session-credential-never-generated';
   const checks = [
     ['health', '/health', 200, 'application/json', async (response) => {
       if ((await response.json())?.status !== 'ok') throw new Error('Unexpected health response.');
@@ -23,9 +24,20 @@ export async function runProductionSmoke(environment, fetchImplementation = fetc
       }
     }],
     ['anonymous-session', '/api/v1/auth/session', 401, 'application/json'],
+    [
+      'runtime-database-read',
+      '/api/v1/auth/session',
+      401,
+      'application/json',
+      undefined,
+      { headers: { cookie: `__Host-ff_session=${invalidSessionCredential}` } },
+    ],
   ];
-  for (const [name, path, status, contentType, verifyBody] of checks) {
-    const response = await fetchImplementation(new URL(path, origin), { redirect: 'manual' });
+  for (const [name, path, status, contentType, verifyBody, requestOptions = {}] of checks) {
+    const response = await fetchImplementation(new URL(path, origin), {
+      ...requestOptions,
+      redirect: 'manual',
+    });
     if (response.status !== status) throw new Error('Production smoke status mismatch.');
     if (contentType && !response.headers.get('content-type')?.startsWith(contentType)) {
       throw new Error('Production smoke content type mismatch.');

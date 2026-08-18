@@ -126,8 +126,8 @@ test('production smoke is read-only and reports fixed names without response bod
   const output = [];
   await runProductionSmoke(
     { PRODUCTION_SMOKE_ORIGIN: 'https://form-farm.vercel.app' },
-    async (url) => {
-      requests.push(url.pathname);
+    async (url, options) => {
+      requests.push({ path: url.pathname, options });
       const isHealth = url.pathname === '/health';
       const isSpa = url.pathname === '/login';
       const isXsrf = url.pathname.endsWith('/xsrf');
@@ -149,6 +149,18 @@ test('production smoke is read-only and reports fixed names without response bod
     },
     (line) => output.push(line),
   );
-  assert.equal(requests.every((path) => !path.includes('register') && !path.includes('management')), true);
+  assert.equal(
+    requests.every(({ path }) => !path.includes('register') && !path.includes('management')),
+    true,
+  );
+  const sessionRequests = requests.filter(({ path }) => path.endsWith('/session'));
+  assert.equal(sessionRequests.length, 2);
+  assert.equal(sessionRequests[0].options.headers, undefined);
+  assert.match(
+    sessionRequests[1].options.headers.cookie,
+    /^__Host-ff_session=form-farm-production-smoke-invalid-session-credential-never-generated$/,
+  );
+  assert.equal(output.includes('production-smoke:pass:runtime-database-read'), true);
+  assert.equal(output.join('\n').includes('invalid-session-credential'), false);
   assert.equal(output.join('\n').includes('not-reported'), false);
 });
