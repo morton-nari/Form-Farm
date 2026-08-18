@@ -1,0 +1,153 @@
+name: Production release
+
+on:
+  workflow_dispatch:
+    inputs:
+      application_commit:
+        description: Full reviewed commit SHA already on dev
+        required: true
+        type: string
+      migration_level:
+        description: Reviewed target migration filename
+        required: true
+        type: string
+      recovery_reference:
+        description: Non-secret recovery-window review reference
+        required: true
+        type: string
+      approval_reference:
+        description: Non-secret release approval reference
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  checks: read
+
+concurrency:
+  group: production-release
+  cancel-in-progress: false
+
+jobs:
+  validate-candidate:
+    name: Validate production candidate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Check out immutable candidate
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.application_commit }}
+          fetch-depth: 0
+      - name: Validate reviewed commit and non-secret references
+        env:
+          APPLICATION_COMMIT: ${{ inputs.application_commit }}
+          MIGRATION_LEVEL: ${{ inputs.migration_level }}
+          RECOVERY_REFERENCE: ${{ inputs.recovery_reference }}
+          APPROVAL_REFERENCE: ${{ inputs.approval_reference }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$APPLICATION_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$APPLICATION_COMMIT"
+          git merge-base --is-ancestor "$APPLICATION_COMMIT" refs/remotes/origin/dev
+          [[ "$MIGRATION_LEVEL" =~ ^[0-9]{4}_[A-Za-z0-9_-]+\.sql$ ]]
+          [[ "$RECOVERY_REFERENCE" =~ ^[A-Za-z0-9][A-Za-z0-9._:/#\ -]{0,199}$ ]]
+          [[ "$APPROVAL_REFERENCE" =~ ^[A-Za-z0-9][A-Za-z0-9._:/#\ -]{0,199}$ ]]
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24.15.0
+          cache: npm
+      - run: npm install --global npm@12.0.2
+      - run: npm ci
+      - name: Verify actual required checks for candidate
+        env:
+          APPLICATION_COMMIT: ${{ inputs.application_commit }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/deployment/verify-required-checks.mjs
+      - name: Re-run release compatibility gates
+        run: |
+          npm run test:all
+          npm run build:all
+          npm run deployment:smoke:test
+
+  release:
+    name: Migrate, stage, verify, and promote Production
+    needs: validate-candidate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: Production
+    env:
+      APPLICATION_COMMIT: ${{ inputs.application_commit }}
+      PRODUCTION_MIGRATION_LEVEL: ${{ inputs.migration_level }}
+      PRODUCTION_DATABASE_NAME: ${{ vars.PRODUCTION_DATABASE_NAME }}
+      PRODUCTION_DATABASE_ADMIN_ROLE: ${{ vars.PRODUCTION_DATABASE_ADMIN_ROLE }}
+      PRODUCTION_DATABASE_APP_ROLE: ${{ vars.PRODUCTION_DATABASE_APP_ROLE }}
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.application_commit }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24.15.0
+          cache: npm
+      - run: npm install --global npm@12.0.2
+      - run: npm ci
+      - name: Verify exact Production database identity and migration prefix
+        env:
+          DATABASE_ADMIN_URL: ${{ secrets.PRODUCTION_DATABASE_ADMIN_URL }}
+        run: npm run db:prepare-production-release
+      - name: Apply reviewed migrations explicitly
+        env:
+          DATABASE_ADMIN_URL: ${{ secrets.PRODUCTION_DATABASE_ADMIN_URL }}
+        run: npm run db:migrate
+      - name: Install and verify least-privilege application grants
+        env:
+          DATABASE_ADMIN_URL: ${{ secrets.PRODUCTION_DATABASE_ADMIN_URL }}
+        run: npm run db:grant-production-app-role
+      - name: Create staged Production deployment without assigning domain
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          deployment_url="$(npx --yes vercel@59.1.3 --prod --skip-domain --yes --token="$VERCEL_TOKEN")"
+          [[ "$deployment_url" =~ ^https://[A-Za-z0-9.-]+\.vercel\.app$ ]]
+          echo "PRODUCTION_STAGED_URL=$deployment_url" >> "$GITHUB_ENV"
+      - name: Verify staged deployment without product-data writes
+        run: PRODUCTION_SMOKE_ORIGIN="$PRODUCTION_STAGED_URL" npm run deployment:production-smoke
+      - name: Resolve staged deployment ID
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          inspect="$(npx --yes vercel@59.1.3 inspect "$PRODUCTION_STAGED_URL" --json --token="$VERCEL_TOKEN" 2>/dev/null)"
+          deployment_id="$(printf '%s' "$inspect" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const j=JSON.parse(s),id=j.id,sha=j.meta?.githubCommitSha;if(!/^dpl_[A-Za-z0-9]+$/.test(id)||sha!==process.env.APPLICATION_COMMIT)process.exit(1);process.stdout.write(id)})")"
+          echo "PRODUCTION_DEPLOYMENT_ID=$deployment_id" >> "$GITHUB_ENV"
+      - name: Promote the verified staged deployment
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: npx --yes vercel@59.1.3 promote "$PRODUCTION_STAGED_URL" --yes --token="$VERCEL_TOKEN"
+      - name: Verify assigned Production origin without product-data writes
+        env:
+          PRODUCTION_SMOKE_ORIGIN: ${{ vars.PRODUCTION_ORIGIN }}
+        run: npm run deployment:production-smoke
+      - name: Record non-secret release evidence
+        env:
+          APPROVAL_REFERENCE: ${{ inputs.approval_reference }}
+          RECOVERY_REFERENCE: ${{ inputs.recovery_reference }}
+        shell: bash
+        run: |
+          {
+            echo '## Production release record'
+            printf '%s\n' "- Application commit: \`$APPLICATION_COMMIT\`"
+            printf '%s\n' "- Migration level: \`$PRODUCTION_MIGRATION_LEVEL\`"
+            printf '%s\n' "- Deployment ID: \`$PRODUCTION_DEPLOYMENT_ID\`"
+            printf '%s\n' "- Approval reference: $APPROVAL_REFERENCE"
+            printf '%s\n' "- Recovery review: $RECOVERY_REFERENCE"
+            echo '- Result: staged smoke and post-promotion smoke passed'
+          } >> "$GITHUB_STEP_SUMMARY"

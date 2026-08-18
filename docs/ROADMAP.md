@@ -116,7 +116,7 @@ CI foundations should start earlier; this phase completes public delivery.
 - [x] Document environments, configuration, promotion, rollback, and operational limits
 - [x] Define accountable Production operations and rehearse release controls in isolated non-production infrastructure
 - [x] Provision the approved empty, isolated, zero-cost Production resource boundary without migration or deployment
-- Add complete production CI/CD only after the provisioned boundary and protection policy pass review
+- [x] Add complete manual, approval-protected Production CI/CD against the reviewed resource boundary
 
 ## Phase 9 — Advanced AI capabilities
 

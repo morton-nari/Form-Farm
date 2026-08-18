@@ -134,6 +134,13 @@ Before a hosted migration, verify the stage and database identity using non-secr
 available recovery point, run `npm run db:migrate` once with `DATABASE_ADMIN_URL` injected, and record the commit
 and migration version. Never echo either URL.
 
+After migrations, run `npm run db:grant-production-app-role` through the same protected release boundary. It
+revokes broad table/sequence privileges, preserves schema usage without schema creation, grants CRUD only on the
+seven application tables listed with the migration manifest, and leaves `form_farm_migrations` inaccessible to
+the application role. The migration/admin and application roles must remain different. Every new application
+table requires an explicit reviewed update to that grant manifest; do not grant ownership or migration rights for
+convenience.
+
 ## Initial pool budget
 
 The local pool maximum of 10 is not a hosted default. Preview and production must set `DATABASE_POOL_MAX`
