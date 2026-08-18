@@ -87,7 +87,8 @@ Production remains **No-go** until one release issue records all of the followin
 - [ ] A `Release control rehearsal` run passed for the immutable candidate commit and recorded no secret output.
 - [ ] The target migration identity/level and available recovery point were reviewed.
 - [ ] The candidate and previous application deployment were both assessed against the current schema; any unsafe rollback has a forward-fix plan.
-- [ ] Issue 114 implements and passes review for complete Production CI/CD without weakening these gates.
+- [ ] Issue 114's staged Production release and schema-compatible application rollback workflows pass review
+  without weakening these gates.
 - [ ] A final human approval explicitly authorizes the named migration, deployment, promotion, and release.
 
 Until every item is evidenced, the retained preview is the only authorized running application environment.

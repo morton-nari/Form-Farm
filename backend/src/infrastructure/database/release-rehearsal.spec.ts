@@ -1,8 +1,13 @@
-import { readdir } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 
 import { describe, expect, it } from 'vitest';
 
-import { migrationNames, verifyMigrationLedger } from './migration-manifest.js';
+import {
+  applicationTableNames,
+  migrationNames,
+  verifyMigrationLedger,
+  verifyMigrationLedgerPrefix,
+} from './migration-manifest.js';
 
 describe('verifyMigrationLedger', () => {
   it('lists every committed migration SQL file exactly once', async () => {
@@ -24,5 +29,30 @@ describe('verifyMigrationLedger', () => {
     expect(() => verifyMigrationLedger(names)).toThrowError(
       /unexpected migration level or ordering/,
     );
+  });
+
+  it('accepts only an exact migration prefix before a Production migration', () => {
+    expect(() => verifyMigrationLedgerPrefix([])).not.toThrow();
+    expect(() => verifyMigrationLedgerPrefix(migrationNames.slice(0, 2))).not.toThrow();
+    expect(() => verifyMigrationLedgerPrefix(migrationNames)).not.toThrow();
+    expect(() => verifyMigrationLedgerPrefix(['0001_versioned_form_submissions.sql'])).toThrow(
+      /unexpected migration level or ordering/,
+    );
+  });
+
+  it('lists every application table created by committed migration SQL', async () => {
+    const createdTables = (
+      await Promise.all(
+        migrationNames.map(async (name) =>
+          Array.from(
+            (await readFile(new URL(`../../../drizzle/${name}`, import.meta.url), 'utf8')).matchAll(
+              /create table\s+"?([a-z_]+)"?/gi,
+            ),
+            (match) => match[1],
+          ),
+        ),
+      )
+    ).flat();
+    expect([...applicationTableNames].sort()).toEqual(createdTables.sort());
   });
 });

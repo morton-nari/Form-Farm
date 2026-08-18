@@ -16,6 +16,8 @@
     "db:cleanup-smoke": "tsx src/infrastructure/database/cleanup-smoke-account.ts",
     "db:measure-pool": "tsx src/infrastructure/database/measure-pool.ts",
     "db:rehearse-release": "tsx src/infrastructure/database/rehearse-release-controls.ts",
+    "db:prepare-production-release": "tsx src/infrastructure/database/prepare-production-release.ts",
+    "db:grant-production-app-role": "tsx src/infrastructure/database/grant-production-app-role.ts",
     "db:seed": "tsx src/infrastructure/database/seed.ts"
   },
   "engines": {
