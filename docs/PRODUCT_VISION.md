@@ -18,6 +18,23 @@ Traditional form builders make simple forms easy, but complex forms still requir
 - Product teams prototyping structured data collection
 - Developers integrating validated forms into applications
 
+## Future product hypothesis
+
+Form Farm may eventually serve two related audiences:
+
+- people and product teams building forms with carefully controlled AI assistance;
+- developers and AI clients inspecting, validating, comparing, and evolving versioned forms through stable
+  application and MCP capabilities.
+
+The working direction is the **Form Farm Intelligence Platform**: safely inspect, analyze, simulate, evolve, and
+audit versioned forms through AI and MCP. Its proposed differentiator is a deterministic **Form Change Impact
+Engine** that explains the consequences of a proposed change before any mutation. This is a hypothesis to
+validate, not a claim that the product is commercially differentiated or ready to sell.
+
+Possible future positioning includes “versioned form engineering with safe AI operations” and “form
+infrastructure built for humans and AI agents.” Evidence from real developer and product-team workflows must
+determine whether either audience and positioning is valuable.
+
 ## Product principles
 
 1. **Schema first:** every form is represented by a versioned, validated domain schema.
@@ -67,9 +84,14 @@ The model generates structured form data, not Angular source code.
 
 - Autonomous agents
 - Repository RAG
-- MCP integrations
+- Remote or production MCP deployment
 - Team permissions
 - Advanced analytics
-- AI-assisted schema editing
+- RAG and embeddings without a concrete knowledge problem
+
+MCP now has a concrete future use case as a safe capability boundary for form engineering. It remains deferred
+until its architecture is accepted and deterministic controlled operations, semantic diffing, and impact analysis
+are proven independently of any protocol or model provider. AI-assisted editing remains proposal-first and may
+operate only through those controlled boundaries; it never publishes automatically.
 
 These capabilities will be introduced only when a concrete use case justifies them.

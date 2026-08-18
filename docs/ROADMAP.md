@@ -91,6 +91,9 @@ Status: **in progress**
 
 ## Phase 6 — AI form generation
 
+This product experience is planned after the deterministic Form Intelligence foundations in Phase 9. Model
+provider integration remains separate from MCP protocol work.
+
 - Accept a natural-language form description
 - Request structured model output from the backend
 - Validate and normalize generated schemas
@@ -99,10 +102,11 @@ Status: **in progress**
 
 ## Phase 7 — AI-assisted editing
 
-- Define controlled schema operations
+- Use the controlled schema operations and impact engine delivered through Phase 9
 - Generate operations rather than uncontrolled replacements
 - Validate and preview changes as a diff
 - Apply changes only after user confirmation
+- Never publish an AI-generated or AI-edited draft automatically
 
 ## Phase 8 — CI/CD and deployment
 
@@ -118,9 +122,59 @@ CI foundations should start earlier; this phase completes public delivery.
 - [x] Provision the approved empty, isolated, zero-cost Production resource boundary without migration or deployment
 - [x] Add complete manual, approval-protected Production CI/CD against the reviewed resource boundary
 
-## Phase 9 — Advanced AI capabilities
+## Phase 9 — Form Intelligence and MCP
 
-Evaluate RAG, embeddings, MCP, and a repository-aware developer assistant only after a concrete use case and measurable value are established.
+Goal: expose Form Farm as an AI-native form-engineering platform without weakening domain validation, ownership,
+immutable publication, version-bound submissions, optimistic concurrency, security, or human approval.
+
+The working product direction is the **Form Farm Intelligence Platform**: “Safely inspect, analyze, simulate,
+evolve, and audit versioned forms through AI and MCP.” This is a product hypothesis to validate, not a commercial
+readiness claim. The flagship capability is a deterministic **Form Change Impact Engine**, not a generic CRUD MCP
+server.
+
+### Deterministic foundations
+
+- Define an ADR for the Form Intelligence and MCP architecture before protocol implementation.
+- Define an exhaustive provider-neutral Form Change Operation model over `FormDraftDefinition`; do not use
+  arbitrary JSON mutation as the client contract.
+- Implement immutable operation application with strict runtime/domain validation and no publication behavior.
+- Implement semantic form diffing that understands stable IDs, order, presentation, validation, structure,
+  choice labels, and submitted option values.
+- Implement the deterministic Form Change Impact Engine before requiring an LLM.
+- Classify presentation, validation, answer-contract, structural, potentially destructive, privacy-sensitive,
+  accessibility-sensitive, and compatibility effects.
+- Explain historical-versus-future submission implications using immutable published-version semantics.
+
+### Safe capability boundary
+
+- Start with a local, read-only MCP adapter exposing a deliberately small surface: `inspect_form`,
+  `compare_form_versions`, and `impact_analysis` for explicit operations.
+- Route every MCP capability through existing application use cases, domain validation, authorization, and
+  persistence ports; never provide SQL, filesystem, arbitrary URL-fetching, secret, or raw session access.
+- Define MCP authentication/authorization, privacy-safe errors/results, confirmation, audit, and client identity
+  in the architecture ADR.
+- Keep deterministic analysis separate from heuristic or AI-assisted suggestions.
+- Add non-mutating `analyze_form`, `propose_form_changes`, and advisory `simulate_form` tools only after their
+  underlying services are independently proven.
+- Add `apply_draft_operations` only after controlled operations, semantic diffing, impact analysis, authorization,
+  audit, and confirmation are proven. Require owner authentication and an exact expected ETag, mutate only the
+  draft, return the new ETag and deterministic diff, and never publish.
+
+### AI and developer experience
+
+- Integrate an AI provider separately from MCP; model output must be untrusted controlled operations, never an
+  authoritative `FormDefinition` replacement.
+- Require impact review and explicit human confirmation before applying an AI-generated proposal.
+- Record safe proposal/application audit evidence without secrets, raw authentication material, unnecessary full
+  definitions, model chain-of-thought, or sensitive submission content.
+- Document local connections for compatible developer clients and examples that inspect, explain, compare, and
+  propose without mutation by default.
+- Evaluate remote MCP deployment only after local behavior, authentication, and authorization are proven.
+- Evaluate RAG or embeddings only when a concrete knowledge problem and measurable benefit exist.
+
+The intended sequence is deterministic domain operations → semantic diff → impact engine → read-only local MCP
+→ deterministic analysis → AI proposal generation → non-mutating proposal tools → owner-approved ETag draft
+application → developer integration. MCP and LLM implementation must not be combined into one issue.
 
 ## Working method
 

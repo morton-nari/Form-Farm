@@ -244,6 +244,73 @@ AI-generated data passes through two validation layers:
 
 Users preview and approve generated forms before persistence or publication.
 
+## Planned Form Intelligence and MCP boundary
+
+The future Form Farm Intelligence Platform has a concrete use case: let people, developer tools, and AI clients
+inspect, compare, analyze, propose, and safely apply changes to versioned forms. MCP is a protocol/capability
+boundary, not the AI brain, an ORM, or a privileged back door.
+
+```text
+AI client / IDE / MCP client
+        ↓ authenticated, bounded tools and resources
+Form Farm Intelligence / MCP adapter
+        ↓ application-owned commands and queries
+domain validation + authorization + ETag/version controls
+        ↓ infrastructure ports
+PostgreSQL
+```
+
+There is no `AI → database` path. MCP receives no arbitrary SQL, filesystem, URL-fetching, session, secret, or
+submission-data capability. Client claims alone never establish an actor or owner. Every resource and tool must
+derive authorization through the existing application boundary and return output that is safe to log by default.
+MCP transport, local-versus-remote operation, authentication, tool/resource/prompt boundaries, confirmation,
+audit, privacy, and error behavior require ADR review before implementation.
+
+The flagship foundation is a deterministic Form Change Impact Engine. A semantic diff must distinguish display
+labels from submitted values, validation from presentation, movement from replacement, and structural change
+from answer-contract change. For example, changing a choice value from `AU` to `AUS` changes future answer
+semantics even if its label remains “Australia.” Historical submissions remain interpretable because they refer
+to immutable published versions; the report must explain the different future contract rather than calling the
+change presentation-only.
+
+The intended write sequence is:
+
+```text
+AI or client proposes controlled Form Change Operations
+        ↓
+Form Farm validates operations against a FormDraftDefinition
+        ↓
+deterministic semantic diff + impact report
+        ↓
+human reviews and explicitly approves
+        ↓
+owner-authorized, expected-ETag draft application
+        ↓
+new draft revision and ETag; publication remains separate
+```
+
+Domain-specific operations are preferred over generic JSON Patch because an exhaustive operation union is easier
+to validate, authorize, classify, explain, and audit. Operations are immutable input/output transformations over
+the draft contract. They cannot publish, silently repair invalid input, bypass runtime validation, or replace the
+existing owner/ETag lifecycle. The operation model, semantic diff, and deterministic impact engine must be useful
+without MCP or an LLM before either integration begins.
+
+Initial MCP work is read-only and local: safe inspection, version comparison, and impact analysis for explicit
+operations. Proposal tools remain non-mutating. A later `apply_draft_operations` capability is the only planned
+initial mutation tool and requires owner authentication, exact ETag, controlled operations, deterministic impact,
+explicit confirmation, runtime validation, and safe audit evidence. No MCP tool may publish a form.
+
+Model-provider integration is a separate adapter and issue sequence. Model output remains untrusted and must
+produce controlled operations rather than an authoritative replacement definition. Deterministic findings and
+heuristic/AI suggestions are represented separately. Persona simulation is advisory and must never be presented
+as equivalent to usability research or accessibility testing. Remote MCP, RAG, embeddings, and broad agent
+automation remain deferred until local behavior and a measurable knowledge or integration problem justify them.
+
+Future audit evidence may record actor, available client/tool identity, form ID, draft revisions before and
+after, operation types, impact classifications, timestamp, and approval state. It must not record secrets, raw
+authentication material, model chain-of-thought, unnecessary complete definitions, or sensitive submission
+content.
+
 ## Testing direction
 
 - Frontend tests cover schema adaptation, form creation, validation, state, accessibility, and UI flows.
@@ -254,9 +321,9 @@ Users preview and approve generated forms before persistence or publication.
 
 ## Decisions still required
 
-- Acceptance of the proposed owner form write lifecycle in ADR 0006
-- Hosting architecture
 - AI provider and provider-abstraction boundary
+- Form Intelligence and MCP architecture, including local/remote transport, authentication, authorization,
+  confirmation, audit, and privacy-safe tool output
 
 Each significant decision will be evaluated when its milestone begins and recorded in an ADR.
 
