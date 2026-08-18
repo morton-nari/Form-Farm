@@ -57,7 +57,8 @@ workflows.
 ## Manual production release
 
 Production remains manual. `Production release` first validates the immutable candidate without Production
-secrets, including the actual five required GitHub checks, `dev` ancestry, tests/builds, migration level, and
+secrets, including the actual five required GitHub Actions checks, their expected app/repository provenance and
+unambiguous names, `dev` ancestry, tests/builds, migration level, and
 non-secret approval/recovery references. Its second job is bound to the protected `Production` GitHub
 Environment, whose required reviewer provides explicit approval before any protected credential is available.
 Before invoking it, the release operator must establish:
@@ -70,6 +71,7 @@ Before invoking it, the release operator must establish:
 After approval, the workflow verifies database/admin identity and an exact committed-ledger prefix, applies the
 explicit migrator, and installs only the reviewed runtime table privileges for `form_farm_app`. It then creates a
 staged Production deployment with `--skip-domain`, runs read-only smoke checks, records the deployment ID, and
+checks that the staged deployment belongs to the authorized Vercel team/project and Production target, then
 promotes that exact build before repeating smoke against the assigned origin. It never seeds or resets data.
 Output contains only fixed results, counts, immutable identifiers, and reviewed non-secret references.
 
@@ -102,9 +104,14 @@ restore or corrective migration requires its own reviewed incident/release plan 
 
 `Production application rollback` is a separate manual, approval-protected workflow. It requires an immutable
 previous commit with successful required checks, a previously promoted deployment, the exact current migration
-level, an explicit schema-compatibility attestation, and an approval/incident reference. It verifies the current
+level, an explicit schema-compatibility attestation, a non-secret PR/issue/test/rehearsal evidence reference, and
+an approval/incident reference. The boolean is an operator attestation and does not itself prove compatibility;
+the named evidence and attesting GitHub actor are recorded in the workflow summary. It verifies the current
 database ledger before moving the application alias and runs read-only smoke afterward. It contains no migration
 or SQL reversal command. If compatibility is uncertain, do not roll back; use a reviewed forward fix.
+
+If post-promotion smoke fails, the release fails loudly and directs the operator to this protected rollback path
+after a documented compatibility review, or to a reviewed forward fix. It never automatically reverses SQL.
 
 ## Preview ownership and lifecycle
 

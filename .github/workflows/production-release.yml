@@ -125,17 +125,27 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          inspect="$(npx --yes vercel@59.1.3 inspect "$PRODUCTION_STAGED_URL" --json --token="$VERCEL_TOKEN" 2>/dev/null)"
-          deployment_id="$(printf '%s' "$inspect" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const j=JSON.parse(s),id=j.id,sha=j.meta?.githubCommitSha;if(!/^dpl_[A-Za-z0-9]+$/.test(id)||sha!==process.env.APPLICATION_COMMIT)process.exit(1);process.stdout.write(id)})")"
+          deployment_id="$(node scripts/deployment/verify-vercel-deployment.mjs "$PRODUCTION_STAGED_URL")"
           echo "PRODUCTION_DEPLOYMENT_ID=$deployment_id" >> "$GITHUB_ENV"
       - name: Promote the verified staged deployment
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: npx --yes vercel@59.1.3 promote "$PRODUCTION_STAGED_URL" --yes --token="$VERCEL_TOKEN"
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes vercel@59.1.3 promote "$PRODUCTION_STAGED_URL" --yes --token="$VERCEL_TOKEN"
+          echo 'PRODUCTION_PROMOTED=true' >> "$GITHUB_ENV"
       - name: Verify assigned Production origin without product-data writes
         env:
           PRODUCTION_SMOKE_ORIGIN: ${{ vars.PRODUCTION_ORIGIN }}
         run: npm run deployment:production-smoke
+      - name: Record required response to post-promotion smoke failure
+        if: ${{ failure() }}
+        shell: bash
+        run: |
+          if test "${PRODUCTION_PROMOTED:-false}" = 'true'; then
+            echo 'Post-promotion smoke failed. Do not reverse SQL automatically. Use the protected Production application rollback workflow only after a documented schema-compatibility review, or use a reviewed forward fix.' >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Record non-secret release evidence
         env:
           APPROVAL_REFERENCE: ${{ inputs.approval_reference }}

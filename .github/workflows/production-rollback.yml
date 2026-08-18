@@ -16,9 +16,13 @@ on:
         required: true
         type: string
       schema_compatible:
-        description: Prior application was reviewed as compatible with the current schema
+        description: Operator attests that referenced evidence establishes current-schema compatibility
         required: true
         type: boolean
+      compatibility_reference:
+        description: Non-secret PR, issue, test, or rehearsal evidence for schema compatibility
+        required: true
+        type: string
       approval_reference:
         description: Non-secret rollback approval or incident reference
         required: true
@@ -46,11 +50,19 @@ jobs:
         env:
           APPLICATION_COMMIT: ${{ inputs.application_commit }}
           SCHEMA_COMPATIBLE: ${{ inputs.schema_compatible }}
+          ROLLBACK_DEPLOYMENT: ${{ inputs.deployment }}
+          MIGRATION_LEVEL: ${{ inputs.migration_level }}
+          COMPATIBILITY_REFERENCE: ${{ inputs.compatibility_reference }}
+          APPROVAL_REFERENCE: ${{ inputs.approval_reference }}
         shell: bash
         run: |
           set -euo pipefail
           test "$SCHEMA_COMPATIBLE" = 'true'
           [[ "$APPLICATION_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$ROLLBACK_DEPLOYMENT" =~ ^(dpl_[A-Za-z0-9]+|https://[A-Za-z0-9.-]+\.vercel\.app)$ ]]
+          [[ "$MIGRATION_LEVEL" =~ ^[0-9]{4}_[A-Za-z0-9_-]+\.sql$ ]]
+          [[ "$COMPATIBILITY_REFERENCE" =~ ^[A-Za-z0-9][A-Za-z0-9._:/#\ -]{0,199}$ ]]
+          [[ "$APPROVAL_REFERENCE" =~ ^[A-Za-z0-9][A-Za-z0-9._:/#\ -]{0,199}$ ]]
           test "$(git rev-parse HEAD)" = "$APPLICATION_COMMIT"
           git merge-base --is-ancestor "$APPLICATION_COMMIT" refs/remotes/origin/dev
       - uses: actions/setup-node@v6
@@ -97,8 +109,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          inspect="$(npx --yes vercel@59.1.3 inspect "$ROLLBACK_DEPLOYMENT" --json --token="$VERCEL_TOKEN" 2>/dev/null)"
-          printf '%s' "$inspect" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const j=JSON.parse(s);if(j.meta?.githubCommitSha!==process.env.APPLICATION_COMMIT||j.target!=='production')process.exit(1)})"
+          node scripts/deployment/verify-vercel-deployment.mjs "$ROLLBACK_DEPLOYMENT" >/dev/null
       - name: Roll back application alias without reversing SQL
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -107,3 +118,19 @@ jobs:
         env:
           PRODUCTION_SMOKE_ORIGIN: ${{ vars.PRODUCTION_ORIGIN }}
         run: npm run deployment:production-smoke
+      - name: Record non-secret application rollback evidence
+        env:
+          APPLICATION_COMMIT: ${{ inputs.application_commit }}
+          COMPATIBILITY_REFERENCE: ${{ inputs.compatibility_reference }}
+          APPROVAL_REFERENCE: ${{ inputs.approval_reference }}
+        shell: bash
+        run: |
+          {
+            echo '## Production application rollback record'
+            printf '%s\n' "- Application commit: \`$APPLICATION_COMMIT\`"
+            printf '%s\n' "- Migration level: \`$PRODUCTION_MIGRATION_LEVEL\`"
+            printf '%s\n' "- Compatibility evidence: $COMPATIBILITY_REFERENCE"
+            printf '%s\n' "- Compatibility attested by: @${GITHUB_ACTOR}"
+            printf '%s\n' "- Approval/incident reference: $APPROVAL_REFERENCE"
+            echo '- Result: application alias rollback and read-only smoke passed; no SQL reversal was attempted'
+          } >> "$GITHUB_STEP_SUMMARY"

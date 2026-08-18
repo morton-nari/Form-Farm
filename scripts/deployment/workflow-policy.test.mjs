@@ -38,6 +38,9 @@ test('production release is staged, approval protected, explicit, and seed-free'
   assert.match(productionReleaseWorkflow, /--prod --skip-domain/);
   assert.match(productionReleaseWorkflow, /deployment:production-smoke/g);
   assert.match(productionReleaseWorkflow, /vercel@59\.1\.3 promote/);
+  assert.match(productionReleaseWorkflow, /verify-vercel-deployment\.mjs/);
+  assert.match(productionReleaseWorkflow, /Post-promotion smoke failed/);
+  assert.match(productionReleaseWorkflow, /Do not reverse SQL automatically/);
   assert.doesNotMatch(productionReleaseWorkflow, /db:seed|reset|upload-artifact|set -x|printenv/);
   assert.doesNotMatch(productionReleaseWorkflow, /PREVIEW_/);
   assert.ok(
@@ -63,6 +66,10 @@ test('production rollback requires compatibility review and never reverses SQL',
   assert.match(productionRollbackWorkflow, /workflow_dispatch:/);
   assert.match(productionRollbackWorkflow, /environment: Production/);
   assert.match(productionRollbackWorkflow, /schema_compatible:/);
+  assert.match(productionRollbackWorkflow, /compatibility_reference:/);
+  assert.match(productionRollbackWorkflow, /Compatibility evidence:/);
+  assert.match(productionRollbackWorkflow, /Compatibility attested by:/);
+  assert.match(productionRollbackWorkflow, /verify-vercel-deployment\.mjs/);
   assert.match(productionRollbackWorkflow, /PRODUCTION_REQUIRE_CURRENT_MIGRATIONS/);
   assert.match(productionRollbackWorkflow, /vercel@59\.1\.3 rollback/);
   assert.doesNotMatch(productionRollbackWorkflow, /db:migrate|down|PREVIEW_|upload-artifact/);
