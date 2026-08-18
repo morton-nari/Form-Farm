@@ -77,9 +77,10 @@ correctness cannot depend on process shutdown hooks.
 Production-like deployment keeps migrations explicit, uses Neon's pooled endpoint with a measured small
 application pool, validates deployment-owned origins and secrets centrally, and gives previews no production
 database or secrets by default. The initial free public environment is a portfolio demo only and prohibits real
-sensitive personal or health data. One isolated Vercel/Neon preview is retained for black-box verification; no
-production resources are provisioned. ADR 0007 is Accepted; that architecture decision does not authorize
-production provisioning or promotion.
+sensitive personal or health data. One isolated Vercel/Neon preview is retained for black-box verification. An
+empty, independently scoped Production resource boundary is now provisioned at AUD 0, but it has no migrated
+Form Farm schema, deployment, promotion, traffic, or real data. ADR 0007 is Accepted; that architecture decision
+and empty boundary do not authorize a Production launch.
 
 The deployment boundary provides a Vercel Node request handler and explicit Angular/API routing
 configuration. It shares the same backend composition as local `main.ts` but does not listen on a port or install

@@ -114,8 +114,9 @@ CI foundations should start earlier; this phase completes public delivery.
 - [x] Add explicit domain, backend integration, deployment, and retained-preview smoke gates
 - Deploy a public portfolio demo
 - [x] Document environments, configuration, promotion, rollback, and operational limits
-- Define accountable Production operations and rehearse release controls in isolated non-production infrastructure
-- Add complete production CI/CD only after production resources and protection policy are explicitly approved
+- [x] Define accountable Production operations and rehearse release controls in isolated non-production infrastructure
+- [x] Provision the approved empty, isolated, zero-cost Production resource boundary without migration or deployment
+- Add complete production CI/CD only after the provisioned boundary and protection policy pass review
 
 ## Phase 9 — Advanced AI capabilities
 

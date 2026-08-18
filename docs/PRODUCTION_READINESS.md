@@ -42,6 +42,12 @@ Production must use a separate Vercel environment scope and separate Neon projec
 preview. Values are generated directly in their target scope; Preview values are never copied or multi-selected.
 The inventory and rotation rules remain in `docs/DEPLOYMENT.md`.
 
+Issue 121 established this empty boundary under the approved AUD 0 limit. Production uses the authoritative
+Vercel project's Production scope and a separate `form-farm-production` Neon project in `aws-us-east-2`. Its
+application role is least privileged, its compute is capped at 0.25 CU with scale-to-zero, and its application
+pool remains `DATABASE_POOL_MAX=1`. Only the direct administrative URL is stored in the protected GitHub
+`Production` Environment. No migration, schema, seed, deployment, promotion, traffic, or real data was added.
+
 The GitHub `Production` Environment requires `morton-nari` review, permits protected branches only, and disables
 administrator bypass. Self-review remains permitted because this is currently a single-operator personal
 repository; the workflow approval is still a distinct manual action. Environment secrets are unavailable before
@@ -75,15 +81,17 @@ payloads, answers, form data, or provider environment dumps.
 Production remains **No-go** until one release issue records all of the following:
 
 - [ ] `morton-nari` reviewed current Vercel/Neon access, quotas, costs, recovery window, monitoring, and incident ownership.
-- [ ] Independent Production resources, domains, configuration, and secrets received explicit provisioning approval.
+- [x] Independent empty Production resources, domain assignment, configuration, and secrets received explicit
+  provisioning approval and were recorded without launching Production.
 - [ ] The protected GitHub `Production` Environment reviewer and branch/tag policy were independently verified.
 - [ ] A `Release control rehearsal` run passed for the immutable candidate commit and recorded no secret output.
 - [ ] The target migration identity/level and available recovery point were reviewed.
 - [ ] The candidate and previous application deployment were both assessed against the current schema; any unsafe rollback has a forward-fix plan.
 - [ ] Issue 114 implements and passes review for complete Production CI/CD without weakening these gates.
-- [ ] A final human approval explicitly authorizes Production provisioning and the named release.
+- [ ] A final human approval explicitly authorizes the named migration, deployment, promotion, and release.
 
-Until every item is evidenced, the retained preview is the only authorized hosted environment.
+Until every item is evidenced, the retained preview is the only authorized running application environment.
+The empty Production provider boundary is not an application deployment.
 
 ## References
 
