@@ -4,3 +4,5 @@ export * from './form-answers.validator.js';
 export * from './form-identifier.js';
 export * from './form-change-operation.models.js';
 export * from './form-change-operation.engine.js';
+export * from './form-semantic-diff.models.js';
+export * from './form-semantic-diff.engine.js';

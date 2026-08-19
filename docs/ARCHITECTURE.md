@@ -310,6 +310,15 @@ Obvious operation/field incompatibilities fail at the operation index; complete 
 final safety net. Replacing options never silently clears an invalidated default—the same ordered change set must
 explicitly set or remove that default, or the result fails.
 
+Semantic comparison is a separate pure domain operation over two validated definitions or draft candidates for
+the same logical form. It matches sections and fields by stable ID and choice options internally by submitted
+value. Additions/removals do not create false moves merely by shifting indexes. A label change is reported as
+option presentation; a submitted-value change is an option removal plus addition because the value is the stable
+answer identity. Stable changes identify affected structure and property categories without returning labels,
+defaults, rule values, option values, or complete definitions. Output order is canonical and a caller-supplied
+bounded limit produces explicit total/truncation metadata. The comparison records both form-version identities
+and never mutates either immutable published definition or draft candidate.
+
 Initial MCP work is read-only and local: safe inspection, version comparison, and impact analysis for explicit
 operations. Proposal tools remain non-mutating. A later `apply_draft_operations` capability is the only planned
 initial mutation tool and requires owner authentication, exact ETag, controlled operations, deterministic impact,
