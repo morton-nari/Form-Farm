@@ -296,6 +296,15 @@ the draft contract. They cannot publish, silently repair invalid input, bypass r
 existing owner/ETag lifecycle. The operation model, semantic diff, and deterministic impact engine must be useful
 without MCP or an LLM before either integration begins.
 
+The controlled-operation contract is versioned independently and applies a non-empty ordered change set
+atomically in memory. It uses stable section/field IDs and `afterSectionId` / `afterFieldId` anchors rather than
+fragile numeric indexes. Explicit operations cover form/submission presentation, section and field
+add/remove/move/presentation, defaults, validation, and complete choice-option replacement. `null` explicitly
+removes an optional property; omission cannot ambiguously mean either “unchanged” or “remove.” Added candidates
+and operation envelopes are strictly validated, targets/collisions are checked in operation order, and the
+complete result must pass `validateFormDraftDefinition`. The engine has no persistence, actor, ETag, publication,
+HTTP, MCP, or provider responsibility.
+
 Initial MCP work is read-only and local: safe inspection, version comparison, and impact analysis for explicit
 operations. Proposal tools remain non-mutating. A later `apply_draft_operations` capability is the only planned
 initial mutation tool and requires owner authentication, exact ETag, controlled operations, deterministic impact,
