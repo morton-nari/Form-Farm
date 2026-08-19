@@ -140,10 +140,10 @@ server.
 - [x] Implement immutable operation application with strict runtime/domain validation and no publication behavior.
 - [x] Implement semantic form diffing that understands stable IDs, order, presentation, validation, structure,
   choice labels, and submitted option values.
-- Implement the deterministic Form Change Impact Engine before requiring an LLM.
-- Classify presentation, validation, answer-contract, structural, potentially destructive, privacy-sensitive,
+- [x] Implement the deterministic Form Change Impact Engine before requiring an LLM.
+- [x] Classify presentation, validation, answer-contract, structural, potentially destructive, privacy-sensitive,
   accessibility-sensitive, and compatibility effects.
-- Explain historical-versus-future submission implications using immutable published-version semantics.
+- [x] Explain historical-versus-future submission implications using immutable published-version semantics.
 
 ### Safe capability boundary
 
