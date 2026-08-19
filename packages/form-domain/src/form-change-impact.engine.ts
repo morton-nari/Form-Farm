@@ -1,8 +1,8 @@
 import {
   FORM_SEMANTIC_DIFF_VERSION,
   type FormSemanticChange,
-  type FormSemanticDiff,
 } from './form-semantic-diff.models.js';
+import { validateFormSemanticDiff } from './form-semantic-diff.validator.js';
 import {
   FORM_CHANGE_IMPACT_VERSION,
   MAX_IMPACT_AFFECTED_IDENTITIES,
@@ -52,17 +52,19 @@ const FINDING_ORDER: readonly FormChangeImpactFindingCode[] = [
 type FindingRule = Omit<FormChangeImpactFinding, 'changeCount'>;
 
 export function analyzeFormChangeImpact(input: unknown): AnalyzeFormChangeImpactResult {
-  if (!isSemanticDiff(input)) {
+  const validation = validateFormSemanticDiff(input);
+  if (!validation.success) {
     return failure('invalid_diff', [], 'Impact analysis requires a valid semantic diff.');
   }
-  if (input.diffVersion !== FORM_SEMANTIC_DIFF_VERSION) {
+  const semanticDiff = validation.value;
+  if (semanticDiff.diffVersion !== FORM_SEMANTIC_DIFF_VERSION) {
     return failure(
       'unsupported_diff_version',
       ['diffVersion'],
       `Impact analysis supports semantic diff version ${FORM_SEMANTIC_DIFF_VERSION}.`,
     );
   }
-  if (input.truncated || input.changes.length !== input.totalChangeCount) {
+  if (semanticDiff.truncated || semanticDiff.changes.length !== semanticDiff.totalChangeCount) {
     return failure(
       'incomplete_diff',
       ['truncated'],
@@ -74,7 +76,7 @@ export function analyzeFormChangeImpact(input: unknown): AnalyzeFormChangeImpact
   const sectionIds = new Set<string>();
   const fieldIds = new Set<string>();
 
-  for (const change of input.changes) {
+  for (const change of semanticDiff.changes) {
     collectIdentity(change, sectionIds, fieldIds);
     const rule = ruleFor(change);
     const existing = findingCounts.get(rule.code);
@@ -99,17 +101,17 @@ export function analyzeFormChangeImpact(input: unknown): AnalyzeFormChangeImpact
     affectedSectionIds.length > MAX_IMPACT_AFFECTED_IDENTITIES ||
     affectedFieldIds.length > MAX_IMPACT_AFFECTED_IDENTITIES;
   const answerContractChanged = classifications.includes('answer-contract');
-  const hasChanges = input.totalChangeCount > 0;
+  const hasChanges = semanticDiff.totalChangeCount > 0;
 
   return {
     success: true,
     value: {
       impactVersion: FORM_CHANGE_IMPACT_VERSION,
-      diffVersion: input.diffVersion,
-      formId: input.formId,
-      fromFormVersion: input.fromFormVersion,
-      toFormVersion: input.toFormVersion,
-      analyzedChangeCount: input.totalChangeCount,
+      diffVersion: semanticDiff.diffVersion,
+      formId: semanticDiff.formId,
+      fromFormVersion: semanticDiff.fromFormVersion,
+      toFormVersion: semanticDiff.toFormVersion,
+      analyzedChangeCount: semanticDiff.totalChangeCount,
       risk,
       classifications,
       findings,
@@ -245,34 +247,6 @@ function collectIdentity(
   if ('fromSectionId' in change) sectionIds.add(change.fromSectionId);
   if ('toSectionId' in change) sectionIds.add(change.toSectionId);
   if ('fieldId' in change) fieldIds.add(change.fieldId);
-}
-
-function isSemanticDiff(input: unknown): input is FormSemanticDiff {
-  if (!isRecord(input)) return false;
-  return (
-    Number.isInteger(input['diffVersion']) &&
-    typeof input['formId'] === 'string' &&
-    Number.isInteger(input['fromFormVersion']) &&
-    Number.isInteger(input['toFormVersion']) &&
-    Array.isArray(input['changes']) &&
-    input['changes'].every(isSemanticChange) &&
-    Number.isInteger(input['totalChangeCount']) &&
-    (input['totalChangeCount'] as number) >= 0 &&
-    typeof input['truncated'] === 'boolean'
-  );
-}
-
-function isSemanticChange(input: unknown): input is FormSemanticChange {
-  if (!isRecord(input) || typeof input['type'] !== 'string') return false;
-  const type = input['type'];
-  if (type === 'formPresentationChanged' || type === 'submissionPresentationChanged') return typeof input['property'] === 'string';
-  if (type === 'sectionAdded' || type === 'sectionRemoved' || type === 'sectionMoved' || type === 'sectionPresentationChanged') return typeof input['sectionId'] === 'string';
-  if (type === 'fieldAdded' || type === 'fieldRemoved' || type === 'fieldMoved' || type === 'fieldTypeChanged' || type === 'fieldPresentationChanged' || type === 'fieldDefaultChanged' || type === 'fieldValidationChanged' || type === 'choiceOptionAdded' || type === 'choiceOptionRemoved' || type === 'choiceOptionMoved' || type === 'choiceOptionPresentationChanged') return typeof input['fieldId'] === 'string';
-  return false;
-}
-
-function isRecord(input: unknown): input is Record<string, unknown> {
-  return typeof input === 'object' && input !== null && !Array.isArray(input);
 }
 
 function failure(

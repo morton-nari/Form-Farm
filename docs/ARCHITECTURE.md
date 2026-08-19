@@ -325,7 +325,12 @@ convenient. The Impact Engine must require an untruncated semantic diff for a co
 its result incomplete; it may never infer a complete low-risk result from a truncated prefix.
 
 The implemented Impact Engine accepts only a complete version-1 semantic diff and rejects truncated or
-count-inconsistent input. It applies an explicit, deterministic rule table to aggregate presentation,
+count-inconsistent input. `validateFormSemanticDiff` is the shared owned `unknown` boundary: it strictly
+validates every discriminated change variant, required identity/index/property, enum, count, and top-level field,
+and rejects unknown properties before any impact rule runs. Structurally valid unsupported versions remain a
+separate consumer policy failure from malformed or incomplete version-1 input, so later adapters reuse one
+contract validator rather than inventing protocol-specific predicates. The engine applies an explicit,
+deterministic rule table to aggregate presentation,
 validation, answer-contract, structural, potentially destructive, privacy-sensitive, accessibility-sensitive,
 and compatibility effects. Risk is the highest applicable rule level and is an explainable review policy, not a
 prediction that harm will or will not occur. Validation threshold changes are treated conservatively because the

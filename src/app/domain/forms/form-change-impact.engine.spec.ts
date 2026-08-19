@@ -1,5 +1,6 @@
 import {
   analyzeFormChangeImpact,
+  validateFormSemanticDiff,
   type FormSemanticChange,
   type FormSemanticDiff,
 } from '@form-farm/form-domain';
@@ -175,6 +176,135 @@ describe('form change impact analysis', () => {
     expect(analyzeFormChangeImpact({ ...diff([]), diffVersion: 2 })).toEqual({
       success: false,
       issues: [{ path: ['diffVersion'], code: 'unsupported_diff_version', message: 'Impact analysis supports semantic diff version 1.' }],
+    });
+  });
+
+  it('accepts the complete semantic change vocabulary through the strict validator', () => {
+    const changes: readonly FormSemanticChange[] = [
+      { type: 'formPresentationChanged', property: 'description' },
+      { type: 'submissionPresentationChanged', property: 'submitLabel' },
+      { type: 'sectionAdded', sectionId: 'added-section', toIndex: 0 },
+      { type: 'sectionRemoved', sectionId: 'removed-section', fromIndex: 0 },
+      { type: 'sectionMoved', sectionId: 'moved-section', fromIndex: 1, toIndex: 0 },
+      { type: 'sectionPresentationChanged', sectionId: 'section-a', property: 'description' },
+      { type: 'fieldAdded', fieldId: 'added-field', fieldType: 'email', toSectionId: 'section-a', toIndex: 0 },
+      { type: 'fieldRemoved', fieldId: 'removed-field', fieldType: 'text', fromSectionId: 'section-a', fromIndex: 0 },
+      { type: 'fieldMoved', fieldId: 'moved-field', fromSectionId: 'section-a', toSectionId: 'section-b', fromIndex: 0, toIndex: 1 },
+      { type: 'fieldTypeChanged', fieldId: 'typed-field', fromFieldType: 'text', toFieldType: 'textarea' },
+      { type: 'fieldPresentationChanged', fieldId: 'shown-field', property: 'helpText' },
+      { type: 'fieldDefaultChanged', fieldId: 'default-field', change: 'valueChanged' },
+      { type: 'fieldValidationChanged', fieldId: 'validated-field', ruleType: 'maxLength', change: 'removed' },
+      { type: 'choiceOptionAdded', fieldId: 'choice-field', toIndex: 1 },
+      { type: 'choiceOptionRemoved', fieldId: 'choice-field', fromIndex: 1 },
+      { type: 'choiceOptionMoved', fieldId: 'choice-field', fromIndex: 1, toIndex: 0 },
+      { type: 'choiceOptionPresentationChanged', fieldId: 'choice-field', optionIndex: 0, property: 'disabled' },
+    ];
+
+    expect(validateFormSemanticDiff(diff(changes))).toMatchObject({ success: true });
+  });
+
+  it.each([
+    [
+      'missing field type target',
+      { type: 'fieldTypeChanged', fieldId: 'age', fromFieldType: 'number' },
+    ],
+    [
+      'invalid field type',
+      {
+        type: 'fieldTypeChanged',
+        fieldId: 'age',
+        fromFieldType: 'number',
+        toFieldType: 'currency',
+      },
+    ],
+    [
+      'invalid validation change',
+      {
+        type: 'fieldValidationChanged',
+        fieldId: 'name',
+        ruleType: 'required',
+        change: 'tightened',
+      },
+    ],
+    [
+      'invalid validation rule',
+      {
+        type: 'fieldValidationChanged',
+        fieldId: 'name',
+        ruleType: 'pattern',
+        change: 'added',
+      },
+    ],
+    [
+      'unknown presentation property',
+      { type: 'formPresentationChanged', property: 'anything' },
+    ],
+    [
+      'negative index',
+      { type: 'choiceOptionRemoved', fieldId: 'choice', fromIndex: -1 },
+    ],
+    [
+      'non-integer index',
+      { type: 'sectionAdded', sectionId: 'section-a', toIndex: 1.5 },
+    ],
+    [
+      'unknown property',
+      {
+        type: 'fieldDefaultChanged',
+        fieldId: 'name',
+        change: 'added',
+        defaultValue: 'must-not-cross-boundary',
+      },
+    ],
+    [
+      'missing move identity',
+      {
+        type: 'fieldMoved',
+        fieldId: 'name',
+        fromSectionId: 'section-a',
+        fromIndex: 0,
+        toIndex: 1,
+      },
+    ],
+    [
+      'invalid identifier',
+      {
+        type: 'sectionMoved',
+        sectionId: '../section',
+        fromIndex: 0,
+        toIndex: 1,
+      },
+    ],
+  ])('strictly rejects a known malformed variant: %s', (_name, change) => {
+    const malformed = { ...diff([]), changes: [change], totalChangeCount: 1 };
+
+    expect(validateFormSemanticDiff(malformed).success).toBe(false);
+    expect(analyzeFormChangeImpact(malformed)).toEqual({
+      success: false,
+      issues: [
+        {
+          path: [],
+          code: 'invalid_diff',
+          message: 'Impact analysis requires a valid semantic diff.',
+        },
+      ],
+    });
+  });
+
+  it.each([
+    ['invalid form ID', { formId: '../form' }],
+    ['zero source version', { fromFormVersion: 0 }],
+    ['fractional target version', { toFormVersion: 2.5 }],
+    ['negative count', { totalChangeCount: -1 }],
+    ['non-boolean truncation', { truncated: 'false' }],
+    ['unknown top-level property', { extra: true }],
+  ])('strictly rejects malformed top-level data: %s', (_name, replacement) => {
+    const malformed = { ...diff([]), ...replacement };
+
+    expect(validateFormSemanticDiff(malformed).success).toBe(false);
+    expect(analyzeFormChangeImpact(malformed)).toMatchObject({
+      success: false,
+      issues: [{ code: 'invalid_diff' }],
     });
   });
 

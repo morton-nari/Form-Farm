@@ -6,5 +6,6 @@ export * from './form-change-operation.models.js';
 export * from './form-change-operation.engine.js';
 export * from './form-semantic-diff.models.js';
 export * from './form-semantic-diff.engine.js';
+export * from './form-semantic-diff.validator.js';
 export * from './form-change-impact.models.js';
 export * from './form-change-impact.engine.js';
