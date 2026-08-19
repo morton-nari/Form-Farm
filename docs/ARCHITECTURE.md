@@ -324,6 +324,21 @@ identities. Submitted values remain internal matching keys and are not exposed m
 convenient. The Impact Engine must require an untruncated semantic diff for a complete report or explicitly mark
 its result incomplete; it may never infer a complete low-risk result from a truncated prefix.
 
+The implemented Impact Engine accepts only a complete version-1 semantic diff and rejects truncated or
+count-inconsistent input. It applies an explicit, deterministic rule table to aggregate presentation,
+validation, answer-contract, structural, potentially destructive, privacy-sensitive, accessibility-sensitive,
+and compatibility effects. Risk is the highest applicable rule level and is an explainable review policy, not a
+prediction that harm will or will not occur. Validation threshold changes are treated conservatively because the
+safe diff intentionally omits raw values. Findings contain stable codes, counts, and fixed explanations rather
+than form content; affected stable IDs are sorted and bounded separately.
+
+Every report distinguishes immutable historical submissionsâ€”which remain bound to the version originally
+submittedâ€”from the contract for future submissions after publication. Any non-empty change requires human
+review, and impact analysis never authorizes publication. Password-field and autocomplete-purpose changes receive
+explicit privacy-sensitive treatment, while the engine does not pretend it can infer sensitive subject matter
+from omitted labels or help text. This pure domain service has no persistence, HTTP, actor, MCP, AI, mutation, or
+publication responsibility.
+
 Initial MCP work is read-only and local: safe inspection, version comparison, and impact analysis for explicit
 operations. Proposal tools remain non-mutating. A later `apply_draft_operations` capability is the only planned
 initial mutation tool and requires owner authentication, exact ETag, controlled operations, deterministic impact,
