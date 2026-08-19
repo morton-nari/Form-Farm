@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Accepted 2026-08-19
 
 ## Context
 
@@ -86,10 +86,15 @@ owner never establish authorization. Browser cookies, XSRF values, authorization
 and their hashes are never tool arguments or results.
 
 The first local adapter must define and test an explicit local credential mechanism before exposing owner data.
-It may retrieve a credential from its process environment as prescribed for stdio, but must resolve it through
-an authentication adapter into the same minimal `AuthenticatedActor` used by application use cases. It must not
-impersonate an owner from configuration or call a repository with an unverified user ID. Until this exists, only
-public/system information may be exposed.
+The process environment is only the stdio transport by which credential material may reach the local process; it
+does not decide the credential type or make the material trustworthy. Any credential must resolve through an
+authentication adapter into the same minimal `AuthenticatedActor` used by application use cases. The adapter
+must not casually reuse a browser session cookie, impersonate an owner from configured user/owner ID, or call a
+repository with an unverified identity. Until this exists, only public/system information may be exposed.
+
+Credential issuance, scope, expiry, revocation, rotation, secure local storage, and developer login/logout UX
+require a focused design and threat review before owner-aware MCP tools ship. A local development token or API
+credential is only a possible future option, not a decision made by this ADR.
 
 Authorization is checked for every invocation, not inferred from discovery or connection state. Non-owned,
 inappropriate system-owned, and missing resources retain the HTTP management API's existence-hiding behavior.
@@ -106,6 +111,10 @@ These are tools because each is a parameterized application operation with valid
 bounded result. Stable resource URIs may later expose already-authorized immutable summaries when a client-driven
 context workflow demonstrates a need. Resources must not become an alternate unpaginated listing API. Prompts
 are deferred because they are optional interface templates, not capabilities or security controls.
+
+`analyze_form_change_impact` cannot be implemented until the controlled operations, semantic diff, and impact
+engine from issues #127 through #129 are complete. MCP wraps those deterministic capabilities; it does not define
+their semantics.
 
 Inputs and structured outputs use strict owned JSON Schemas with unknown properties rejected. Names and ordering
 are deterministic. Tool annotations are descriptive only and never trusted for authorization or confirmation.
@@ -144,7 +153,9 @@ definitions, provider prompts/output, database details, credentials, or authoriz
 Safe logs and future audit events may contain correlation ID, verified actor ID, client category, tool name,
 form ID, version/revision, operation digest, outcome, duration, and bounded counts. They never contain cookies,
 tokens, headers, emails, definitions, answers, submissions, raw operations, model chain-of-thought, or provider
-secrets. Tool results and logs are safe by default rather than relying on clients to redact them.
+secrets. Actor IDs remain access-controlled operational identifiers: their purpose, audience, retention, and
+deletion policy must be defined before durable MCP audit storage is introduced. Tool results and logs are safe by
+default rather than relying on clients to redact them.
 
 Each capability has explicit input-size, result-size, pagination, execution-time, and invocation-rate limits.
 The adapter supports cancellation and timeouts where negotiated. It performs no URL fetching, arbitrary
@@ -165,7 +176,9 @@ Implementation tests cover:
 
 Tests use in-process application doubles and ephemeral PostgreSQL where authorization predicates matter. Normal
 CI contacts no real MCP client, AI provider, Vercel, Neon, or other external service. Separate compatibility
-tests may exercise named MCP clients with synthetic local data.
+tests may exercise named MCP clients with synthetic local data. Implementation must pin an explicitly reviewed
+MCP SDK and protocol version; dependency updates must not silently change transport, tool, or authorization
+behavior and require contract/security regression tests.
 
 ## Alternatives considered
 
@@ -219,6 +232,7 @@ remain separate. RAG, embeddings, broad agents, and autonomous mutation have no 
 - remote Streamable HTTP deployment;
 - prompts, subscriptions, and experimental tasks;
 - proposal and mutation tools until prerequisite issues are complete;
+- local credential lifecycle and developer authentication UX;
 - confirmation and append-only audit storage design;
 - AI provider selection and integration;
 - RAG, embeddings, broad agents, autonomous publication, and autonomous mutation.

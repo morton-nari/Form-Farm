@@ -263,7 +263,7 @@ PostgreSQL
 There is no `AI → database` path. MCP receives no arbitrary SQL, filesystem, URL-fetching, session, secret, or
 submission-data capability. Client claims alone never establish an actor or owner. Every resource and tool must
 derive authorization through the existing application boundary and return output that is safe to log by default.
-ADR 0008 proposes local stdio, read-only tools, verified application actors, and a thin protocol adapter over
+ADR 0008 selects local stdio, read-only tools, verified application actors, and a thin protocol adapter over
 application use cases. It defers remote Streamable HTTP, provider integration, and every mutation capability
 until their named authentication, confirmation, audit, and deterministic-analysis prerequisites are proven.
 
@@ -323,7 +323,7 @@ content.
 ## Decisions still required
 
 - AI provider and provider-abstraction boundary
-- Acceptance or revision of proposed ADR 0008 after external architecture review
+- Local owner-aware MCP credential lifecycle and developer authentication UX
 
 Each significant decision will be evaluated when its milestone begins and recorded in an ADR.
 
