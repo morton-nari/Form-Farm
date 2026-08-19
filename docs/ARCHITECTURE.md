@@ -263,8 +263,9 @@ PostgreSQL
 There is no `AI → database` path. MCP receives no arbitrary SQL, filesystem, URL-fetching, session, secret, or
 submission-data capability. Client claims alone never establish an actor or owner. Every resource and tool must
 derive authorization through the existing application boundary and return output that is safe to log by default.
-MCP transport, local-versus-remote operation, authentication, tool/resource/prompt boundaries, confirmation,
-audit, privacy, and error behavior require ADR review before implementation.
+ADR 0008 selects local stdio, read-only tools, verified application actors, and a thin protocol adapter over
+application use cases. It defers remote Streamable HTTP, provider integration, and every mutation capability
+until their named authentication, confirmation, audit, and deterministic-analysis prerequisites are proven.
 
 The flagship foundation is a deterministic Form Change Impact Engine. A semantic diff must distinguish display
 labels from submitted values, validation from presentation, movement from replacement, and structural change
@@ -322,8 +323,7 @@ content.
 ## Decisions still required
 
 - AI provider and provider-abstraction boundary
-- Form Intelligence and MCP architecture, including local/remote transport, authentication, authorization,
-  confirmation, audit, and privacy-safe tool output
+- Local owner-aware MCP credential lifecycle and developer authentication UX
 
 Each significant decision will be evaluated when its milestone begins and recorded in an ADR.
 
