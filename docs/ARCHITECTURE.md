@@ -305,6 +305,11 @@ and operation envelopes are strictly validated, targets/collisions are checked i
 complete result must pass `validateFormDraftDefinition`. The engine has no persistence, actor, ETag, publication,
 HTTP, MCP, or provider responsibility.
 
+`setFieldValidation` and `setChoiceOptions` replace the complete targeted property rather than merging it.
+Obvious operation/field incompatibilities fail at the operation index; complete result validation remains the
+final safety net. Replacing options never silently clears an invalidated default—the same ordered change set must
+explicitly set or remove that default, or the result fails.
+
 Initial MCP work is read-only and local: safe inspection, version comparison, and impact analysis for explicit
 operations. Proposal tools remain non-mutating. A later `apply_draft_operations` capability is the only planned
 initial mutation tool and requires owner authentication, exact ETag, controlled operations, deterministic impact,

@@ -52,10 +52,7 @@ describe('controlled form change operations', () => {
       {
         type: 'setFieldValidation',
         fieldId: 'age',
-        validation: [
-          { type: 'min', value: 18 },
-          { type: 'integer' },
-        ],
+        validation: [{ type: 'min', value: 18 }, { type: 'integer' }],
       },
       {
         type: 'setChoiceOptions',
@@ -137,7 +134,10 @@ describe('controlled form change operations', () => {
     ]);
     expect(result.success).toBe(true);
     if (result.success)
-      expect(result.value.sections[0]?.fields.map((field) => field.id)).toEqual(['country', 'name']);
+      expect(result.value.sections[0]?.fields.map((field) => field.id)).toEqual([
+        'country',
+        'name',
+      ]);
   });
 
   it('allows deliberate ordered transitions but validates the complete final draft', () => {
@@ -152,11 +152,108 @@ describe('controlled form change operations', () => {
     ]);
     expect(valid.success).toBe(true);
 
-    const invalid = apply(baseDraft(), [{ type: 'removeSection', sectionId: 'personal' }, { type: 'removeSection', sectionId: 'details' }]);
+    const invalid = apply(baseDraft(), [
+      { type: 'removeSection', sectionId: 'personal' },
+      { type: 'removeSection', sectionId: 'details' },
+    ]);
     expect(invalid).toMatchObject({
       success: false,
       issues: [{ path: ['result', 'sections'], code: 'invalid_result' }],
     });
+  });
+
+  it('supports dependent add, move, edit, and explicit option/default sequences', () => {
+    const result = apply(baseDraft(), [
+      {
+        type: 'addSection',
+        section: { id: 'new-section', title: 'New section', fields: [] },
+        afterSectionId: 'details',
+      },
+      {
+        type: 'addField',
+        sectionId: 'new-section',
+        field: textField('new-field', 'New field'),
+        afterFieldId: null,
+      },
+      {
+        type: 'moveField',
+        fieldId: 'new-field',
+        toSectionId: 'personal',
+        afterFieldId: 'name',
+      },
+      {
+        type: 'setFieldPresentation',
+        fieldId: 'new-field',
+        presentation: {
+          fieldType: 'text',
+          label: 'Moved and edited',
+          helpText: null,
+          placeholder: null,
+          autocomplete: null,
+        },
+      },
+      {
+        type: 'setChoiceOptions',
+        fieldId: 'country',
+        options: [{ label: 'New Zealand', value: 'NZ' }],
+      },
+      { type: 'setFieldDefault', fieldId: 'country', defaultValue: 'NZ' },
+    ]);
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.value.sections[0]?.fields.map((field) => field.id)).toEqual([
+      'name',
+      'new-field',
+      'country',
+    ]);
+    expect(result.value.sections[0]?.fields[1]?.label).toBe('Moved and edited');
+  });
+
+  it('fails at the later operation when a removed target or anchor is reused', () => {
+    expect(
+      apply(baseDraft(), [
+        { type: 'removeField', fieldId: 'name' },
+        { type: 'setFieldDefault', fieldId: 'name', defaultValue: 'Later' },
+      ]),
+    ).toMatchObject({
+      success: false,
+      issues: [{ path: ['operations', 1, 'fieldId'], code: 'target_not_found' }],
+    });
+    expect(
+      apply(baseDraft(), [
+        { type: 'removeField', fieldId: 'name' },
+        {
+          type: 'addField',
+          sectionId: 'personal',
+          field: textField('later', 'Later'),
+          afterFieldId: 'name',
+        },
+      ]),
+    ).toMatchObject({
+      success: false,
+      issues: [{ path: ['operations', 1, 'afterFieldId'], code: 'invalid_anchor' }],
+    });
+  });
+
+  it('allows a presentation update before an explicit removal', () => {
+    const result = apply(baseDraft(), [
+      {
+        type: 'setFieldPresentation',
+        fieldId: 'name',
+        presentation: {
+          fieldType: 'text',
+          label: 'Temporary label',
+          helpText: null,
+          placeholder: null,
+          autocomplete: null,
+        },
+      },
+      { type: 'removeField', fieldId: 'name' },
+    ]);
+    expect(result.success).toBe(true);
+    if (result.success)
+      expect(result.value.sections[0]?.fields.map((field) => field.id)).toEqual(['country']);
   });
 
   it.each([
@@ -193,6 +290,27 @@ describe('controlled form change operations', () => {
         },
       ]),
     ).toMatchObject({ success: false, issues: [{ code: 'identifier_collision' }] });
+    expect(
+      apply(baseDraft(), [
+        {
+          type: 'addSection',
+          section: {
+            id: 'new-section',
+            title: 'New section',
+            fields: [textField('name', 'Duplicate existing field ID')],
+          },
+          afterSectionId: null,
+        },
+      ]),
+    ).toMatchObject({
+      success: false,
+      issues: [
+        {
+          path: ['operations', 0, 'section', 'fields', 0, 'id'],
+          code: 'identifier_collision',
+        },
+      ],
+    });
   });
 
   it.each([
@@ -244,24 +362,43 @@ describe('controlled form change operations', () => {
     ).toMatchObject({ success: false, issues: [{ code: 'incompatible_field_type' }] });
   });
 
-  it('rejects incompatible defaults, rules, and option changes through final domain validation', () => {
-    const invalidCases: readonly FormChangeOperation[][] = [
-      [{ type: 'setFieldDefault', fieldId: 'age', defaultValue: 'old' }],
-      [{ type: 'setFieldValidation', fieldId: 'age', validation: [{ type: 'minLength', value: 2 }] }],
-      [
+  it('rejects obvious default and validation-family incompatibility at the operation path', () => {
+    expect(
+      apply(baseDraft(), [{ type: 'setFieldDefault', fieldId: 'age', defaultValue: ['old'] }]),
+    ).toMatchObject({
+      success: false,
+      issues: [{ path: ['operations', 0, 'defaultValue'], code: 'incompatible_field_type' }],
+    });
+    expect(
+      apply(baseDraft(), [
+        {
+          type: 'setFieldValidation',
+          fieldId: 'age',
+          validation: [{ type: 'minLength', value: 2 }],
+        },
+      ]),
+    ).toMatchObject({
+      success: false,
+      issues: [{ path: ['operations', 0, 'validation'], code: 'incompatible_field_type' }],
+    });
+  });
+
+  it('uses final validation for semantic constraints within a compatible field family', () => {
+    expect(
+      apply(baseDraft(), [
         {
           type: 'setChoiceOptions',
           fieldId: 'country',
           options: [{ label: 'New Zealand', value: 'NZ' }],
         },
-      ],
-    ];
-    invalidCases.forEach((operations) =>
-      expect(apply(baseDraft(), operations)).toMatchObject({
-        success: false,
-        issues: [{ code: 'invalid_result' }],
-      }),
-    );
+      ]),
+    ).toMatchObject({ success: false, issues: [{ code: 'invalid_result' }] });
+    expect(
+      apply(baseDraft(), [
+        { type: 'setFieldValidation', fieldId: 'age', validation: [{ type: 'min', value: 20 }] },
+        { type: 'setFieldDefault', fieldId: 'age', defaultValue: 18 },
+      ]),
+    ).toMatchObject({ success: false, issues: [{ code: 'invalid_result' }] });
   });
 
   it('forbids password defaults explicitly', () => {
@@ -291,24 +428,29 @@ describe('controlled form change operations', () => {
       issues: [{ code: 'value_too_small' }],
     });
     const invalidCandidate = validateFormChangeSet({
-        changeSetVersion: 1,
-        operations: [
-          {
-            type: 'addField',
-            sectionId: 'personal',
-            field: { id: 'bad', type: 'text', label: '', unexpected: true },
-            afterFieldId: null,
-          },
-        ],
-      });
+      changeSetVersion: 1,
+      operations: [
+        {
+          type: 'addField',
+          sectionId: 'personal',
+          field: { id: 'bad', type: 'text', label: '', unexpected: true },
+          afterFieldId: null,
+        },
+      ],
+    });
     expect(invalidCandidate.success).toBe(false);
     if (!invalidCandidate.success)
-      expect(invalidCandidate.issues.every((issue) => issue.code === 'invalid_candidate')).toBe(true);
+      expect(invalidCandidate.issues.every((issue) => issue.code === 'invalid_candidate')).toBe(
+        true,
+      );
   });
 
   it('rejects an invalid source draft before applying operations', () => {
     expect(
-      applyFormChangeSet({ ...baseDraft(), title: '' }, changeSet([{ type: 'removeField', fieldId: 'name' }])),
+      applyFormChangeSet(
+        { ...baseDraft(), title: '' },
+        changeSet([{ type: 'removeField', fieldId: 'name' }]),
+      ),
     ).toMatchObject({
       success: false,
       issues: [{ path: ['definition', 'title'], code: 'invalid_candidate' }],

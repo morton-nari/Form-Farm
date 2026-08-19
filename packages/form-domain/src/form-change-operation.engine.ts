@@ -9,11 +9,7 @@ import type {
   FormChangeSetValidationResult,
   FormFieldPresentation,
 } from './form-change-operation.models.js';
-import type {
-  FormDraftDefinition,
-  FormDraftSection,
-  FormField,
-} from './form-definition.models.js';
+import type { FormDraftDefinition, FormDraftSection, FormField } from './form-definition.models.js';
 import { validateFormDraftDefinition } from './form-definition.validator.js';
 import { FORM_IDENTIFIER_PATTERN } from './form-identifier.js';
 
@@ -57,13 +53,7 @@ const textPresentation = (fieldType: 'text' | 'email' | 'password' | 'tel' | 'ur
   });
 const commonPresentation = (
   fieldType:
-    | 'date'
-    | 'datetime'
-    | 'time'
-    | 'radio'
-    | 'multi-select'
-    | 'checkbox'
-    | 'checkbox-group',
+    'date' | 'datetime' | 'time' | 'radio' | 'multi-select' | 'checkbox' | 'checkbox-group',
 ) => z.strictObject({ ...presentationBase, fieldType: z.literal(fieldType) });
 
 const fieldPresentation = z.discriminatedUnion('fieldType', [
@@ -101,8 +91,14 @@ const fieldPresentation = z.discriminatedUnion('fieldType', [
 const requiredRule = z.strictObject({ type: z.literal('required') });
 const validationRule = z.discriminatedUnion('type', [
   requiredRule,
-  z.strictObject({ type: z.literal('minLength'), value: z.number().check(z.int(), z.nonnegative()) }),
-  z.strictObject({ type: z.literal('maxLength'), value: z.number().check(z.int(), z.nonnegative()) }),
+  z.strictObject({
+    type: z.literal('minLength'),
+    value: z.number().check(z.int(), z.nonnegative()),
+  }),
+  z.strictObject({
+    type: z.literal('maxLength'),
+    value: z.number().check(z.int(), z.nonnegative()),
+  }),
   z.strictObject({ type: z.literal('min'), value: z.number() }),
   z.strictObject({ type: z.literal('max'), value: z.number() }),
   z.strictObject({ type: z.literal('integer') }),
@@ -306,6 +302,16 @@ function applyOperation(
     case 'addSection': {
       if (draft.sections.some((section) => section.id === operation.section.id))
         return issue(path, 'identifier_collision', 'Section ID is already in use.', 'section');
+      const collidingFieldIndex = operation.section.fields.findIndex((field) =>
+        Boolean(findField(draft, field.id)),
+      );
+      if (collidingFieldIndex >= 0) {
+        return {
+          path: [...path, 'section', 'fields', collidingFieldIndex, 'id'],
+          code: 'identifier_collision',
+          message: 'Field ID is already in use.',
+        };
+      }
       const insertion = insertionIndex(
         draft.sections,
         operation.afterSectionId,
@@ -318,22 +324,30 @@ function applyOperation(
     }
     case 'setSectionPresentation': {
       const section = draft.sections.find((candidate) => candidate.id === operation.sectionId);
-      if (!section) return issue(path, 'target_not_found', 'Section target was not found.', 'sectionId');
+      if (!section)
+        return issue(path, 'target_not_found', 'Section target was not found.', 'sectionId');
       section.title = operation.title;
       setOptional(section, 'description', operation.description);
       return;
     }
     case 'removeSection': {
       const index = draft.sections.findIndex((section) => section.id === operation.sectionId);
-      if (index < 0) return issue(path, 'target_not_found', 'Section target was not found.', 'sectionId');
+      if (index < 0)
+        return issue(path, 'target_not_found', 'Section target was not found.', 'sectionId');
       draft.sections.splice(index, 1);
       return;
     }
     case 'moveSection': {
       const index = draft.sections.findIndex((section) => section.id === operation.sectionId);
-      if (index < 0) return issue(path, 'target_not_found', 'Section target was not found.', 'sectionId');
+      if (index < 0)
+        return issue(path, 'target_not_found', 'Section target was not found.', 'sectionId');
       if (operation.afterSectionId === operation.sectionId)
-        return issue(path, 'invalid_anchor', 'A section cannot be anchored to itself.', 'afterSectionId');
+        return issue(
+          path,
+          'invalid_anchor',
+          'A section cannot be anchored to itself.',
+          'afterSectionId',
+        );
       const [section] = draft.sections.splice(index, 1);
       const insertion = insertionIndex(
         draft.sections,
@@ -350,17 +364,24 @@ function applyOperation(
     }
     case 'addField': {
       const section = draft.sections.find((candidate) => candidate.id === operation.sectionId);
-      if (!section) return issue(path, 'target_not_found', 'Section target was not found.', 'sectionId');
+      if (!section)
+        return issue(path, 'target_not_found', 'Section target was not found.', 'sectionId');
       if (findField(draft, operation.field.id))
         return issue(path, 'identifier_collision', 'Field ID is already in use.', 'field');
-      const insertion = insertionIndex(section.fields, operation.afterFieldId, path, 'afterFieldId');
+      const insertion = insertionIndex(
+        section.fields,
+        operation.afterFieldId,
+        path,
+        'afterFieldId',
+      );
       if (typeof insertion !== 'number') return insertion;
       section.fields.splice(insertion, 0, cloneValue(operation.field));
       return;
     }
     case 'setFieldPresentation': {
       const located = findField(draft, operation.fieldId);
-      if (!located) return issue(path, 'target_not_found', 'Field target was not found.', 'fieldId');
+      if (!located)
+        return issue(path, 'target_not_found', 'Field target was not found.', 'fieldId');
       if (located.field.type !== operation.presentation.fieldType)
         return issue(
           path,
@@ -368,17 +389,21 @@ function applyOperation(
           'Presentation type must match the target field type.',
           'presentation',
         );
-      located.section.fields[located.index] = applyPresentation(located.field, operation.presentation);
+      located.section.fields[located.index] = applyPresentation(
+        located.field,
+        operation.presentation,
+      );
       return;
     }
     case 'setFieldDefault': {
       const located = findField(draft, operation.fieldId);
-      if (!located) return issue(path, 'target_not_found', 'Field target was not found.', 'fieldId');
-      if (located.field.type === 'password' && operation.defaultValue !== null)
+      if (!located)
+        return issue(path, 'target_not_found', 'Field target was not found.', 'fieldId');
+      if (!isDefaultCompatible(located.field, operation.defaultValue))
         return issue(
           path,
           'incompatible_field_type',
-          'Password fields cannot define defaults.',
+          'Default value shape is incompatible with the target field type.',
           'defaultValue',
         );
       const replacement = { ...located.field } as Record<string, unknown>;
@@ -388,7 +413,15 @@ function applyOperation(
     }
     case 'setFieldValidation': {
       const located = findField(draft, operation.fieldId);
-      if (!located) return issue(path, 'target_not_found', 'Field target was not found.', 'fieldId');
+      if (!located)
+        return issue(path, 'target_not_found', 'Field target was not found.', 'fieldId');
+      if (!isValidationCompatible(located.field, operation.validation))
+        return issue(
+          path,
+          'incompatible_field_type',
+          'Validation rule family is incompatible with the target field type.',
+          'validation',
+        );
       const replacement = { ...located.field } as Record<string, unknown>;
       setOptional(replacement, 'validation', operation.validation && [...operation.validation]);
       located.section.fields[located.index] = replacement as unknown as FormField;
@@ -396,7 +429,8 @@ function applyOperation(
     }
     case 'setChoiceOptions': {
       const located = findField(draft, operation.fieldId);
-      if (!located) return issue(path, 'target_not_found', 'Field target was not found.', 'fieldId');
+      if (!located)
+        return issue(path, 'target_not_found', 'Field target was not found.', 'fieldId');
       if (!['select', 'radio', 'multi-select', 'checkbox-group'].includes(located.field.type))
         return issue(
           path,
@@ -412,20 +446,32 @@ function applyOperation(
     }
     case 'removeField': {
       const located = findField(draft, operation.fieldId);
-      if (!located) return issue(path, 'target_not_found', 'Field target was not found.', 'fieldId');
+      if (!located)
+        return issue(path, 'target_not_found', 'Field target was not found.', 'fieldId');
       located.section.fields.splice(located.index, 1);
       return;
     }
     case 'moveField': {
       const located = findField(draft, operation.fieldId);
-      if (!located) return issue(path, 'target_not_found', 'Field target was not found.', 'fieldId');
+      if (!located)
+        return issue(path, 'target_not_found', 'Field target was not found.', 'fieldId');
       const destination = draft.sections.find((section) => section.id === operation.toSectionId);
       if (!destination)
         return issue(path, 'target_not_found', 'Destination section was not found.', 'toSectionId');
       if (operation.afterFieldId === operation.fieldId)
-        return issue(path, 'invalid_anchor', 'A field cannot be anchored to itself.', 'afterFieldId');
+        return issue(
+          path,
+          'invalid_anchor',
+          'A field cannot be anchored to itself.',
+          'afterFieldId',
+        );
       const [field] = located.section.fields.splice(located.index, 1);
-      const insertion = insertionIndex(destination.fields, operation.afterFieldId, path, 'afterFieldId');
+      const insertion = insertionIndex(
+        destination.fields,
+        operation.afterFieldId,
+        path,
+        'afterFieldId',
+      );
       if (typeof insertion !== 'number') {
         located.section.fields.splice(located.index, 0, field!);
         return insertion;
@@ -433,6 +479,70 @@ function applyOperation(
       destination.fields.splice(insertion, 0, field!);
       return;
     }
+  }
+}
+
+function isDefaultCompatible(
+  field: FormField,
+  value: string | number | boolean | readonly string[] | null,
+): boolean {
+  if (value === null) return true;
+  switch (field.type) {
+    case 'text':
+    case 'email':
+    case 'tel':
+    case 'url':
+    case 'textarea':
+    case 'date':
+    case 'datetime':
+    case 'time':
+    case 'select':
+    case 'radio':
+      return typeof value === 'string';
+    case 'number':
+      return typeof value === 'number';
+    case 'multi-select':
+    case 'checkbox-group':
+      return Array.isArray(value);
+    case 'checkbox':
+      return typeof value === 'boolean';
+    case 'password':
+      return false;
+  }
+}
+
+function isValidationCompatible(
+  field: FormField,
+  rules: readonly { readonly type: string }[] | null,
+): boolean {
+  if (rules === null) return true;
+  const allowed = validationRuleTypes(field.type);
+  return rules.every((rule) => allowed.has(rule.type));
+}
+
+function validationRuleTypes(type: FormField['type']): ReadonlySet<string> {
+  switch (type) {
+    case 'text':
+    case 'email':
+    case 'password':
+    case 'tel':
+    case 'url':
+    case 'textarea':
+      return new Set(['required', 'minLength', 'maxLength']);
+    case 'number':
+      return new Set(['required', 'min', 'max', 'integer']);
+    case 'date':
+    case 'datetime':
+    case 'time':
+      return new Set(['required', 'earliest', 'latest']);
+    case 'select':
+    case 'radio':
+      return new Set(['required']);
+    case 'multi-select':
+    case 'checkbox-group':
+      return new Set(['required', 'minSelections', 'maxSelections']);
+    case 'checkbox':
+      return new Set(['required', 'accepted']);
   }
 }
 
@@ -451,7 +561,9 @@ function applyPresentation(field: FormField, presentation: FormFieldPresentation
 function findField(
   draft: MutableDraft,
   fieldId: string,
-): { readonly section: MutableSection; readonly index: number; readonly field: FormField } | undefined {
+):
+  | { readonly section: MutableSection; readonly index: number; readonly field: FormField }
+  | undefined {
   for (const section of draft.sections) {
     const index = section.fields.findIndex((field) => field.id === fieldId);
     if (index >= 0) return { section, index, field: section.fields[index]! };
@@ -468,7 +580,12 @@ function insertionIndex<T extends { readonly id: string }>(
   if (afterId === null) return 0;
   const anchorIndex = values.findIndex((value) => value.id === afterId);
   return anchorIndex < 0
-    ? issue(path, 'invalid_anchor', 'Ordering anchor was not found in the target container.', property)
+    ? issue(
+        path,
+        'invalid_anchor',
+        'Ordering anchor was not found in the target container.',
+        property,
+      )
     : anchorIndex + 1;
 }
 
@@ -477,7 +594,11 @@ function setOptional(
   property: string,
   value: unknown | null,
 ): void;
-function setOptional<T extends object, K extends keyof T>(target: T, property: K, value: T[K] | null): void;
+function setOptional<T extends object, K extends keyof T>(
+  target: T,
+  property: K,
+  value: T[K] | null,
+): void;
 function setOptional(target: object, property: PropertyKey, value: unknown | null): void {
   if (value === null) delete (target as Record<PropertyKey, unknown>)[property];
   else (target as Record<PropertyKey, unknown>)[property] = value;
@@ -501,7 +622,9 @@ function validateSectionCandidate(input: unknown) {
 }
 
 function validateFieldCandidate(input: unknown) {
-  const result = validateFormDraftDefinition(candidateDefinition([{ id: 'candidate', title: 'Candidate', fields: [input] }]));
+  const result = validateFormDraftDefinition(
+    candidateDefinition([{ id: 'candidate', title: 'Candidate', fields: [input] }]),
+  );
   return result.success
     ? { success: true as const, value: result.value.sections[0]!.fields[0]! }
     : {
@@ -522,7 +645,11 @@ function candidateDefinition(sections: readonly unknown[]): unknown {
 }
 
 function stripCandidatePath(
-  issues: readonly { readonly path: readonly (string | number)[]; readonly code: string; readonly message: string }[],
+  issues: readonly {
+    readonly path: readonly (string | number)[];
+    readonly code: string;
+    readonly message: string;
+  }[],
   prefix: readonly (string | number)[],
 ) {
   return issues.map((issue) => ({ ...issue, path: issue.path.slice(prefix.length) }));
