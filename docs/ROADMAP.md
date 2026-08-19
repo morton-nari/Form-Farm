@@ -134,10 +134,10 @@ server.
 
 ### Deterministic foundations
 
-- Define an ADR for the Form Intelligence and MCP architecture before protocol implementation.
-- Define an exhaustive provider-neutral Form Change Operation model over `FormDraftDefinition`; do not use
+- [x] Define an ADR for the Form Intelligence and MCP architecture before protocol implementation.
+- [x] Define an exhaustive provider-neutral Form Change Operation model over `FormDraftDefinition`; do not use
   arbitrary JSON mutation as the client contract.
-- Implement immutable operation application with strict runtime/domain validation and no publication behavior.
+- [x] Implement immutable operation application with strict runtime/domain validation and no publication behavior.
 - Implement semantic form diffing that understands stable IDs, order, presentation, validation, structure,
   choice labels, and submitted option values.
 - Implement the deterministic Form Change Impact Engine before requiring an LLM.
