@@ -319,6 +319,11 @@ defaults, rule values, option values, or complete definitions. Output order is c
 bounded limit produces explicit total/truncation metadata. The comparison records both form-version identities
 and never mutates either immutable published definition or draft candidate.
 
+Option indexes in diff events are display locations at the named side of the comparison, not stable option
+identities. Submitted values remain internal matching keys and are not exposed merely to make consumers more
+convenient. The Impact Engine must require an untruncated semantic diff for a complete report or explicitly mark
+its result incomplete; it may never infer a complete low-risk result from a truncated prefix.
+
 Initial MCP work is read-only and local: safe inspection, version comparison, and impact analysis for explicit
 operations. Proposal tools remain non-mutating. A later `apply_draft_operations` capability is the only planned
 initial mutation tool and requires owner authentication, exact ETag, controlled operations, deterministic impact,
