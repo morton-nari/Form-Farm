@@ -152,7 +152,9 @@ server.
       issuance limit, owner-scoped core use cases, and Production runtime-grant exclusion.
 - [x] Add development-only owner-management HTTP and Angular flows with request-scoped current-password
       confirmation, session continuity, one-time display, safe listing, and revocation.
-- Add per-invocation credential resolution into `AuthenticatedActor` before exposing owner-aware tools.
+- [x] Add development-only per-invocation credential resolution into `AuthenticatedActor`, with strict
+      environment transport, constant-time verifier checks, revocation/expiry/scope enforcement, durable
+      HMAC-keyed failure throttling, and bounded last-used writes.
 - Start with a local, read-only MCP adapter exposing a deliberately small surface: `inspect_form`,
   `compare_form_versions`, and `impact_analysis` for explicit operations.
 - Route every MCP capability through existing application use cases, domain validation, authorization, and

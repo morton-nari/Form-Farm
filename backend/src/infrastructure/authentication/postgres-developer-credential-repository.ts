@@ -1,7 +1,8 @@
-import { and, count, desc, eq, gt, isNull, sql } from 'drizzle-orm';
+import { and, count, desc, eq, gt, isNull, lte, or, sql } from 'drizzle-orm';
 
 import type {
   DeveloperCredentialMetadata,
+  DeveloperCredentialAuthenticationRepository,
   DeveloperCredentialRepository,
   IssueDeveloperCredentialResult,
 } from '../../application/ports/developer-credentials.js';
@@ -13,7 +14,9 @@ import type { FormFarmDatabase } from '../database/create-database.js';
 import { developerCredentials, users } from '../database/schema.js';
 import { safelyPersistDeveloperCredential } from './developer-credential-persistence-error.js';
 
-export class PostgresDeveloperCredentialRepository implements DeveloperCredentialRepository {
+export class PostgresDeveloperCredentialRepository
+  implements DeveloperCredentialRepository, DeveloperCredentialAuthenticationRepository
+{
   constructor(private readonly database: FormFarmDatabase) {}
 
   issue(
@@ -90,6 +93,75 @@ export class PostgresDeveloperCredentialRepository implements DeveloperCredentia
           ),
         );
     });
+  }
+
+  findForAuthentication(
+    publicId: string,
+  ): ReturnType<DeveloperCredentialAuthenticationRepository['findForAuthentication']> {
+    return safelyPersistDeveloperCredential(async () => {
+      const [record] = await this.database
+        .select({
+          publicId: developerCredentials.id,
+          userId: developerCredentials.userId,
+          secretVerifier: developerCredentials.secretHash,
+          scope: developerCredentials.scope,
+          environment: developerCredentials.environment,
+          expiresAt: developerCredentials.expiresAt,
+          revokedAt: developerCredentials.revokedAt,
+        })
+        .from(developerCredentials)
+        .innerJoin(users, eq(users.id, developerCredentials.userId))
+        .where(and(eq(developerCredentials.id, publicId), eq(users.status, 'active')))
+        .limit(1);
+      return record;
+    });
+  }
+
+  confirmActiveAndTouch(
+    input: Parameters<DeveloperCredentialAuthenticationRepository['confirmActiveAndTouch']>[0],
+  ): Promise<boolean> {
+    return safelyPersistDeveloperCredential(() =>
+      this.database.transaction(async (transaction) => {
+        const [active] = await transaction
+          .select({
+            publicId: developerCredentials.id,
+            lastUsedAt: developerCredentials.lastUsedAt,
+          })
+          .from(developerCredentials)
+          .innerJoin(users, eq(users.id, developerCredentials.userId))
+          .where(
+            and(
+              eq(developerCredentials.id, input.publicId),
+              eq(developerCredentials.userId, input.userId),
+              eq(developerCredentials.scope, DEVELOPER_CREDENTIAL_SCOPE),
+              eq(developerCredentials.environment, DEVELOPER_CREDENTIAL_ENVIRONMENT),
+              isNull(developerCredentials.revokedAt),
+              gt(developerCredentials.expiresAt, sql`now()`),
+              eq(users.status, 'active'),
+            ),
+          )
+          .for('update', { of: developerCredentials })
+          .limit(1);
+        if (!active) return false;
+
+        await transaction
+          .update(developerCredentials)
+          .set({ lastUsedAt: sql`now()` })
+          .where(
+            and(
+              eq(developerCredentials.id, active.publicId),
+              or(
+                isNull(developerCredentials.lastUsedAt),
+                lte(
+                  developerCredentials.lastUsedAt,
+                  sql`now() - (${input.writeCadenceMilliseconds} * interval '1 millisecond')`,
+                ),
+              ),
+            ),
+          );
+        return true;
+      }),
+    );
   }
 
   deleteTerminal(retentionMilliseconds: number): Promise<number> {

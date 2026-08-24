@@ -9,8 +9,9 @@ import {
   ListDeveloperCredentials,
   RevokeDeveloperCredential,
 } from '../application/authentication/developer-credentials.js';
+import { ResolveDeveloperCredential } from '../application/authentication/resolve-developer-credential.js';
 import type { BackendConfig } from '../config/backend-config.js';
-import { AuthenticationRateLimiter } from '../http/authentication/authentication-rate-limiter.js';
+import { AuthenticationRateLimiter } from '../application/authentication/authentication-rate-limiter.js';
 import { XsrfTokenService } from '../http/authentication/xsrf-token-service.js';
 import { Argon2PasswordHasher } from '../infrastructure/authentication/argon2-password-hasher.js';
 import { CommonPasswordBlocklist } from '../infrastructure/authentication/common-password-blocklist.js';
@@ -23,10 +24,12 @@ import { NodeDeveloperCredentialCodec } from '../infrastructure/authentication/n
 import { PostgresDeveloperCredentialRepository } from '../infrastructure/authentication/postgres-developer-credential-repository.js';
 import { PostgresDeveloperCredentialPasswordSource } from '../infrastructure/authentication/postgres-developer-credential-password-source.js';
 import type { FormFarmDatabase } from '../infrastructure/database/create-database.js';
+import { DeveloperCredentialAuthenticationThrottleAdapter } from './developer-credential-authentication-throttle.js';
 
 export function createAuthenticationServices(
   database: FormFarmDatabase,
   config: BackendConfig['auth'],
+  deploymentStage: BackendConfig['deploymentStage'],
 ): AuthenticationApplicationServices {
   const accounts = new PostgresUserAccountRepository(database);
   const sessions = new PostgresSessionRepository(database);
@@ -39,6 +42,12 @@ export function createAuthenticationServices(
       ? [new NodeAuthenticationRateLimitKeyGenerator(Buffer.from(config.rateLimitPreviousSecret))]
       : []),
   ];
+  const rateLimiter = new AuthenticationRateLimiter(
+    new PostgresAuthenticationRateLimitRepository(database),
+    rateLimitKeyGenerators,
+    config.rateLimitWindowMilliseconds,
+    config.previousSecretValidUntilMilliseconds,
+  );
 
   return {
     registerAccount: new RegisterAccount(accounts, passwords, new CommonPasswordBlocklist()),
@@ -53,12 +62,7 @@ export function createAuthenticationServices(
       config.sessionIdleTimeoutMilliseconds,
       config.sessionActivityWriteCadenceMilliseconds,
     ),
-    rateLimiter: new AuthenticationRateLimiter(
-      new PostgresAuthenticationRateLimitRepository(database),
-      rateLimitKeyGenerators,
-      config.rateLimitWindowMilliseconds,
-      config.previousSecretValidUntilMilliseconds,
-    ),
+    rateLimiter,
     xsrfTokens: new XsrfTokenService(
       config.xsrfCurrentSecret,
       config.xsrfPreviousSecret,
@@ -77,5 +81,11 @@ export function createAuthenticationServices(
       listDeveloperCredentials: new ListDeveloperCredentials(developerCredentialRepository),
       revokeDeveloperCredential: new RevokeDeveloperCredential(developerCredentialRepository),
     },
+    resolveDeveloperCredential: new ResolveDeveloperCredential(
+      new NodeDeveloperCredentialCodec(),
+      developerCredentialRepository,
+      new DeveloperCredentialAuthenticationThrottleAdapter(rateLimiter, config.loginRateLimit),
+      deploymentStage,
+    ),
   };
 }

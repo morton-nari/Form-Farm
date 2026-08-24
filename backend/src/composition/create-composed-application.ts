@@ -20,7 +20,11 @@ export function createComposedApplication(environment: NodeJS.ProcessEnv = proce
       config,
       formDefinitionSource: new PostgresFormDefinitionSource(database.database),
       formSubmissionTransaction: new PostgresFormSubmissionTransaction(database.database),
-      authentication: createAuthenticationServices(database.database, config.auth),
+      authentication: createAuthenticationServices(
+        database.database,
+        config.auth,
+        config.deploymentStage,
+      ),
       accessibleFormSource: new PostgresAccessibleFormSource(database.database),
       createFormDraftTransaction: new PostgresCreateFormDraftTransaction(database.database),
       ownerFormDraftStore: new PostgresOwnerFormDraftStore(database.database),

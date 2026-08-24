@@ -56,3 +56,28 @@ export interface DeveloperCredentialRepository {
 export interface DeveloperCredentialPasswordSource {
   findActivePasswordHash(userId: string): Promise<string | undefined>;
 }
+
+export interface StoredDeveloperCredentialAuthentication {
+  readonly publicId: string;
+  readonly userId: string;
+  readonly secretVerifier: string;
+  readonly scope: string;
+  readonly environment: string;
+  readonly expiresAt: Date;
+  readonly revokedAt: Date | null;
+}
+
+export interface DeveloperCredentialAuthenticationRepository {
+  findForAuthentication(
+    publicId: string,
+  ): Promise<StoredDeveloperCredentialAuthentication | undefined>;
+  confirmActiveAndTouch(input: {
+    readonly publicId: string;
+    readonly userId: string;
+    readonly writeCadenceMilliseconds: number;
+  }): Promise<boolean>;
+}
+
+export interface DeveloperCredentialAuthenticationThrottle {
+  consume(identifier: string): Promise<void>;
+}

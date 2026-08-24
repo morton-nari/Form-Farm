@@ -2,7 +2,7 @@ import type {
   AuthenticationRateLimitKeyGenerator,
   AuthenticationRateLimitRepository,
   AuthenticationRateLimitScope,
-} from '../../application/ports/authentication.js';
+} from '../ports/authentication.js';
 
 export class RateLimitedError extends Error {
   override readonly name = 'RateLimitedError';

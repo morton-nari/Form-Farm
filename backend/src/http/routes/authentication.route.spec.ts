@@ -5,7 +5,7 @@ import { createApplication, type AuthenticationApplicationServices } from '../..
 import { InvalidCredentialsError } from '../../application/authentication/login.js';
 import type { AuthenticationRateLimitRepository } from '../../application/ports/authentication.js';
 import type { BackendConfig } from '../../config/backend-config.js';
-import { AuthenticationRateLimiter } from '../authentication/authentication-rate-limiter.js';
+import { AuthenticationRateLimiter } from '../../application/authentication/authentication-rate-limiter.js';
 import { XsrfTokenService } from '../authentication/xsrf-token-service.js';
 import { SeededFormDefinitionSource } from '../../infrastructure/forms/seeded-form-definition-source.js';
 

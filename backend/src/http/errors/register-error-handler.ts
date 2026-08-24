@@ -6,7 +6,7 @@ import {
   ForbiddenAuthenticationRequestError,
   UnauthenticatedError,
 } from '../authentication/authentication-errors.js';
-import { RateLimitedError } from '../authentication/authentication-rate-limiter.js';
+import { RateLimitedError } from '../../application/authentication/authentication-rate-limiter.js';
 import type { ApplicationErrorCode } from '../../application/errors/application-error.js';
 import type { FastifyInstance } from 'fastify';
 import { UnpublishableFormError } from '../../application/forms/publish-form-draft.js';

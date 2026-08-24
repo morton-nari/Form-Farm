@@ -15,7 +15,7 @@ import { registerFormDefinitionRoute } from './http/routes/form-definition.route
 import { registerHealthRoute } from './http/routes/health.route.js';
 import { registerFormSubmissionRoute } from './http/routes/form-submission.route.js';
 import { registerAuthenticationRoutes } from './http/routes/authentication.route.js';
-import type { AuthenticationRateLimiter } from './http/authentication/authentication-rate-limiter.js';
+import type { AuthenticationRateLimiter } from './application/authentication/authentication-rate-limiter.js';
 import type { XsrfTokenService } from './http/authentication/xsrf-token-service.js';
 import { registerOwnedFormsRoutes } from './http/routes/owned-forms.route.js';
 import { CreateFormDraft } from './application/forms/create-form-draft.js';
@@ -34,6 +34,7 @@ import type {
   ListDeveloperCredentials,
   RevokeDeveloperCredential,
 } from './application/authentication/developer-credentials.js';
+import type { ResolveDeveloperCredential } from './application/authentication/resolve-developer-credential.js';
 import { registerDeveloperCredentialRoutes } from './http/routes/developer-credentials.route.js';
 
 export interface AuthenticationApplicationServices {
@@ -57,6 +58,7 @@ export interface AuthenticationApplicationServices {
     readonly listDeveloperCredentials: ListDeveloperCredentials;
     readonly revokeDeveloperCredential: RevokeDeveloperCredential;
   };
+  readonly resolveDeveloperCredential?: ResolveDeveloperCredential;
 }
 
 export interface CreateApplicationOptions {

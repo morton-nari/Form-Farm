@@ -11,6 +11,7 @@ import {
   ListDeveloperCredentials,
   RevokeDeveloperCredential,
 } from '../../application/authentication/developer-credentials.js';
+import { ResolveDeveloperCredential } from '../../application/authentication/resolve-developer-credential.js';
 import type { AuthenticatedActor } from '../../application/ports/create-form-draft-transaction.js';
 import { createDatabase, type FormFarmDatabase } from '../database/create-database.js';
 import { migrationNames } from '../database/migration-manifest.js';
@@ -226,6 +227,14 @@ describe('developer credential PostgreSQL core', () => {
     ).resolves.toEqual({ allowed: true, retryAfterSeconds: 0 });
     await expect(
       rateLimits.consume({
+        scope: 'developer-credential-authentication',
+        keyHash: 'd'.repeat(64),
+        windowMilliseconds: 60_000,
+        limit: 2,
+      }),
+    ).resolves.toEqual({ allowed: true, retryAfterSeconds: 0 });
+    await expect(
+      rateLimits.consume({
         scope: 'developer-credential-actor',
         keyHash: 'c'.repeat(64),
         windowMilliseconds: 60_000,
@@ -239,8 +248,77 @@ describe('developer credential PostgreSQL core', () => {
       expect.arrayContaining([
         { scope: 'developer-credential-source', key_hash: 'b'.repeat(64) },
         { scope: 'developer-credential-actor', key_hash: 'c'.repeat(64) },
+        { scope: 'developer-credential-authentication', key_hash: 'd'.repeat(64) },
       ]),
     );
+  });
+
+  it('resolves on every invocation, throttles last-used writes, and observes revocation immediately', async () => {
+    await pool.query(`delete from developer_credentials where user_id = $1`, [owner.userId]);
+    const issued = await new IssueDeveloperCredential(codec, repository).execute(owner, {
+      displayName: 'Resolver test',
+      expiresInDays: 7,
+    });
+    const resolver = new ResolveDeveloperCredential(
+      codec,
+      repository,
+      {
+        consume: async () => undefined,
+      },
+      'development',
+    );
+
+    await expect(resolver.execute(issued.credential)).resolves.toEqual(owner);
+    const firstUsed = (
+      await pool.query<{ last_used_at: Date }>(
+        `select last_used_at from developer_credentials where id = $1`,
+        [issued.publicId],
+      )
+    ).rows[0]!.last_used_at;
+    expect(firstUsed).toBeInstanceOf(Date);
+
+    await expect(resolver.execute(issued.credential)).resolves.toEqual(owner);
+    const repeatedUsed = (
+      await pool.query<{ last_used_at: Date }>(
+        `select last_used_at from developer_credentials where id = $1`,
+        [issued.publicId],
+      )
+    ).rows[0]!.last_used_at;
+    expect(repeatedUsed).toEqual(firstUsed);
+
+    await new RevokeDeveloperCredential(repository).execute(owner, issued.publicId);
+    await expect(resolver.execute(issued.credential)).resolves.toBeUndefined();
+  });
+
+  it('fails resolution for an expired credential or disabled owner', async () => {
+    await pool.query(`delete from developer_credentials where user_id = $1`, [owner.userId]);
+    const issued = await new IssueDeveloperCredential(codec, repository).execute(owner, {
+      displayName: 'Expiry test',
+      expiresInDays: 1,
+    });
+    const resolver = new ResolveDeveloperCredential(
+      codec,
+      repository,
+      {
+        consume: async () => undefined,
+      },
+      'development',
+    );
+    await pool.query(
+      `update developer_credentials
+       set created_at = now() - interval '2 days', expires_at = now() - interval '1 day'
+       where id = $1`,
+      [issued.publicId],
+    );
+    await expect(resolver.execute(issued.credential)).resolves.toBeUndefined();
+
+    const active = await new IssueDeveloperCredential(codec, repository).execute(owner, {
+      displayName: 'Disabled owner test',
+      expiresInDays: 1,
+    });
+    await pool.query(`update users set status = 'disabled' where id = $1`, [owner.userId]);
+    await expect(resolver.execute(active.credential)).resolves.toBeUndefined();
+    await pool.query(`update users set status = 'active' where id = $1`, [owner.userId]);
   });
 
   async function applyMigration(name: string): Promise<void> {

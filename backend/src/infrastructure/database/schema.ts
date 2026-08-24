@@ -141,7 +141,8 @@ export const authRateLimits = pgTable(
       'auth_rate_limits_scope_check',
       sql`${table.scope} in (
         'registration-source', 'registration-account', 'login-source', 'login-account',
-        'developer-credential-source', 'developer-credential-actor'
+        'developer-credential-source', 'developer-credential-actor',
+        'developer-credential-authentication'
       )`,
     ),
     check('auth_rate_limits_key_hash_check', sql`${table.keyHash} ~ '^[0-9a-f]{64}$'`),
