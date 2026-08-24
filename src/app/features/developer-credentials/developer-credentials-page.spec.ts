@@ -38,6 +38,8 @@ describe('DeveloperCredentialsPage', () => {
     expect(fixture.componentInstance.oneTimeCredential()).toBe(rawCredential);
     expect(JSON.stringify(fixture.componentInstance.credentials())).not.toContain(rawCredential);
     expect(fixture.componentInstance.form.controls.currentPassword.value).toBe('');
+    fixture.componentInstance.hideCredential();
+    expect(fixture.componentInstance.oneTimeCredential()).toBeUndefined();
     fixture.componentInstance.ngOnDestroy();
     expect(fixture.componentInstance.oneTimeCredential()).toBeUndefined();
     http.verify();

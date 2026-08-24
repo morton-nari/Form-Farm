@@ -128,6 +128,11 @@ export class DeveloperCredentialsPage implements OnInit, OnDestroy {
     }
   }
 
+  hideCredential(): void {
+    this.oneTimeCredential.set(undefined);
+    this.copied.set(false);
+  }
+
   async revoke(credential: DeveloperCredentialMetadata): Promise<void> {
     if (credential.revokedAt) return;
     this.message.set(undefined);
