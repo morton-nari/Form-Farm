@@ -95,6 +95,12 @@ for medical collection, account creation, booking, payment, or another privilege
 The Compose credentials are development examples only and must never be reused in a hosted environment.
 The seed command requires `ALLOW_DATABASE_SEED=true` and refuses to run when `NODE_ENV=production`.
 
+After signing in locally, open
+[`http://localhost:4200/manage/developer-credentials`](http://localhost:4200/manage/developer-credentials) to
+issue, list, or revoke a development-only read credential. Issuance requires the current password and displays
+the raw credential once. Do not commit it, place it in a URL or command argument, or reuse it outside local
+development. The credential resolver and MCP tools are not implemented yet.
+
 For a clean, lockfile-based installation, such as in CI, use:
 
 ```bash
@@ -161,7 +167,7 @@ Backend configuration is read and validated once at startup. Invalid configurati
 | `LOG_LEVEL`              | `info`                   | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent` |
 | `DATABASE_URL`           | none                     | PostgreSQL connection URL; required and never logged         |
 | `DATABASE_ADMIN_URL`     | none                     | Direct URL for migration and Drizzle tooling only            |
-| `DATABASE_POOL_MAX`      | local `10`               | Integer from 1 through 100; required when hosted              |
+| `DATABASE_POOL_MAX`      | local `10`               | Integer from 1 through 100; required when hosted             |
 | `PUBLIC_APP_ORIGIN`      | local Angular            | Exact public origin; production requires HTTPS               |
 | `AUTH_SECURE_COOKIES`    | local `false`            | Boolean; production requires `true`                          |
 | `TRUSTED_PROXY_HOPS`     | `0`                      | Exact trusted reverse-proxy hop count                        |

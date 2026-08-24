@@ -29,6 +29,12 @@ import type { BootstrapFormDraftTransaction } from './application/ports/bootstra
 import { BootstrapFormDraft } from './application/forms/bootstrap-form-draft.js';
 import type { OwnerFormManagementSource } from './application/ports/owner-form-management-source.js';
 import { ListOwnerManagedForms } from './application/forms/list-owner-managed-forms.js';
+import type {
+  ConfirmAndIssueDeveloperCredential,
+  ListDeveloperCredentials,
+  RevokeDeveloperCredential,
+} from './application/authentication/developer-credentials.js';
+import { registerDeveloperCredentialRoutes } from './http/routes/developer-credentials.route.js';
 
 export interface AuthenticationApplicationServices {
   readonly registerAccount: {
@@ -46,6 +52,11 @@ export interface AuthenticationApplicationServices {
   };
   readonly rateLimiter: AuthenticationRateLimiter;
   readonly xsrfTokens: XsrfTokenService;
+  readonly developerCredentials?: {
+    readonly issueDeveloperCredential: ConfirmAndIssueDeveloperCredential;
+    readonly listDeveloperCredentials: ListDeveloperCredentials;
+    readonly revokeDeveloperCredential: RevokeDeveloperCredential;
+  };
 }
 
 export interface CreateApplicationOptions {
@@ -94,6 +105,18 @@ export function createApplication(options: CreateApplicationOptions): FastifyIns
     void app.register(registerAuthenticationRoutes, {
       config: options.config.auth,
       ...options.authentication,
+    });
+  }
+  if (
+    options.authentication?.developerCredentials &&
+    options.config.deploymentStage === 'development'
+  ) {
+    void app.register(registerDeveloperCredentialRoutes, {
+      config: options.config.auth,
+      resolveSession: options.authentication.resolveSession,
+      rateLimiter: options.authentication.rateLimiter,
+      xsrfTokens: options.authentication.xsrfTokens,
+      ...options.authentication.developerCredentials,
     });
   }
   if (options.authentication && options.accessibleFormSource) {

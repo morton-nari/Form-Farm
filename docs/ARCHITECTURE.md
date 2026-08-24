@@ -280,10 +280,19 @@ of expired/revoked metadata after thirty days. Issuance locks the active owner r
 so concurrent requests cannot bypass the limit. Production runtime grants explicitly exclude this
 development-only table even if the shared migration history creates it.
 
-This core is not yet reachable through HTTP, Angular, or MCP. Current-password confirmation and session
-continuity belong to the owner-management slice; per-invocation actor resolution belongs to the authentication
-adapter slice. Public/system-only information therefore remains the maximum safe unauthenticated MCP surface
-until those slices are complete.
+The development-only owner-management slice exposes this lifecycle through authenticated, no-store HTTP routes
+and an Angular page at `/manage/developer-credentials`. Issuance requires the existing browser session, exact
+Origin, session-bound XSRF evidence, HMAC-keyed source/actor rate limits, and request-scoped verification of the
+current password. The same session and actor are resolved again after password verification and before secret
+generation. Successful confirmation authorizes only that request and creates no reusable privileged-session
+state. The raw credential is displayed once in component memory, is never added to the metadata list, and is
+cleared when the page is destroyed; list and revocation responses contain safe metadata only.
+
+The routes are registered only for `APP_ENV=development`. Preview and Production cannot issue, list, or revoke
+these credentials through the application, and Production runtime database grants continue to exclude their
+table. Per-invocation developer-credential resolution still belongs to the next authentication-adapter slice.
+Public/system-only information therefore remains the maximum safe unauthenticated MCP surface until that slice
+is complete.
 
 The flagship foundation is a deterministic Form Change Impact Engine. A semantic diff must distinguish display
 labels from submitted values, validation from presentation, movement from replacement, and structural change
