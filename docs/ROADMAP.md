@@ -136,18 +136,22 @@ server.
 
 - [x] Define an ADR for the Form Intelligence and MCP architecture before protocol implementation.
 - [x] Define an exhaustive provider-neutral Form Change Operation model over `FormDraftDefinition`; do not use
-  arbitrary JSON mutation as the client contract.
+      arbitrary JSON mutation as the client contract.
 - [x] Implement immutable operation application with strict runtime/domain validation and no publication behavior.
 - [x] Implement semantic form diffing that understands stable IDs, order, presentation, validation, structure,
-  choice labels, and submitted option values.
+      choice labels, and submitted option values.
 - [x] Implement the deterministic Form Change Impact Engine before requiring an LLM.
 - [x] Classify presentation, validation, answer-contract, structural, potentially destructive, privacy-sensitive,
-  accessibility-sensitive, and compatibility effects.
+      accessibility-sensitive, and compatibility effects.
 - [x] Explain historical-versus-future submission implications using immutable published-version semantics.
 
 ### Safe capability boundary
 
 - [x] Define and review the local developer credential lifecycle before owner-aware MCP tools.
+- [x] Implement the development-only credential grammar, verifier storage, bounded lifecycle, concurrency-safe
+      issuance limit, owner-scoped core use cases, and Production runtime-grant exclusion.
+- Add owner-management HTTP and Angular flows with request-scoped current-password confirmation before issuance.
+- Add per-invocation credential resolution into `AuthenticatedActor` before exposing owner-aware tools.
 - Start with a local, read-only MCP adapter exposing a deliberately small surface: `inspect_form`,
   `compare_form_versions`, and `impact_analysis` for explicit operations.
 - Route every MCP capability through existing application use cases, domain validation, authorization, and

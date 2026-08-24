@@ -3,6 +3,7 @@ export const migrationNames = [
   '0001_versioned_form_submissions.sql',
   '0002_authentication_ownership_core.sql',
   '0003_owner_form_drafts.sql',
+  '0004_local_developer_credentials.sql',
 ] as const;
 
 export const applicationTableNames = [
@@ -13,7 +14,15 @@ export const applicationTableNames = [
   'user_sessions',
   'auth_rate_limits',
   'form_drafts',
+  'developer_credentials',
 ] as const;
+
+export const developmentOnlyTableNames = ['developer_credentials'] as const;
+
+/** Production excludes development-only storage even when the shared schema creates it. */
+export const productionRuntimeTableNames = applicationTableNames.filter(
+  (name) => !developmentOnlyTableNames.includes(name as (typeof developmentOnlyTableNames)[number]),
+);
 
 export function verifyMigrationLedger(names: readonly string[]): void {
   if (
