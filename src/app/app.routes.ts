@@ -4,6 +4,14 @@ import { anonymousGuard, authenticatedGuard } from './core/auth/authentication.g
 
 export const routes: Routes = [
   {
+    path: 'manage/developer-credentials',
+    canActivate: [authenticatedGuard],
+    loadComponent: () =>
+      import('./features/developer-credentials/developer-credentials-page').then(
+        (module) => module.DeveloperCredentialsPage,
+      ),
+  },
+  {
     path: 'manage/forms',
     canActivate: [authenticatedGuard],
     loadComponent: () =>

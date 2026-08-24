@@ -150,7 +150,8 @@ server.
 - [x] Define and review the local developer credential lifecycle before owner-aware MCP tools.
 - [x] Implement the development-only credential grammar, verifier storage, bounded lifecycle, concurrency-safe
       issuance limit, owner-scoped core use cases, and Production runtime-grant exclusion.
-- Add owner-management HTTP and Angular flows with request-scoped current-password confirmation before issuance.
+- [x] Add development-only owner-management HTTP and Angular flows with request-scoped current-password
+      confirmation, session continuity, one-time display, safe listing, and revocation.
 - Add per-invocation credential resolution into `AuthenticatedActor` before exposing owner-aware tools.
 - Start with a local, read-only MCP adapter exposing a deliberately small surface: `inspect_form`,
   `compare_form_versions`, and `impact_analysis` for explicit operations.

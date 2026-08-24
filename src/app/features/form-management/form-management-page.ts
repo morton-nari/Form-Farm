@@ -10,8 +10,13 @@ import { FormManagementStore } from './form-management.store';
   providers: [FormManagementStore],
   template: ` <header class="border-bottom bg-white">
       <nav class="container py-3 d-flex justify-content-between" aria-label="Management navigation">
-        <a class="navbar-brand fw-bold" routerLink="/forms">Form Farm AI</a
-        ><a class="btn btn-outline-secondary" routerLink="/forms">Available forms</a>
+        <a class="navbar-brand fw-bold" routerLink="/forms">Form Farm AI</a>
+        <div class="d-flex gap-2">
+          <a class="btn btn-outline-primary" routerLink="/manage/developer-credentials"
+            >Developer credentials</a
+          >
+          <a class="btn btn-outline-secondary" routerLink="/forms">Available forms</a>
+        </div>
       </nav>
     </header>
     <main class="container py-5" id="main-content">

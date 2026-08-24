@@ -4,6 +4,7 @@ export const migrationNames = [
   '0002_authentication_ownership_core.sql',
   '0003_owner_form_drafts.sql',
   '0004_local_developer_credentials.sql',
+  '0005_developer_credential_rate_limits.sql',
 ] as const;
 
 export const applicationTableNames = [

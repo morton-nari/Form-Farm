@@ -1,7 +1,7 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 
-import { createApplication } from './app.js';
+import { createApplication, type AuthenticationApplicationServices } from './app.js';
 import { ApplicationError } from './application/errors/application-error.js';
 import type { FormDefinitionSource } from './application/ports/form-definition-source.js';
 import type { FormSubmissionTransaction } from './application/ports/form-submission-transaction.js';
@@ -88,6 +88,45 @@ describe('createApplication', () => {
     expect(response.json()).toEqual({
       error: { code: 'route_not_found', message: 'Route not found.' },
     });
+  });
+
+  it('does not register developer credential management outside development', async () => {
+    const issueDeveloperCredential = vi.fn();
+    const app = createApplication({
+      config: {
+        environment: 'production',
+        deploymentStage: 'production',
+        host: '127.0.0.1',
+        port: 3000,
+        logLevel: 'silent',
+        databaseUrl: 'postgresql://localhost/test',
+        databasePoolMax: 1,
+        auth: { ...testAuthConfig, publicOrigin: 'https://forms.example.com', secureCookies: true },
+      },
+      formDefinitionSource: new SeededFormDefinitionSource(),
+      formSubmissionTransaction: successfulSubmissionTransaction(),
+      authentication: {
+        registerAccount: { execute: async () => undefined },
+        login: { execute: async () => ({ sessionCredential: 'unused' }) },
+        logout: { execute: async () => undefined },
+        resolveSession: { execute: async () => ({ userId: 'owner-1' }) },
+        rateLimiter: {} as AuthenticationApplicationServices['rateLimiter'],
+        xsrfTokens: {} as AuthenticationApplicationServices['xsrfTokens'],
+        developerCredentials: {
+          issueDeveloperCredential: { execute: issueDeveloperCredential },
+          listDeveloperCredentials: { execute: vi.fn() },
+          revokeDeveloperCredential: { execute: vi.fn() },
+        },
+      } as AuthenticationApplicationServices,
+    });
+    applications.push(app);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/management/developer-credentials',
+    });
+    expect(response.statusCode).toBe(404);
+    expect(issueDeveloperCredential).not.toHaveBeenCalled();
   });
 
   it('serves a validated deterministic form definition', async () => {

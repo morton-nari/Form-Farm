@@ -3,8 +3,10 @@ import type { AuthenticatedActor } from '../ports/create-form-draft-transaction.
 import type {
   DeveloperCredentialCodec,
   DeveloperCredentialMetadata,
+  DeveloperCredentialPasswordSource,
   DeveloperCredentialRepository,
 } from '../ports/developer-credentials.js';
+import type { PasswordHasher } from '../ports/authentication.js';
 
 export const MINIMUM_DEVELOPER_CREDENTIAL_EXPIRY_DAYS = 1;
 export const MAXIMUM_DEVELOPER_CREDENTIAL_EXPIRY_DAYS = 30;
@@ -48,6 +50,46 @@ export class IssueDeveloperCredential {
       throw new ApplicationError('not_found', 'The account is unavailable.');
     }
     return { ...result.credential, credential: generated.credential };
+  }
+}
+
+export class ConfirmAndIssueDeveloperCredential {
+  constructor(
+    private readonly passwords: PasswordHasher,
+    private readonly passwordSource: DeveloperCredentialPasswordSource,
+    private readonly issueCredential: IssueDeveloperCredential,
+  ) {}
+
+  async execute(
+    actor: AuthenticatedActor,
+    input: {
+      readonly currentPassword: unknown;
+      readonly displayName: unknown;
+      readonly expiresInDays: unknown;
+    },
+    revalidateSession: () => Promise<AuthenticatedActor | undefined>,
+  ): Promise<IssuedDeveloperCredential> {
+    const currentPassword = validateCurrentPassword(input.currentPassword);
+    const passwordHash = await this.passwordSource.findActivePasswordHash(actor.userId);
+    const valid = await this.passwords.verify(
+      passwordHash ?? this.passwords.dummyHash,
+      currentPassword,
+    );
+    if (!passwordHash || !valid) throw new InvalidDeveloperCredentialConfirmationError();
+
+    const revalidated = await revalidateSession();
+    if (!revalidated || revalidated.userId !== actor.userId) {
+      throw new InvalidDeveloperCredentialConfirmationError();
+    }
+    return this.issueCredential.execute(actor, input);
+  }
+}
+
+export class InvalidDeveloperCredentialConfirmationError extends Error {
+  override readonly name = 'InvalidDeveloperCredentialConfirmationError';
+
+  constructor() {
+    super('The credential could not be issued.');
   }
 }
 
@@ -100,6 +142,13 @@ function validateExpiryDays(value: unknown): number {
     value > MAXIMUM_DEVELOPER_CREDENTIAL_EXPIRY_DAYS
   ) {
     throw new ApplicationError('invalid_input', 'The developer credential expiry is invalid.');
+  }
+  return value;
+}
+
+function validateCurrentPassword(value: unknown): string {
+  if (typeof value !== 'string' || value.length < 1 || value.length > 16_384) {
+    throw new InvalidDeveloperCredentialConfirmationError();
   }
   return value;
 }

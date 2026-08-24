@@ -1,6 +1,7 @@
 import { ApplicationError } from '../../application/errors/application-error.js';
 import { InvalidFormSubmissionError } from '../../application/forms/submit-form.js';
 import { InvalidCredentialsError } from '../../application/authentication/login.js';
+import { InvalidDeveloperCredentialConfirmationError } from '../../application/authentication/developer-credentials.js';
 import {
   ForbiddenAuthenticationRequestError,
   UnauthenticatedError,
@@ -30,6 +31,11 @@ export function registerErrorHandler(app: FastifyInstance): void {
       return reply
         .status(401)
         .send(response('invalid_credentials', 'The email or password is incorrect.'));
+    }
+    if (error instanceof InvalidDeveloperCredentialConfirmationError) {
+      return reply
+        .status(401)
+        .send(response('invalid_confirmation', 'The current password is incorrect.'));
     }
     if (error instanceof UnauthenticatedError) {
       return reply.status(401).send(response('unauthenticated', 'Authentication is required.'));
@@ -72,7 +78,10 @@ export function registerErrorHandler(app: FastifyInstance): void {
         .send(response('payload_too_large', 'The request payload is too large.'));
     }
 
-    if (request.url.startsWith('/api/v1/auth/')) {
+    if (
+      request.url.startsWith('/api/v1/auth/') ||
+      request.url.startsWith('/api/v1/management/developer-credentials')
+    ) {
       request.log.error(
         { errorName: safeAuthenticationErrorName(error) },
         'Unhandled authentication request error',

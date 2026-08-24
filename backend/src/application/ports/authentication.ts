@@ -48,7 +48,12 @@ export interface SessionRepository {
 }
 
 export type AuthenticationRateLimitScope =
-  'registration-source' | 'registration-account' | 'login-source' | 'login-account';
+  | 'registration-source'
+  | 'registration-account'
+  | 'login-source'
+  | 'login-account'
+  | 'developer-credential-source'
+  | 'developer-credential-actor';
 
 export interface AuthenticationRateLimitRepository {
   consume(input: {

@@ -16,6 +16,8 @@ import { createDatabase, type FormFarmDatabase } from '../database/create-databa
 import { migrationNames } from '../database/migration-manifest.js';
 import { NodeDeveloperCredentialCodec } from './node-developer-credential-codec.js';
 import { PostgresDeveloperCredentialRepository } from './postgres-developer-credential-repository.js';
+import { PostgresDeveloperCredentialPasswordSource } from './postgres-developer-credential-password-source.js';
+import { PostgresAuthenticationRateLimitRepository } from './postgres-authentication-rate-limit-repository.js';
 
 describe('developer credential PostgreSQL core', () => {
   let container: StartedTestContainer;
@@ -200,6 +202,45 @@ describe('developer credential PostgreSQL core', () => {
       }),
     ).rejects.toMatchObject({ code: 'not_found' });
     await pool.query(`update users set status = 'active' where id = $1`, [owner.userId]);
+  });
+
+  it('returns a password hash only for the same active actor', async () => {
+    const source = new PostgresDeveloperCredentialPasswordSource(database);
+    await expect(source.findActivePasswordHash(owner.userId)).resolves.toBe(
+      '$argon2id$placeholder',
+    );
+    await pool.query(`update users set status = 'disabled' where id = $1`, [owner.userId]);
+    await expect(source.findActivePasswordHash(owner.userId)).resolves.toBeUndefined();
+    await pool.query(`update users set status = 'active' where id = $1`, [owner.userId]);
+  });
+
+  it('persists the dedicated issuance rate-limit scopes using hashed identifiers only', async () => {
+    const rateLimits = new PostgresAuthenticationRateLimitRepository(database);
+    await expect(
+      rateLimits.consume({
+        scope: 'developer-credential-source',
+        keyHash: 'b'.repeat(64),
+        windowMilliseconds: 60_000,
+        limit: 2,
+      }),
+    ).resolves.toEqual({ allowed: true, retryAfterSeconds: 0 });
+    await expect(
+      rateLimits.consume({
+        scope: 'developer-credential-actor',
+        keyHash: 'c'.repeat(64),
+        windowMilliseconds: 60_000,
+        limit: 2,
+      }),
+    ).resolves.toEqual({ allowed: true, retryAfterSeconds: 0 });
+    const stored = await pool.query(
+      `select scope, key_hash from auth_rate_limits where scope like 'developer-credential-%'`,
+    );
+    expect(stored.rows).toEqual(
+      expect.arrayContaining([
+        { scope: 'developer-credential-source', key_hash: 'b'.repeat(64) },
+        { scope: 'developer-credential-actor', key_hash: 'c'.repeat(64) },
+      ]),
+    );
   });
 
   async function applyMigration(name: string): Promise<void> {

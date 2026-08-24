@@ -31,6 +31,28 @@ returned or logged. Durable source and normalized-account rate limits use indepe
 Previous XSRF and limiter keys are accepted only until one validated rotation deadline, limited to a maximum
 24-hour overlap; current keys are always used for new tokens and identities.
 
+## Local developer credential management
+
+These routes are registered only when `APP_ENV=development`:
+
+```http
+GET /api/v1/management/developer-credentials
+POST /api/v1/management/developer-credentials
+DELETE /api/v1/management/developer-credentials/:publicId
+```
+
+All require the existing authenticated browser session and return `Cache-Control: no-store`. POST and DELETE
+also require the configured exact Origin, JSON content type, and session-bound XSRF cookie/header pair. POST
+accepts only `displayName`, `expiresInDays` (1–30), and `currentPassword`. Source and actor issuance attempts use
+separate HMAC-keyed rate-limit scopes. Current-password verification is request-scoped, and the same browser
+session must still resolve to the same active actor immediately before issuance.
+
+A successful POST returns the fixed `form-intelligence:read`, development-only credential once alongside safe
+metadata. The raw credential cannot be recovered through GET. GET returns only public ID, bounded display name,
+fixed scope/environment, and lifecycle timestamps. DELETE accepts an empty JSON object, is owner-scoped and
+idempotent, and returns `204`. Preview and Production do not register these endpoints. None of these routes is
+an MCP endpoint or authorizes draft mutation, publication, submission access, or AI behavior.
+
 ## List and get forms
 
 ```http

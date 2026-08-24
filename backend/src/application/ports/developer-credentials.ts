@@ -52,3 +52,7 @@ export interface DeveloperCredentialRepository {
   }): Promise<void>;
   deleteTerminal(retentionMilliseconds: number): Promise<number>;
 }
+
+export interface DeveloperCredentialPasswordSource {
+  findActivePasswordHash(userId: string): Promise<string | undefined>;
+}

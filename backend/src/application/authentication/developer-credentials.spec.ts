@@ -3,10 +3,13 @@ import { describe, expect, it, vi } from 'vitest';
 import { ApplicationError } from '../errors/application-error.js';
 import type {
   DeveloperCredentialCodec,
+  DeveloperCredentialPasswordSource,
   DeveloperCredentialRepository,
 } from '../ports/developer-credentials.js';
+import type { PasswordHasher } from '../ports/authentication.js';
 import {
   CleanupDeveloperCredentials,
+  ConfirmAndIssueDeveloperCredential,
   DEVELOPER_CREDENTIAL_TERMINAL_RETENTION_MILLISECONDS,
   IssueDeveloperCredential,
   ListDeveloperCredentials,
@@ -35,6 +38,61 @@ describe('developer credential application use cases', () => {
     });
     expect(JSON.stringify(issue.mock.calls)).not.toContain('raw-secret-credential');
   });
+
+  it('confirms the current password and same active session before generating a credential', async () => {
+    const generate = vi.fn(codec().generate);
+    const issue = vi.fn<DeveloperCredentialRepository['issue']>().mockResolvedValue({
+      status: 'created',
+      credential: metadata(),
+    });
+    const verify = vi.fn().mockResolvedValue(true);
+    const revalidate = vi.fn().mockResolvedValue({ userId: 'owner-1' });
+    const useCase = new ConfirmAndIssueDeveloperCredential(
+      passwordHasher({ verify }),
+      passwordSource('stored-password-hash'),
+      new IssueDeveloperCredential({ ...codec(), generate }, repository({ issue })),
+    );
+
+    await expect(
+      useCase.execute(
+        { userId: 'owner-1' },
+        { displayName: 'CLI', expiresInDays: 7, currentPassword: 'request-only-password' },
+        revalidate,
+      ),
+    ).resolves.toMatchObject({ credential: 'raw-secret-credential' });
+    expect(verify).toHaveBeenCalledWith('stored-password-hash', 'request-only-password');
+    expect(revalidate).toHaveBeenCalledOnce();
+    expect(generate).toHaveBeenCalledOnce();
+    expect(JSON.stringify(issue.mock.calls)).not.toContain('request-only-password');
+  });
+
+  it.each([
+    ['wrong password', 'owner-1'],
+    ['missing active account', 'owner-1'],
+    ['expired session', undefined],
+    ['different session actor', 'owner-2'],
+  ])(
+    'fails issuance safely for %s without generating a secret',
+    async (scenario, resolvedUserId) => {
+      const generate = vi.fn(codec().generate);
+      const passwordHash = scenario === 'missing active account' ? undefined : 'stored-hash';
+      const verify = vi.fn().mockResolvedValue(scenario !== 'wrong password');
+      const useCase = new ConfirmAndIssueDeveloperCredential(
+        passwordHasher({ verify }),
+        passwordSource(passwordHash),
+        new IssueDeveloperCredential({ ...codec(), generate }, repository()),
+      );
+
+      await expect(
+        useCase.execute(
+          { userId: 'owner-1' },
+          { displayName: 'CLI', expiresInDays: 7, currentPassword: 'password' },
+          async () => (resolvedUserId ? { userId: resolvedUserId } : undefined),
+        ),
+      ).rejects.toMatchObject({ name: 'InvalidDeveloperCredentialConfirmationError' });
+      expect(generate).not.toHaveBeenCalled();
+    },
+  );
 
   it.each([
     [{ displayName: '', expiresInDays: 1 }],
@@ -112,6 +170,20 @@ function metadata() {
     expiresAt: new Date('2026-08-31T00:00:00.000Z'),
     revokedAt: null,
     lastUsedAt: null,
+  };
+}
+
+function passwordSource(passwordHash: string | undefined): DeveloperCredentialPasswordSource {
+  return { findActivePasswordHash: async () => passwordHash };
+}
+
+function passwordHasher(overrides: Partial<PasswordHasher> = {}): PasswordHasher {
+  return {
+    hash: async () => 'hash',
+    verify: async () => false,
+    needsRehash: () => false,
+    dummyHash: 'dummy-hash',
+    ...overrides,
   };
 }
 
