@@ -22,6 +22,8 @@ import { BootstrapFormDraft } from '../../application/forms/bootstrap-form-draft
 import { PostgresBootstrapFormDraftTransaction } from './postgres-bootstrap-form-draft-transaction.js';
 import { PostgresOwnerFormManagementSource } from './postgres-owner-form-management-source.js';
 import { ListOwnerManagedForms } from '../../application/forms/list-owner-managed-forms.js';
+import { AnalyzeDraftChangeImpact } from '../../application/forms/form-intelligence.js';
+import { PostgresFormIntelligenceSource } from './postgres-form-intelligence-source.js';
 
 describe('PostgresFormDefinitionSource', () => {
   let container: StartedTestContainer;
@@ -32,6 +34,7 @@ describe('PostgresFormDefinitionSource', () => {
   let accessibleSource: PostgresAccessibleFormSource;
   let formFarmDatabase: FormFarmDatabase;
   let ownerDraftStore: PostgresOwnerFormDraftStore;
+  let formIntelligenceSource: PostgresFormIntelligenceSource;
 
   beforeAll(async () => {
     container = await new GenericContainer('postgres:18-alpine')
@@ -72,6 +75,7 @@ describe('PostgresFormDefinitionSource', () => {
     closeDatabase = database.close;
     formFarmDatabase = database.database;
     ownerDraftStore = new PostgresOwnerFormDraftStore(database.database);
+    formIntelligenceSource = new PostgresFormIntelligenceSource(database.database);
     useCase = new GetFormDefinition(new PostgresFormDefinitionSource(database.database));
     submitForm = new SubmitForm(new PostgresFormSubmissionTransaction(database.database));
     accessibleSource = new PostgresAccessibleFormSource(database.database);
@@ -750,6 +754,62 @@ describe('PostgresFormDefinitionSource', () => {
     });
     expect(page.forms.map((form) => form.id)).not.toContain('managed-other');
     expect(page.forms.map((form) => form.id)).not.toContain('customer-feedback');
+  });
+
+  it('hides non-owned and system forms from the Form Intelligence source', async () => {
+    const ownerId = '70000000-0000-4000-8000-000000000001';
+    const otherId = '70000000-0000-4000-8000-000000000002';
+    await pool.query(
+      `insert into users (id, email, normalized_email, password_hash) values
+       ($1, 'intelligence-owner@example.com', 'intelligence-owner@example.com', 'hash'),
+       ($2, 'intelligence-other@example.com', 'intelligence-other@example.com', 'hash')`,
+      [ownerId, otherId],
+    );
+    await insertOwnedPublishedForm('intelligence-owned', ownerId);
+    await insertOwnedPublishedForm('intelligence-other', otherId);
+
+    await expect(
+      formIntelligenceSource.findVersionForOwner({ userId: ownerId }, 'intelligence-owned', 1),
+    ).resolves.toMatchObject({ formId: 'intelligence-owned', version: 1 });
+    await expect(
+      formIntelligenceSource.findVersionForOwner({ userId: ownerId }, 'intelligence-other', 1),
+    ).resolves.toBeUndefined();
+    await expect(
+      formIntelligenceSource.findLifecycleForOwner({ userId: ownerId }, 'customer-feedback'),
+    ).resolves.toBeUndefined();
+  });
+
+  it('analyzes an owned draft without mutating its row or definition', async () => {
+    const ownerId = '70000000-0000-4000-8000-000000000003';
+    await pool.query(
+      `insert into users (id, email, normalized_email, password_hash)
+       values ($1, 'intelligence-draft@example.com', 'intelligence-draft@example.com', 'hash')`,
+      [ownerId],
+    );
+    const definition = { ...CUSTOMER_FEEDBACK_FORM, id: 'intelligence-draft', formVersion: 1 };
+    await new CreateFormDraft(new PostgresCreateFormDraftTransaction(formFarmDatabase)).execute(
+      { userId: ownerId },
+      definition,
+    );
+    const before = await pool.query(
+      'select revision, definition from form_drafts where form_id = $1',
+      [definition.id],
+    );
+
+    await new AnalyzeDraftChangeImpact(formIntelligenceSource).execute(
+      { userId: ownerId },
+      definition.id,
+      {
+        changeSetVersion: 1,
+        operations: [{ type: 'setFormPresentation', title: 'Analyzed only', description: null }],
+      },
+    );
+
+    const after = await pool.query(
+      'select revision, definition from form_drafts where form_id = $1',
+      [definition.id],
+    );
+    expect(after.rows).toEqual(before.rows);
   });
 
   async function insertPublishedForm(formId: string, definition: unknown): Promise<void> {

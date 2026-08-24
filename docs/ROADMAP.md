@@ -155,8 +155,8 @@ server.
 - [x] Add development-only per-invocation credential resolution into `AuthenticatedActor`, with strict
       environment transport, constant-time verifier checks, revocation/expiry/scope enforcement, durable
       HMAC-keyed failure throttling, and bounded last-used writes.
-- Start with a local, read-only MCP adapter exposing a deliberately small surface: `inspect_form`,
-  `compare_form_versions`, and `impact_analysis` for explicit operations.
+- [x] Start with a local, read-only MCP adapter exposing a deliberately small surface: `inspect_form`,
+      `compare_form_versions`, and `impact_analysis` for explicit operations.
 - Route every MCP capability through existing application use cases, domain validation, authorization, and
   persistence ports; never provide SQL, filesystem, arbitrary URL-fetching, secret, or raw session access.
 - Define MCP authentication/authorization, privacy-safe errors/results, confirmation, audit, and client identity
