@@ -2,7 +2,7 @@ import { Client, InMemoryTransport } from '@modelcontextprotocol/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { FormFarmMcpServices } from './form-farm-mcp-server.js';
-import { createFormFarmMcpServer } from './form-farm-mcp-server.js';
+import { boundReadOnlyResponseLifecycle, createFormFarmMcpServer } from './form-farm-mcp-server.js';
 
 const actor = { userId: '11111111-1111-4111-8111-111111111111' };
 const connections: Array<{ close(): Promise<void> }> = [];
@@ -54,6 +54,36 @@ describe('Form Farm MCP server', () => {
       content: [{ type: 'text', text: '{"error":{"code":"unauthenticated"}}' }],
     });
     expect(configured.inspectForm.execute).not.toHaveBeenCalled();
+  });
+
+  it('bounds timeout responses without claiming to stop underlying read work', async () => {
+    let finishRead: ((value: string) => void) | undefined;
+    const underlyingRead = new Promise<string>((resolve) => {
+      finishRead = resolve;
+    });
+    const response = boundReadOnlyResponseLifecycle(
+      underlyingRead,
+      new AbortController().signal,
+      1,
+    );
+
+    await expect(response).rejects.toThrow('MCP read response timeout.');
+    finishRead?.('completed');
+    await expect(underlyingRead).resolves.toBe('completed');
+  });
+
+  it('bounds cancelled responses without claiming to stop underlying read work', async () => {
+    const controller = new AbortController();
+    let finishRead: ((value: string) => void) | undefined;
+    const underlyingRead = new Promise<string>((resolve) => {
+      finishRead = resolve;
+    });
+    const response = boundReadOnlyResponseLifecycle(underlyingRead, controller.signal);
+    controller.abort();
+
+    await expect(response).rejects.toThrow('MCP read response cancelled.');
+    finishRead?.('completed');
+    await expect(underlyingRead).resolves.toBe('completed');
   });
 });
 

@@ -322,6 +322,12 @@ credentials or request data. The adapter is not registered in Fastify, Angular, 
 Production. Remote MCP, OAuth, resources, prompts, proposal tools, mutation, AI providers, and publication remain
 deferred.
 
+The adapter's ten-second timeout and MCP abort handling bound only the response lifecycle. Current application
+and PostgreSQL read ports do not accept an `AbortSignal`, so an already-started read may finish asynchronously
+after the client receives a safe timeout or cancellation error. That limitation is explicit and covered by
+tests. The response-only helper is restricted to these non-mutating tools; any future mutation capability must
+define real cancellation and transaction semantics and must not reuse it.
+
 The flagship foundation is a deterministic Form Change Impact Engine. A semantic diff must distinguish display
 labels from submitted values, validation from presentation, movement from replacement, and structural change
 from answer-contract change. For example, changing a choice value from `AU` to `AUS` changes future answer

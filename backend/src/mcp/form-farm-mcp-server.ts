@@ -1,5 +1,6 @@
 import { McpServer, type CallToolResult } from '@modelcontextprotocol/server';
 import { z } from 'zod';
+import { FORM_IDENTIFIER_PATTERN } from '@form-farm/form-domain';
 
 import type { AuthenticatedActor } from '../application/ports/create-form-draft-transaction.js';
 import type {
@@ -14,10 +15,7 @@ export const FORM_FARM_MCP_PROTOCOL_VERSION = '2025-11-25';
 export const MAXIMUM_MCP_CHANGE_SET_BYTES = 64 * 1024;
 export const MCP_TOOL_TIMEOUT_MILLISECONDS = 10_000;
 
-const identifier = z
-  .string()
-  .regex(/^[A-Za-z][A-Za-z0-9_-]*$/)
-  .max(100);
+const identifier = z.string().regex(new RegExp(FORM_IDENTIFIER_PATTERN)).max(100);
 const positiveInteger = z.number().int().positive();
 const nonnegativeInteger = z.number().int().nonnegative();
 const nullablePositiveInteger = positiveInteger.nullable();
@@ -339,9 +337,9 @@ async function execute<T extends object>(
   operation: (actor: AuthenticatedActor) => Promise<T>,
 ): Promise<CallToolResult> {
   try {
-    const actor = await bounded(services.authenticate(), signal);
+    const actor = await boundReadOnlyResponseLifecycle(services.authenticate(), signal);
     if (!actor) return safeError('unauthenticated');
-    const value = await bounded(operation(actor), signal);
+    const value = await boundReadOnlyResponseLifecycle(operation(actor), signal);
     return {
       content: [{ type: 'text', text: JSON.stringify(value) }],
       structuredContent: value as Record<string, unknown>,
@@ -355,18 +353,36 @@ async function execute<T extends object>(
   }
 }
 
-function bounded<T>(operation: Promise<T>, signal: AbortSignal): Promise<T> {
+/**
+ * Bounds only the MCP response lifecycle. Existing application/database read ports do not accept an
+ * AbortSignal, so their underlying work may finish after this promise rejects. This helper is safe only for
+ * non-mutating operations and must never be reused for a write or publication path.
+ */
+export function boundReadOnlyResponseLifecycle<T>(
+  operation: Promise<T>,
+  signal: AbortSignal,
+  timeoutMilliseconds = MCP_TOOL_TIMEOUT_MILLISECONDS,
+): Promise<T> {
   return new Promise<T>((resolve, reject) => {
-    const timeout = setTimeout(
-      () => reject(new Error('MCP tool timeout.')),
-      MCP_TOOL_TIMEOUT_MILLISECONDS,
-    );
-    const abort = () => reject(new Error('MCP tool cancelled.'));
-    signal.addEventListener('abort', abort, { once: true });
-    operation.then(resolve, reject).finally(() => {
+    let settled = false;
+    const finish = (complete: () => void) => {
+      if (settled) return;
+      settled = true;
       clearTimeout(timeout);
       signal.removeEventListener('abort', abort);
-    });
+      complete();
+    };
+    const abort = () => finish(() => reject(new Error('MCP read response cancelled.')));
+    const timeout = setTimeout(
+      () => finish(() => reject(new Error('MCP read response timeout.'))),
+      timeoutMilliseconds,
+    );
+    signal.addEventListener('abort', abort, { once: true });
+    if (signal.aborted) abort();
+    operation.then(
+      (value) => finish(() => resolve(value)),
+      (error: unknown) => finish(() => reject(error)),
+    );
   });
 }
 
