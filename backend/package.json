@@ -6,7 +6,9 @@
   "scripts": {
     "predev": "npm run build --workspace @form-farm/form-domain",
     "dev": "tsx watch src/main.ts",
+    "mcp:stdio": "tsx src/mcp-main.ts",
     "start": "node dist/main.js",
+    "mcp:start": "node dist/mcp-main.js",
     "prebuild": "npm run build --workspace @form-farm/form-domain",
     "build": "tsc --project tsconfig.json",
     "pretest": "npm run build --workspace @form-farm/form-domain",
@@ -26,6 +28,7 @@
   "dependencies": {
     "@fastify/cookie": "11.0.2",
     "@form-farm/form-domain": "0.0.0",
+    "@modelcontextprotocol/server": "2.0.0",
     "argon2": "0.45.1",
     "drizzle-orm": "0.45.2",
     "fastify": "^5.6.2",
@@ -33,6 +36,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@modelcontextprotocol/client": "2.0.0",
     "@types/node": "^24.10.0",
     "@types/pg": "8.21.0",
     "drizzle-kit": "0.31.10",

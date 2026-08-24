@@ -302,9 +302,25 @@ limiter under a dedicated scope; raw credential material is never used as a limi
 errors. Preview and Production fail closed before parsing or persistence access. Environment configuration is
 transport only: an owner ID or client metadata can never establish identity.
 
-No MCP server or tool exists yet. This resolver is the final authentication prerequisite for the separately
-reviewed local read-only adapter; public/system-only information remains the maximum safe unauthenticated MCP
-surface.
+The first MCP adapter is a separate local stdio process pinned to the reviewed official TypeScript server SDK
+`@modelcontextprotocol/server` 2.0.0 and MCP protocol revision `2025-11-25`.
+It exposes only `inspect_form`, `compare_form_versions`, and `impact_analysis`. Every handler authenticates again,
+then calls an application-owned Form Intelligence use case through an owner-scoped persistence port. The MCP
+module owns protocol schemas, discovery, annotations, safe error translation, and bounded output shaping; it
+does not import Drizzle, database tables, HTTP handlers, or credential repositories.
+
+`inspect_form` returns lifecycle identity and structural counts without titles, labels, defaults, submissions,
+or complete definitions. `compare_form_versions` loads two exact authorized immutable versions and returns the
+existing deterministic semantic diff. `impact_analysis` loads the current authorized draft, strictly validates
+and applies one controlled change set to an in-memory clone, computes a complete semantic diff, and runs the
+deterministic impact engine. It has no write port and cannot save or publish. System-owned and non-owned forms
+retain existence-hiding behavior.
+
+The stdio entry is development-only and receives the raw credential through
+`FORM_FARM_DEVELOPER_CREDENTIAL`. Stdout is reserved for MCP JSON-RPC; bounded diagnostics use stderr without
+credentials or request data. The adapter is not registered in Fastify, Angular, Vercel startup, Preview, or
+Production. Remote MCP, OAuth, resources, prompts, proposal tools, mutation, AI providers, and publication remain
+deferred.
 
 The flagship foundation is a deterministic Form Change Impact Engine. A semantic diff must distinguish display
 labels from submitted values, validation from presentation, movement from replacement, and structural change

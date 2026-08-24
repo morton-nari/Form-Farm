@@ -99,10 +99,31 @@ After signing in locally, open
 [`http://localhost:4200/manage/developer-credentials`](http://localhost:4200/manage/developer-credentials) to
 issue, list, or revoke a development-only read credential. Issuance requires the current password and displays
 the raw credential once. Do not commit it, place it in a URL or command argument, or reuse it outside local
-development. A future local client may supply it to the backend through `FORM_FARM_DEVELOPER_CREDENTIAL`, but
+development. A local client may supply it to the backend through `FORM_FARM_DEVELOPER_CREDENTIAL`, but
 only when `APP_ENV=development` is explicit. The backend resolves that credential into the owning actor on every
 invocation, rechecking its verifier, fixed scope/environment, expiry, revocation, and active owner state. The
-environment variable is transport only and cannot replace authentication. MCP tools are not implemented yet.
+environment variable is transport only and cannot replace authentication.
+
+### Local read-only Form Farm MCP
+
+The backend now provides a local stdio MCP adapter with three owner-aware, read-only tools:
+`inspect_form`, `compare_form_versions`, and `impact_analysis`. It is development tooling only; it is not an
+HTTP endpoint, Angular feature, Vercel function, Production service, or AI model integration.
+
+After issuing and saving a developer credential, configure it only in the environment of the local MCP child
+process. For a direct PowerShell development run:
+
+```powershell
+$env:APP_ENV = 'development'
+$env:FORM_FARM_DEVELOPER_CREDENTIAL = '<the one-time credential you saved>'
+npm run --silent mcp:dev
+```
+
+The remaining backend development variables, database, and migrations must be configured as described above.
+Do not put the credential in command arguments, `.vscode/mcp.json`, URLs, committed `.env` files, stdout, or
+screenshots. Each tool invocation reauthenticates it, so expiry or revocation takes effect without trusting the
+long-lived MCP connection. Client-specific setup and secure-storage guidance remain a separate compatibility
+task after the tool contracts are reviewed.
 
 For a clean, lockfile-based installation, such as in CI, use:
 
