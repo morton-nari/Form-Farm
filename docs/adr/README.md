@@ -31,3 +31,4 @@ Do not create ADRs for minor implementation details or decisions that have not y
 - [ADR 0006: Owner form creation, draft editing, and publication](0006-owner-form-write-lifecycle.md)
 - [ADR 0007: Vercel and Neon portfolio deployment](0007-vercel-neon-deployment.md) — Accepted 2026-08-17
 - [ADR 0008: Form Intelligence and MCP architecture](0008-form-intelligence-and-mcp-architecture.md) — Accepted 2026-08-19
+- [ADR 0009: Local MCP developer credentials](0009-local-mcp-developer-credentials.md) — Proposed
