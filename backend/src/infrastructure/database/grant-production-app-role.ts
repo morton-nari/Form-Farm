@@ -1,7 +1,12 @@
 import { Pool } from 'pg';
 
 import { requireDirectDatabaseAdminUrl } from './database-url-policy.js';
-import { applicationTableNames, migrationNames, verifyMigrationLedger } from './migration-manifest.js';
+import {
+  developmentOnlyTableNames,
+  migrationNames,
+  productionRuntimeTableNames,
+  verifyMigrationLedger,
+} from './migration-manifest.js';
 
 function requireIdentifier(name: string): string {
   const value = process.env[name];
@@ -19,7 +24,8 @@ try {
   const appRole = requireIdentifier('PRODUCTION_DATABASE_APP_ROLE');
   const adminRole = requireIdentifier('PRODUCTION_DATABASE_ADMIN_ROLE');
   const databaseName = requireIdentifier('PRODUCTION_DATABASE_NAME');
-  if (appRole === adminRole) throw new Error('Production application and migration roles must differ.');
+  if (appRole === adminRole)
+    throw new Error('Production application and migration roles must differ.');
   pool = new Pool({ connectionString: databaseUrl, max: 1 });
 
   const identity = await pool.query<{ database_name: string; role_name: string }>(
@@ -38,7 +44,7 @@ try {
   verifyMigrationLedger(ledger.rows.map(({ name }) => name));
 
   const role = quote(appRole);
-  const tables = applicationTableNames.map(quote).join(', ');
+  const tables = productionRuntimeTableNames.map(quote).join(', ');
   await pool.query('begin');
   try {
     await pool.query(`revoke all privileges on all tables in schema public from ${role}`);
@@ -62,6 +68,7 @@ try {
     schema_create: boolean;
     migration_ledger: boolean;
     runtime_table_access: boolean;
+    development_only_table_access: boolean;
     database_connect: boolean;
     schema_usage: boolean;
   }>(
@@ -81,9 +88,12 @@ try {
                and has_table_privilege(r.rolname, t.name, 'INSERT')
                and has_table_privilege(r.rolname, t.name, 'UPDATE')
                and has_table_privilege(r.rolname, t.name, 'DELETE')
-             ) from unnest($2::text[]) as t(name)) as runtime_table_access
+             ) from unnest($2::text[]) as t(name)) as runtime_table_access,
+            (select bool_or(
+               has_table_privilege(r.rolname, t.name, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER')
+             ) from unnest($3::text[]) as t(name)) as development_only_table_access
        from pg_roles r where r.rolname = $1`,
-    [appRole, applicationTableNames],
+    [appRole, productionRuntimeTableNames, developmentOnlyTableNames],
   );
   const result = boundary.rows[0];
   if (
@@ -97,17 +107,21 @@ try {
     result.migration_ledger ||
     !result.database_connect ||
     !result.schema_usage ||
-    !result.runtime_table_access
+    !result.runtime_table_access ||
+    result.development_only_table_access
   ) {
     throw new Error('Production application role exceeded the reviewed runtime boundary.');
   }
-  console.log(`Production runtime grants passed: tables=${applicationTableNames.length}.`);
+  console.log(`Production runtime grants passed: tables=${productionRuntimeTableNames.length}.`);
 } catch {
   console.error('Production runtime grant failed; protected provider details were redacted.');
   process.exitCode = 1;
 } finally {
-  if (pool) await pool.end().catch(() => {
-    console.error('Production runtime grant cleanup failed; protected provider details were redacted.');
-    process.exitCode = 1;
-  });
+  if (pool)
+    await pool.end().catch(() => {
+      console.error(
+        'Production runtime grant cleanup failed; protected provider details were redacted.',
+      );
+      process.exitCode = 1;
+    });
 }

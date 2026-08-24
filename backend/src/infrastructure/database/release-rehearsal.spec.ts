@@ -4,7 +4,9 @@ import { describe, expect, it } from 'vitest';
 
 import {
   applicationTableNames,
+  developmentOnlyTableNames,
   migrationNames,
+  productionRuntimeTableNames,
   verifyMigrationLedger,
   verifyMigrationLedgerPrefix,
 } from './migration-manifest.js';
@@ -54,5 +56,14 @@ describe('verifyMigrationLedger', () => {
       )
     ).flat();
     expect([...applicationTableNames].sort()).toEqual(createdTables.sort());
+  });
+
+  it('explicitly excludes development-only credentials from Production runtime grants', () => {
+    expect(applicationTableNames).toContain('developer_credentials');
+    expect(developmentOnlyTableNames).toEqual(['developer_credentials']);
+    expect(productionRuntimeTableNames).not.toContain('developer_credentials');
+    expect(productionRuntimeTableNames).toEqual(
+      applicationTableNames.filter((name) => name !== 'developer_credentials'),
+    );
   });
 });

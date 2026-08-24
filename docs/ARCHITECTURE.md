@@ -270,9 +270,20 @@ until their named authentication, confirmation, audit, and deterministic-analysi
 Owner-aware local MCP is additionally blocked on the credential lifecycle accepted in ADR 0009. Environment
 configuration is only transport for an application-issued credential; it never establishes an owner by itself.
 The decision uses independently expiring and revocable development-only read credentials that resolve through
-an authentication adapter into `AuthenticatedActor`. ADR acceptance does not implement credentials or MCP;
-public/system-only information remains the maximum safe unauthenticated surface until the credential slices are
-complete.
+an authentication adapter into `AuthenticatedActor`.
+
+The credential core now defines a versioned opaque token containing a random UUIDv4 lookup ID and a 256-bit
+random secret. Only the SHA-256 verifier of that uniformly random secret is stored. PostgreSQL retains bounded,
+owner-scoped metadata with the fixed `form-intelligence:read` scope and `development` environment, mandatory
+one-to-thirty-day expiry, independent revocation, a concurrency-safe five-active-credential limit, and deletion
+of expired/revoked metadata after thirty days. Issuance locks the active owner row before counting and inserting,
+so concurrent requests cannot bypass the limit. Production runtime grants explicitly exclude this
+development-only table even if the shared migration history creates it.
+
+This core is not yet reachable through HTTP, Angular, or MCP. Current-password confirmation and session
+continuity belong to the owner-management slice; per-invocation actor resolution belongs to the authentication
+adapter slice. Public/system-only information therefore remains the maximum safe unauthenticated MCP surface
+until those slices are complete.
 
 The flagship foundation is a deterministic Form Change Impact Engine. A semantic diff must distinguish display
 labels from submitted values, validation from presentation, movement from replacement, and structural change

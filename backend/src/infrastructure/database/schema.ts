@@ -73,6 +73,59 @@ export const userSessions = pgTable(
   ],
 );
 
+export const developerCredentials = pgTable(
+  'developer_credentials',
+  {
+    id: uuid('id').primaryKey(),
+    userId: uuid('user_id').notNull(),
+    secretHash: text('secret_hash').notNull(),
+    displayName: text('display_name').notNull(),
+    scope: text('scope').notNull().default('form-intelligence:read'),
+    environment: text('environment').notNull().default('development'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+  },
+  (table) => [
+    foreignKey({ columns: [table.userId], foreignColumns: [users.id] })
+      .onDelete('restrict')
+      .onUpdate('restrict'),
+    check('developer_credentials_secret_hash_check', sql`${table.secretHash} ~ '^[0-9a-f]{64}$'`),
+    check(
+      'developer_credentials_display_name_check',
+      sql`char_length(${table.displayName}) between 1 and 80 and ${table.displayName} = btrim(${table.displayName})`,
+    ),
+    check('developer_credentials_scope_check', sql`${table.scope} = 'form-intelligence:read'`),
+    check('developer_credentials_environment_check', sql`${table.environment} = 'development'`),
+    check(
+      'developer_credentials_expiry_check',
+      sql`${table.expiresAt} > ${table.createdAt}
+          and ${table.expiresAt} <= ${table.createdAt} + interval '30 days'`,
+    ),
+    check(
+      'developer_credentials_revoked_at_check',
+      sql`${table.revokedAt} is null or ${table.revokedAt} >= ${table.createdAt}`,
+    ),
+    check(
+      'developer_credentials_last_used_at_check',
+      sql`${table.lastUsedAt} is null or ${table.lastUsedAt} >= ${table.createdAt}`,
+    ),
+    uniqueIndex('developer_credentials_secret_hash_uidx').on(table.secretHash),
+    index('developer_credentials_user_created_idx').on(
+      table.userId,
+      table.createdAt.desc(),
+      table.id,
+    ),
+    index('developer_credentials_user_active_idx')
+      .on(table.userId, table.expiresAt)
+      .where(sql`${table.revokedAt} is null`),
+    index('developer_credentials_cleanup_idx').on(
+      sql`coalesce(${table.revokedAt}, ${table.expiresAt})`,
+    ),
+  ],
+);
+
 export const authRateLimits = pgTable(
   'auth_rate_limits',
   {
@@ -180,10 +233,7 @@ export const formDrafts = pgTable(
     foreignKey({ columns: [table.formId], foreignColumns: [forms.id] })
       .onDelete('restrict')
       .onUpdate('restrict'),
-    check(
-      'form_drafts_revision_check',
-      sql`${table.revision} between 1 and 9007199254740991`,
-    ),
+    check('form_drafts_revision_check', sql`${table.revision} between 1 and 9007199254740991`),
     check('form_drafts_definition_object_check', sql`jsonb_typeof(${table.definition}) = 'object'`),
     check(
       'form_drafts_definition_identity_check',

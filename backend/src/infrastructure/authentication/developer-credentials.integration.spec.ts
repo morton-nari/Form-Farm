@@ -1,0 +1,212 @@
+import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+
+import { Pool } from 'pg';
+import { GenericContainer, Wait, type StartedTestContainer } from 'testcontainers';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
+import {
+  CleanupDeveloperCredentials,
+  IssueDeveloperCredential,
+  ListDeveloperCredentials,
+  RevokeDeveloperCredential,
+} from '../../application/authentication/developer-credentials.js';
+import type { AuthenticatedActor } from '../../application/ports/create-form-draft-transaction.js';
+import { createDatabase, type FormFarmDatabase } from '../database/create-database.js';
+import { migrationNames } from '../database/migration-manifest.js';
+import { NodeDeveloperCredentialCodec } from './node-developer-credential-codec.js';
+import { PostgresDeveloperCredentialRepository } from './postgres-developer-credential-repository.js';
+
+describe('developer credential PostgreSQL core', () => {
+  let container: StartedTestContainer;
+  let pool: Pool;
+  let database: FormFarmDatabase;
+  let closeDatabase: () => Promise<void>;
+  let owner: AuthenticatedActor;
+  let otherOwner: AuthenticatedActor;
+  let repository: PostgresDeveloperCredentialRepository;
+  const codec = new NodeDeveloperCredentialCodec();
+
+  beforeAll(async () => {
+    container = await new GenericContainer('postgres:18-alpine')
+      .withEnvironment({
+        POSTGRES_USER: 'form_farm',
+        POSTGRES_PASSWORD: 'form_farm_test',
+        POSTGRES_DB: 'form_farm_test',
+      })
+      .withExposedPorts(5432)
+      .withWaitStrategy(
+        Wait.forLogMessage('database system is ready to accept connections', 2).withStartupTimeout(
+          60_000,
+        ),
+      )
+      .start();
+    const databaseUrl = `postgresql://form_farm:form_farm_test@${container.getHost()}:${container.getMappedPort(5432)}/form_farm_test`;
+    pool = new Pool({ connectionString: databaseUrl });
+    for (const migration of migrationNames) await applyMigration(migration);
+    const inserted = await pool.query<{ id: string }>(
+      `insert into users (email, normalized_email, password_hash)
+       values ('credential-owner@example.com', 'credential-owner@example.com', '$argon2id$placeholder'),
+              ('other-owner@example.com', 'other-owner@example.com', '$argon2id$placeholder')
+       returning id`,
+    );
+    owner = { userId: inserted.rows[0]!.id };
+    otherOwner = { userId: inserted.rows[1]!.id };
+
+    const context = createDatabase({
+      environment: 'test',
+      host: '127.0.0.1',
+      port: 3000,
+      logLevel: 'silent',
+      databaseUrl,
+      databasePoolMax: 8,
+    });
+    database = context.database;
+    closeDatabase = context.close;
+    repository = new PostgresDeveloperCredentialRepository(database);
+  }, 60_000);
+
+  afterAll(async () => {
+    await closeDatabase?.();
+    await pool?.end();
+    await container?.stop();
+  });
+
+  it('stores only verifier and safe metadata while returning the raw credential once', async () => {
+    const issued = await new IssueDeveloperCredential(codec, repository).execute(owner, {
+      displayName: 'Codex local',
+      expiresInDays: 7,
+    });
+    const stored = await pool.query(
+      `select id, user_id, secret_hash, display_name, scope, environment,
+              created_at, expires_at, revoked_at, last_used_at
+       from developer_credentials where id = $1`,
+      [issued.publicId],
+    );
+
+    expect(issued.credential).toMatch(/^ffmcp_v1\./);
+    expect(stored.rows).toHaveLength(1);
+    expect(stored.rows[0]).toMatchObject({
+      id: issued.publicId,
+      user_id: owner.userId,
+      display_name: 'Codex local',
+      scope: 'form-intelligence:read',
+      environment: 'development',
+      revoked_at: null,
+      last_used_at: null,
+    });
+    expect(stored.rows[0].secret_hash).toMatch(/^[0-9a-f]{64}$/);
+    expect(JSON.stringify(stored.rows)).not.toContain(issued.credential);
+    expect(
+      JSON.stringify(await new ListDeveloperCredentials(repository).execute(owner)),
+    ).not.toContain(stored.rows[0].secret_hash);
+  });
+
+  it('enforces the maximum of five active credentials under concurrent issuance', async () => {
+    await pool.query(`delete from developer_credentials where user_id = $1`, [otherOwner.userId]);
+    const issue = new IssueDeveloperCredential(codec, repository);
+    const results = await Promise.allSettled(
+      Array.from({ length: 6 }, (_, index) =>
+        issue.execute(otherOwner, { displayName: `Client ${index}`, expiresInDays: 30 }),
+      ),
+    );
+
+    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(5);
+    expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1);
+    await expect(
+      pool.query<{ count: string }>(
+        `select count(*)::text as count from developer_credentials
+         where user_id = $1 and revoked_at is null and expires_at > now()`,
+        [otherOwner.userId],
+      ),
+    ).resolves.toMatchObject({ rows: [{ count: '5' }] });
+  });
+
+  it('lists only owner metadata and makes revocation idempotent and owner-scoped', async () => {
+    const issued = await new IssueDeveloperCredential(codec, repository).execute(owner, {
+      displayName: 'Revocable',
+      expiresInDays: 1,
+    });
+    const revoke = new RevokeDeveloperCredential(repository);
+    await revoke.execute(otherOwner, issued.publicId);
+    expect(
+      (
+        await pool.query(`select revoked_at from developer_credentials where id = $1`, [
+          issued.publicId,
+        ])
+      ).rows[0].revoked_at,
+    ).toBeNull();
+
+    await revoke.execute(owner, issued.publicId);
+    const first = (
+      await pool.query<{ revoked_at: Date }>(
+        `select revoked_at from developer_credentials where id = $1`,
+        [issued.publicId],
+      )
+    ).rows[0]!.revoked_at;
+    await revoke.execute(owner, issued.publicId);
+    const repeated = (
+      await pool.query<{ revoked_at: Date }>(
+        `select revoked_at from developer_credentials where id = $1`,
+        [issued.publicId],
+      )
+    ).rows[0]!.revoked_at;
+    expect(repeated).toEqual(first);
+
+    const otherMetadata = await new ListDeveloperCredentials(repository).execute(otherOwner);
+    expect(otherMetadata.some(({ publicId }) => publicId === issued.publicId)).toBe(false);
+  });
+
+  it('enforces storage policy and cleans terminal metadata after thirty days', async () => {
+    const generated = codec.generate();
+    await expect(
+      pool.query(
+        `insert into developer_credentials
+           (id, user_id, secret_hash, display_name, scope, environment, expires_at)
+         values ($1, $2, $3, 'Invalid', 'write', 'development', now() + interval '1 day')`,
+        [generated.publicId, owner.userId, generated.secretVerifier],
+      ),
+    ).rejects.toMatchObject({ constraint: 'developer_credentials_scope_check' });
+    await expect(
+      pool.query(
+        `insert into developer_credentials
+           (id, user_id, secret_hash, display_name, expires_at)
+         values ($1, $2, $3, 'Too long', now() + interval '31 days')`,
+        [codec.generate().publicId, owner.userId, codec.generate().secretVerifier],
+      ),
+    ).rejects.toMatchObject({ constraint: 'developer_credentials_expiry_check' });
+
+    const issued = await new IssueDeveloperCredential(codec, repository).execute(owner, {
+      displayName: 'Old credential',
+      expiresInDays: 1,
+    });
+    await pool.query(
+      `update developer_credentials set
+         created_at = now() - interval '40 days',
+         expires_at = now() - interval '39 days',
+         revoked_at = now() - interval '31 days'
+       where id = $1`,
+      [issued.publicId],
+    );
+    await expect(new CleanupDeveloperCredentials(repository).execute()).resolves.toBe(1);
+  });
+
+  it('fails issuance closed for a disabled or missing actor', async () => {
+    await pool.query(`update users set status = 'disabled' where id = $1`, [owner.userId]);
+    await expect(
+      new IssueDeveloperCredential(codec, repository).execute(owner, {
+        displayName: 'Disabled',
+        expiresInDays: 1,
+      }),
+    ).rejects.toMatchObject({ code: 'not_found' });
+    await pool.query(`update users set status = 'active' where id = $1`, [owner.userId]);
+  });
+
+  async function applyMigration(name: string): Promise<void> {
+    const sql = await readFile(
+      fileURLToPath(new URL(`../../../drizzle/${name}`, import.meta.url)),
+      'utf8',
+    );
+    await pool.query(sql);
+  }
+});
