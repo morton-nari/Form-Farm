@@ -267,6 +267,13 @@ ADR 0008 selects local stdio, read-only tools, verified application actors, and 
 application use cases. It defers remote Streamable HTTP, provider integration, and every mutation capability
 until their named authentication, confirmation, audit, and deterministic-analysis prerequisites are proven.
 
+Owner-aware local MCP is additionally blocked on the credential lifecycle accepted in ADR 0009. Environment
+configuration is only transport for an application-issued credential; it never establishes an owner by itself.
+The decision uses independently expiring and revocable development-only read credentials that resolve through
+an authentication adapter into `AuthenticatedActor`. ADR acceptance does not implement credentials or MCP;
+public/system-only information remains the maximum safe unauthenticated surface until the credential slices are
+complete.
+
 The flagship foundation is a deterministic Form Change Impact Engine. A semantic diff must distinguish display
 labels from submitted values, validation from presentation, movement from replacement, and structural change
 from answer-contract change. For example, changing a choice value from `AU` to `AUS` changes future answer
