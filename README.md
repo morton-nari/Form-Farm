@@ -99,7 +99,10 @@ After signing in locally, open
 [`http://localhost:4200/manage/developer-credentials`](http://localhost:4200/manage/developer-credentials) to
 issue, list, or revoke a development-only read credential. Issuance requires the current password and displays
 the raw credential once. Do not commit it, place it in a URL or command argument, or reuse it outside local
-development. The credential resolver and MCP tools are not implemented yet.
+development. A future local client may supply it to the backend through `FORM_FARM_DEVELOPER_CREDENTIAL`, but
+only when `APP_ENV=development` is explicit. The backend resolves that credential into the owning actor on every
+invocation, rechecking its verifier, fixed scope/environment, expiry, revocation, and active owner state. The
+environment variable is transport only and cannot replace authentication. MCP tools are not implemented yet.
 
 For a clean, lockfile-based installation, such as in CI, use:
 

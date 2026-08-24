@@ -51,7 +51,11 @@ describe('authentication HTTP boundary with PostgreSQL', () => {
       formSubmissionTransaction: {
         execute: async () => ({ status: 'created', submissionId: 'unused' }),
       },
-      authentication: createAuthenticationServices(database.database, config.auth),
+      authentication: createAuthenticationServices(
+        database.database,
+        config.auth,
+        config.deploymentStage,
+      ),
       closeInfrastructure: database.close,
     });
   }, 60_000);

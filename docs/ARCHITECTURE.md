@@ -290,9 +290,21 @@ cleared when the page is destroyed; list and revocation responses contain safe m
 
 The routes are registered only for `APP_ENV=development`. Preview and Production cannot issue, list, or revoke
 these credentials through the application, and Production runtime database grants continue to exclude their
-table. Per-invocation developer-credential resolution still belongs to the next authentication-adapter slice.
-Public/system-only information therefore remains the maximum safe unauthenticated MCP surface until that slice
-is complete.
+table.
+
+The developer-authentication adapter accepts one strictly parsed credential from
+`FORM_FARM_DEVELOPER_CREDENTIAL` only when `APP_ENV=development` is explicit. On every invocation it looks up the
+public credential ID, performs a constant-time verifier comparison (including a dummy comparison for unknown
+IDs), and rechecks the fixed scope/environment, expiry, revocation, and active owner before returning the minimal
+`AuthenticatedActor`. A final locked repository check closes the revocation/owner-disable race and throttles
+`lastUsedAt` persistence to a five-minute cadence. Failed authentication uses the shared HMAC-keyed durable rate
+limiter under a dedicated scope; raw credential material is never used as a limiter identity or emitted in
+errors. Preview and Production fail closed before parsing or persistence access. Environment configuration is
+transport only: an owner ID or client metadata can never establish identity.
+
+No MCP server or tool exists yet. This resolver is the final authentication prerequisite for the separately
+reviewed local read-only adapter; public/system-only information remains the maximum safe unauthenticated MCP
+surface.
 
 The flagship foundation is a deterministic Form Change Impact Engine. A semantic diff must distinguish display
 labels from submitted values, validation from presentation, movement from replacement, and structural change

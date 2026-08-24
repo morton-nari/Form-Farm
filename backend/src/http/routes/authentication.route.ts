@@ -6,7 +6,7 @@ import {
   ForbiddenAuthenticationRequestError,
   UnauthenticatedError,
 } from '../authentication/authentication-errors.js';
-import type { AuthenticationRateLimiter } from '../authentication/authentication-rate-limiter.js';
+import type { AuthenticationRateLimiter } from '../../application/authentication/authentication-rate-limiter.js';
 import type { XsrfTokenService } from '../authentication/xsrf-token-service.js';
 
 interface AuthenticationRouteOptions {

@@ -53,7 +53,8 @@ export type AuthenticationRateLimitScope =
   | 'login-source'
   | 'login-account'
   | 'developer-credential-source'
-  | 'developer-credential-actor';
+  | 'developer-credential-actor'
+  | 'developer-credential-authentication';
 
 export interface AuthenticationRateLimitRepository {
   consume(input: {

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { AuthenticationRateLimitRepository } from '../../application/ports/authentication.js';
+import type { AuthenticationRateLimitRepository } from '../ports/authentication.js';
 import { AuthenticationRateLimiter, RateLimitedError } from './authentication-rate-limiter.js';
 
 describe('AuthenticationRateLimiter', () => {

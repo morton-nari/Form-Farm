@@ -6,7 +6,7 @@ import type {
   RevokeDeveloperCredential,
 } from '../../application/authentication/developer-credentials.js';
 import type { BackendConfig } from '../../config/backend-config.js';
-import type { AuthenticationRateLimiter } from '../authentication/authentication-rate-limiter.js';
+import type { AuthenticationRateLimiter } from '../../application/authentication/authentication-rate-limiter.js';
 import { resolveAuthenticatedRequest } from '../authentication/resolve-authenticated-user.js';
 import type { XsrfTokenService } from '../authentication/xsrf-token-service.js';
 import {

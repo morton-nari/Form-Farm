@@ -10,7 +10,7 @@ import {
 } from '../../application/authentication/developer-credentials.js';
 import type { DeveloperCredentialRepository } from '../../application/ports/developer-credentials.js';
 import { registerErrorHandler } from '../errors/register-error-handler.js';
-import { AuthenticationRateLimiter } from '../authentication/authentication-rate-limiter.js';
+import { AuthenticationRateLimiter } from '../../application/authentication/authentication-rate-limiter.js';
 import { XsrfTokenService } from '../authentication/xsrf-token-service.js';
 import { registerDeveloperCredentialRoutes } from './developer-credentials.route.js';
 
