@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Accepted 2026-08-24
 
 ## Context
 
@@ -66,6 +66,19 @@ secret, scope, expiry, revocation state, owner, or environment was wrong.
 Credential creation is an explicit owner action through the existing same-origin authenticated management
 boundary. It requires a valid browser session, exact Origin and XSRF protections, and current-password
 verification before secret generation. The owner supplies only a bounded display name and an expiry choice.
+
+Current-password confirmation is verified server-side through the existing password-verification boundary. The
+raw password remains request-scoped and is never persisted, logged, returned, cached, placed in audit metadata,
+or passed to the credential repository. Successful verification authorizes only that specific credential-
+issuance attempt; it does not mark the browser session as recently privileged or create reusable step-up state.
+Any future reusable privileged-session capability requires its own threat model and decision.
+
+Missing or incorrect password confirmation uses the same bounded, enumeration-safe failure behavior regardless
+of account details and participates in the applicable authentication rate limit without storing raw identifiers.
+Issuance rechecks that the authenticated session still belongs to the same active actor inside, or immediately
+adjacent to, the transactional issuance boundary. If that continuity cannot be established, issuance fails
+closed even when the supplied password was correct. Password verification alone never supplies the actor or
+permits issuance after session expiry or revocation.
 
 Initial policy:
 
@@ -139,7 +152,7 @@ session, default owner, or public access to owner resources.
 4. Only then implement owner-aware local MCP tools in #130 through those application boundaries.
 5. Document tested client storage/connection/revocation workflows in #135 after the tool surface is stable.
 
-Each implementation slice receives its own issue and PR. This proposed ADR adds no credential, migration,
+Each implementation slice receives its own issue and PR. This ADR adds no credential, migration,
 endpoint, MCP SDK, model provider, or deployed behavior.
 
 ## Alternatives considered

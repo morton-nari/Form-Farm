@@ -147,7 +147,7 @@ server.
 
 ### Safe capability boundary
 
-- [ ] Define and review the local developer credential lifecycle before owner-aware MCP tools.
+- [x] Define and review the local developer credential lifecycle before owner-aware MCP tools.
 - Start with a local, read-only MCP adapter exposing a deliberately small surface: `inspect_form`,
   `compare_form_versions`, and `impact_analysis` for explicit operations.
 - Route every MCP capability through existing application use cases, domain validation, authorization, and
