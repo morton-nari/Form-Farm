@@ -9,3 +9,5 @@ export * from './form-semantic-diff.engine.js';
 export * from './form-semantic-diff.validator.js';
 export * from './form-change-impact.models.js';
 export * from './form-change-impact.engine.js';
+export * from './form-analysis.models.js';
+export * from './form-analysis.engine.js';

@@ -405,6 +405,24 @@ explicit privacy-sensitive treatment, while the engine does not pretend it can i
 from omitted labels or help text. This pure domain service has no persistence, HTTP, actor, MCP, AI, mutation, or
 publication responsibility.
 
+Deterministic whole-form analysis is a separate pure domain service over one validated `FormDefinition`. Its
+versioned report evaluates every section and field, returns a bounded deterministic finding list with explicit
+total/truncation metadata, and contains only stable codes, fixed explanations, classifications, and bounded
+section/field IDs. It never returns the labels, help text, option labels/values, defaults, answers, or complete
+definition that caused a finding.
+
+Findings distinguish schema `fact` from conservative `indicator`. Facts include duplicate normalized visible
+labels, unbounded textarea collection, password collection, and declared personal-data autocomplete purposes.
+Indicators include threshold-based form length, required-field volume, choice-set size, label length, and a
+small reviewed sensitive-wording vocabulary. Thresholds are exported named policy constants and use explicit
+exclusive boundaries. Validity and satisfiability remain the responsibility of `validateFormDefinition`; the
+analysis service does not downgrade invalid defaults, option constraints, or rule combinations into advice.
+
+The report explicitly disclaims equivalence to an accessibility audit, usability research, privacy/legal
+review, or security assessment. Severity is review priority rather than a claim of harm, and an indicator is not
+a conclusion about the form's purpose. This service has no persistence, submission access, MCP, AI, mutation,
+logging, or network behavior.
+
 Initial MCP work is read-only and local: safe inspection, version comparison, and impact analysis for explicit
 operations. Proposal tools remain non-mutating. A later `apply_draft_operations` capability is the only planned
 initial mutation tool and requires owner authentication, exact ETag, controlled operations, deterministic impact,
