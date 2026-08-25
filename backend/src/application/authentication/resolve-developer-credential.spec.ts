@@ -100,6 +100,7 @@ describe('ResolveDeveloperCredential', () => {
       repository({ confirmActiveAndTouch }),
       { consume },
       'development',
+      () => new Date('2026-08-24T00:00:00.000Z'),
     );
     await expect(revokedDuringResolution.execute('credential')).resolves.toBeUndefined();
     expect(confirmActiveAndTouch).toHaveBeenCalledOnce();

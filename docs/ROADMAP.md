@@ -144,6 +144,8 @@ server.
 - [x] Classify presentation, validation, answer-contract, structural, potentially destructive, privacy-sensitive,
       accessibility-sensitive, and compatibility effects.
 - [x] Explain historical-versus-future submission implications using immutable published-version semantics.
+- [x] Add deterministic whole-form analysis with bounded safe findings, explicit fact-versus-indicator
+      semantics, conservative threshold/false-positive tests, and clear audit/review limitations.
 
 ### Safe capability boundary
 
@@ -161,7 +163,7 @@ server.
   persistence ports; never provide SQL, filesystem, arbitrary URL-fetching, secret, or raw session access.
 - Define MCP authentication/authorization, privacy-safe errors/results, confirmation, audit, and client identity
   in the architecture ADR.
-- Keep deterministic analysis separate from heuristic or AI-assisted suggestions.
+- [x] Keep deterministic facts and conservative schema indicators separate from AI-assisted suggestions.
 - Add non-mutating `analyze_form`, `propose_form_changes`, and advisory `simulate_form` tools only after their
   underlying services are independently proven.
 - Add `apply_draft_operations` only after controlled operations, semantic diffing, impact analysis, authorization,
