@@ -173,7 +173,9 @@ server.
 ### AI and developer experience
 
 - Integrate an AI provider separately from MCP; model output must be untrusted controlled operations, never an
-  authoritative `FormDefinition` replacement.
+  authoritative `FormDefinition` replacement. The backend proposal boundary and inactive Gateway adapter are
+  implemented without provider credentials or billable calls; real-provider activation remains separately
+  reviewed and explicitly funded.
 - Require impact review and explicit human confirmation before applying an AI-generated proposal.
 - Record safe proposal/application audit evidence without secrets, raw authentication material, unnecessary full
   definitions, model chain-of-thought, or sensitive submission content.

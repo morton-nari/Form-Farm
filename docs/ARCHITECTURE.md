@@ -66,6 +66,14 @@ External AI provider APIs
 
 Microservices are not planned. They would add operational complexity without solving a current scaling or ownership problem.
 
+The first AI proposal boundary is backend-only and inactive by default. An application-owned use case accepts
+a bounded owner goal, loads the authorized current draft, and delegates generation through a provider port.
+Provider output remains `unknown` until the controlled Form Change Set validator accepts it; Form Farm then
+applies it only in memory and returns deterministic diff, impact, and candidate-analysis evidence. The provider
+cannot persist or publish. The initial Vercel AI Gateway adapter is compiled and contract-tested with injected
+fakes, but no credential, runtime composition, HTTP route, Angular UI, MCP tool, Preview configuration, or
+Production configuration activates it. See [`AI form-change proposals`](AI_FORM_CHANGE_PROPOSALS.md).
+
 ### Accepted portfolio deployment
 
 ADR 0007 selects one Vercel project as the public origin for Angular static assets and the existing Fastify
