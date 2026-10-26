@@ -58,7 +58,15 @@ test('production release is staged, approval protected, explicit, and seed-free'
   assert.match(productionReleaseWorkflow, /PRODUCTION_SMOKE_ORIGIN: \$\{\{ env\.PRODUCTION_STAGED_URL \}\}/);
   assert.match(
     productionReleaseWorkflow,
-    /node scripts\/deployment\/promote-vercel-deployment\.mjs/,
+    /ref: \$\{\{ github\.sha \}\}[\s\S]*path: \.release-control[\s\S]*persist-credentials: false/,
+  );
+  assert.match(
+    productionReleaseWorkflow,
+    /test "\$\(git -C \.release-control rev-parse HEAD\)" = "\$GITHUB_SHA"/,
+  );
+  assert.match(
+    productionReleaseWorkflow,
+    /node \.release-control\/scripts\/deployment\/promote-vercel-deployment\.mjs/,
   );
   assert.match(productionReleaseWorkflow, /verify-vercel-deployment\.mjs/);
   assert.match(productionReleaseWorkflow, /extract-startup-diagnostic\.mjs/);
@@ -75,7 +83,11 @@ test('production release is staged, approval protected, explicit, and seed-free'
   );
   assert.ok(
     productionReleaseWorkflow.indexOf('--prod --skip-domain') <
-      productionReleaseWorkflow.indexOf('promote-vercel-deployment.mjs'),
+      productionReleaseWorkflow.indexOf('path: .release-control'),
+  );
+  assert.ok(
+    productionReleaseWorkflow.indexOf('verify-vercel-deployment.mjs') <
+      productionReleaseWorkflow.indexOf('path: .release-control'),
   );
   assert.ok(
     productionReleaseWorkflow.indexOf('deployment:production-smoke') <
