@@ -358,6 +358,60 @@ test('protected staged fetch rejects other origins and redacts CLI failures', as
   assert.ok(separatorIndex < calls[0].indexOf('--dump-header'));
 });
 
+test('protected staged fetch reports bounded transport categories without provider output', async () => {
+  const secret = 'never-print-this-provider-secret';
+  for (const [stderr, category] of [
+    [`Error: forbidden ${secret}`, 'authorization'],
+    [`Deployment protection bypass rejected ${secret}`, 'protection'],
+    [`Could not find deployment ${secret}`, 'deployment-lookup'],
+    [`spawn curl ENOENT ${secret}`, 'native-curl'],
+    [`Invalid token; log in ${secret}`, 'authentication'],
+    [`unexpected provider failure ${secret}`, 'unknown'],
+  ]) {
+    const protectedFetch = createVercelProtectedFetch(
+      {
+        PRODUCTION_SMOKE_ORIGIN: 'https://staged-form-farm.vercel.app',
+        VERCEL_ORG_ID: 'team_reviewed',
+        VERCEL_TOKEN: secret,
+      },
+      () => ({ status: 1, stdout: '', stderr }),
+    );
+    await assert.rejects(
+      protectedFetch('https://staged-form-farm.vercel.app/health'),
+      (error) => {
+        assert.equal(error.productionSmokeTransportCategory, category);
+        assert.equal(error.message.includes(secret), false);
+        assert.equal(error.message.includes(stderr), false);
+        return true;
+      },
+    );
+  }
+});
+
+test('production smoke exposes only allowlisted transport categories', async () => {
+  for (const [category, expected] of [
+    ['authorization', 'production-smoke:failed:health:transport-authorization'],
+    ['not-allowlisted-secret', 'production-smoke:failed:health:transport'],
+  ]) {
+    await assert.rejects(
+      runProductionSmoke(
+        { PRODUCTION_SMOKE_ORIGIN: 'https://form-farm.vercel.app' },
+        async () => {
+          const error = new Error('provider details');
+          error.productionSmokeTransportCategory = category;
+          throw error;
+        },
+      ),
+      (error) => {
+        assert.equal(error.message, expected);
+        assert.equal(error.message.includes('provider details'), false);
+        assert.equal(error.message.includes('not-allowlisted-secret'), false);
+        return true;
+      },
+    );
+  }
+});
+
 test('protected staged fetch fails closed without an authorized Vercel team scope', () => {
   assert.throws(
     () => createVercelProtectedFetch({

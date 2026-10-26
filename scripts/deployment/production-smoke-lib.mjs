@@ -40,8 +40,9 @@ export async function runProductionSmoke(environment, fetchImplementation = fetc
         ...requestOptions,
         redirect: 'manual',
       });
-    } catch {
-      throw new ProductionSmokeFailure(name, 'transport');
+    } catch (error) {
+      const category = safeTransportCategory(error);
+      throw new ProductionSmokeFailure(name, category === 'unknown' ? 'transport' : `transport-${category}`);
     }
     if (response.status !== status) {
       const actualStatus = Number.isInteger(response.status) && response.status >= 100 && response.status <= 599
@@ -61,6 +62,19 @@ export async function runProductionSmoke(environment, fetchImplementation = fetc
     }
     write(`production-smoke:pass:${name}`);
   }
+}
+
+const transportCategories = new Set([
+  'authentication',
+  'authorization',
+  'deployment-lookup',
+  'native-curl',
+  'protection',
+]);
+
+function safeTransportCategory(error) {
+  const category = error?.productionSmokeTransportCategory;
+  return transportCategories.has(category) ? category : 'unknown';
 }
 
 export class ProductionSmokeFailure extends Error {
