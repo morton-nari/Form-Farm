@@ -3,6 +3,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { FastifyInstance } from 'fastify';
 import { describe, expect, it, vi } from 'vitest';
 
+import { BackendConfigurationError } from '../config/backend-config.js';
 import { createVercelHandler, restoreVercelRequestPath } from './vercel-handler.js';
 
 describe('restoreVercelRequestPath', () => {
@@ -141,7 +142,8 @@ describe('createVercelHandler', () => {
       .mockReturnValueOnce({
         app: { ready: vi.fn(async () => undefined), server } as unknown as FastifyInstance,
       });
-    const handler = createVercelHandler(createApplication);
+    const reportStartupDiagnostic = vi.fn();
+    const handler = createVercelHandler(createApplication, reportStartupDiagnostic);
     const failed = requestAndResponse();
     const recovered = requestAndResponse();
     const forwarded = vi.fn();
@@ -159,7 +161,59 @@ describe('createVercelHandler', () => {
     );
     expect(createApplication).toHaveBeenCalledTimes(2);
     expect(close).toHaveBeenCalledTimes(1);
+    expect(reportStartupDiagnostic).toHaveBeenCalledOnce();
+    expect(reportStartupDiagnostic).toHaveBeenCalledWith('form-farm-startup:initialization');
+    expect(JSON.stringify(reportStartupDiagnostic.mock.calls)).not.toContain(
+      'secret connection detail',
+    );
     expect(forwarded).toHaveBeenCalledWith(recovered.request, recovered.response);
+  });
+
+  it('reports only allowlisted configuration field names for startup diagnosis', async () => {
+    const secretValue = 'postgresql://owner:secret@example.invalid/database';
+    const reportStartupDiagnostic = vi.fn();
+    const handler = createVercelHandler(
+      () => {
+        const error = new BackendConfigurationError([
+          'publicOrigin',
+          secretValue,
+          'auth',
+          'publicOrigin',
+        ]);
+        error.stack = `sensitive stack containing ${secretValue}`;
+        throw error;
+      },
+      reportStartupDiagnostic,
+    );
+    const exchange = requestAndResponse();
+
+    await handler(exchange.request, exchange.response);
+
+    expect(exchange.response.statusCode).toBe(500);
+    expect(reportStartupDiagnostic).toHaveBeenCalledOnce();
+    expect(reportStartupDiagnostic).toHaveBeenCalledWith(
+      'form-farm-startup:configuration:auth,publicOrigin',
+    );
+    expect(JSON.stringify(reportStartupDiagnostic.mock.calls)).not.toContain(secretValue);
+  });
+
+  it('keeps startup diagnostics from changing safe failure handling', async () => {
+    const handler = createVercelHandler(
+      () => {
+        throw new Error('secret initialization detail');
+      },
+      () => {
+        throw new Error('diagnostic transport failed');
+      },
+    );
+    const exchange = requestAndResponse();
+
+    await handler(exchange.request, exchange.response);
+
+    expect(exchange.response.statusCode).toBe(500);
+    expect(exchange.end).toHaveBeenCalledWith(
+      JSON.stringify({ error: { code: 'internal_error', message: 'Internal server error.' } }),
+    );
   });
 
   it('shares one failing cold start, closes it once, and permits later recovery', async () => {

@@ -1,14 +1,30 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { FastifyInstance } from 'fastify';
 
+import { BackendConfigurationError } from '../config/backend-config.js';
+
 export type VercelApplicationFactory = () => { readonly app: FastifyInstance };
 export type VercelHandler = (
   request: IncomingMessage,
   response: ServerResponse,
 ) => Promise<void>;
+export type StartupDiagnosticReporter = (diagnostic: string) => void;
 
 const VERCEL_PATH_PARAMETER = '__form_farm_path';
 const VERCEL_HEALTH_PARAMETER = '__form_farm_health';
+const SAFE_CONFIGURATION_FIELDS = new Set([
+  'auth',
+  'authSecretEnvironment',
+  'databaseEnvironment',
+  'databasePoolMax',
+  'databaseUrl',
+  'deploymentStage',
+  'environment',
+  'host',
+  'logLevel',
+  'port',
+  'publicOrigin',
+]);
 
 export function restoreVercelRequestPath(request: IncomingMessage): boolean {
   if (request.url === undefined) return true;
@@ -62,7 +78,10 @@ function isSafeApiPath(path: string): boolean {
   );
 }
 
-export function createVercelHandler(createApplication: VercelApplicationFactory): VercelHandler {
+export function createVercelHandler(
+  createApplication: VercelApplicationFactory,
+  reportStartupDiagnostic: StartupDiagnosticReporter = (diagnostic) => console.error(diagnostic),
+): VercelHandler {
   let readyApplication: FastifyInstance | undefined;
   let initialization: Promise<FastifyInstance> | undefined;
 
@@ -70,13 +89,15 @@ export function createVercelHandler(createApplication: VercelApplicationFactory)
     let app: FastifyInstance;
     try {
       initialization ??= (async () => {
-        const { app } = createApplication();
+        let app: FastifyInstance | undefined;
         try {
+          ({ app } = createApplication());
           await app.ready();
           readyApplication = app;
           return app;
         } catch (error) {
-          await app.close().catch(() => undefined);
+          await app?.close().catch(() => undefined);
+          safelyReportStartupDiagnostic(reportStartupDiagnostic, error);
           throw error;
         }
       })();
@@ -93,6 +114,30 @@ export function createVercelHandler(createApplication: VercelApplicationFactory)
       sendSafeInternalError(response);
     }
   };
+}
+
+function safelyReportStartupDiagnostic(
+  reporter: StartupDiagnosticReporter,
+  error: unknown,
+): void {
+  const diagnostic = renderStartupDiagnostic(error);
+  try {
+    reporter(diagnostic);
+  } catch {
+    // Diagnostics must never change the safe failure response or recovery behavior.
+  }
+}
+
+function renderStartupDiagnostic(error: unknown): string {
+  if (error instanceof BackendConfigurationError) {
+    const fields = [...new Set(error.fields)]
+      .filter((field) => SAFE_CONFIGURATION_FIELDS.has(field))
+      .sort();
+    if (fields.length > 0) {
+      return `form-farm-startup:configuration:${fields.join(',')}`;
+    }
+  }
+  return 'form-farm-startup:initialization';
 }
 
 function forwardRequest(
