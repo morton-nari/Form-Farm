@@ -322,10 +322,15 @@ test('protected staged fetch rejects other origins and redacts CLI failures', as
     {
       PRODUCTION_SMOKE_ORIGIN: 'https://staged-form-farm.vercel.app',
       VERCEL_ORG_ID: 'team_reviewed',
+      VERCEL_AUTOMATION_BYPASS_SECRET: 'never-print-this-production-bypass',
       VERCEL_TOKEN: 'never-print-this-vercel-token',
     },
-    (_command, args) => {
+    (_command, args, options) => {
       calls.push(args);
+      assert.equal(
+        options.env.VERCEL_AUTOMATION_BYPASS_SECRET,
+        'never-print-this-production-bypass',
+      );
       return {
         status: 1,
         stdout: '',
@@ -356,6 +361,7 @@ test('protected staged fetch rejects other origins and redacts CLI failures', as
   assert.ok(separatorIndex > calls[0].indexOf('--scope=team_reviewed'));
   assert.ok(separatorIndex < calls[0].indexOf('--silent'));
   assert.ok(separatorIndex < calls[0].indexOf('--dump-header'));
+  assert.equal(calls[0].join(' ').includes('never-print-this-production-bypass'), false);
 });
 
 test('protected staged fetch reports bounded transport categories without provider output', async () => {
@@ -372,6 +378,7 @@ test('protected staged fetch reports bounded transport categories without provid
       {
         PRODUCTION_SMOKE_ORIGIN: 'https://staged-form-farm.vercel.app',
         VERCEL_ORG_ID: 'team_reviewed',
+        VERCEL_AUTOMATION_BYPASS_SECRET: secret,
         VERCEL_TOKEN: secret,
       },
       () => ({ status: 1, stdout: '', stderr }),
@@ -419,5 +426,16 @@ test('protected staged fetch fails closed without an authorized Vercel team scop
       VERCEL_TOKEN: 'never-print-this-vercel-token',
     }),
     /requires VERCEL_ORG_ID/,
+  );
+});
+
+test('protected staged fetch fails closed without a Production protection bypass', () => {
+  assert.throws(
+    () => createVercelProtectedFetch({
+      PRODUCTION_SMOKE_ORIGIN: 'https://staged-form-farm.vercel.app',
+      VERCEL_ORG_ID: 'team_reviewed',
+      VERCEL_TOKEN: 'never-print-this-vercel-token',
+    }),
+    /requires VERCEL_AUTOMATION_BYPASS_SECRET/,
   );
 });

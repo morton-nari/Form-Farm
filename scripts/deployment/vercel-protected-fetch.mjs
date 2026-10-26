@@ -9,8 +9,12 @@ export function createVercelProtectedFetch(environment, run = spawnSync) {
   const origin = requireExactOrigin(environment.PRODUCTION_SMOKE_ORIGIN);
   const token = environment.VERCEL_TOKEN;
   const scope = environment.VERCEL_ORG_ID;
+  const protectionBypass = environment.VERCEL_AUTOMATION_BYPASS_SECRET;
   if (!token) throw new Error('Protected Production smoke requires VERCEL_TOKEN.');
   if (!scope) throw new Error('Protected Production smoke requires VERCEL_ORG_ID.');
+  if (!protectionBypass) {
+    throw new Error('Protected Production smoke requires VERCEL_AUTOMATION_BYPASS_SECRET.');
+  }
 
   return async (input, options = {}) => {
     const url = new URL(input);
@@ -46,6 +50,7 @@ export function createVercelProtectedFetch(environment, run = spawnSync) {
 
       const result = run(process.platform === 'win32' ? 'npx.cmd' : 'npx', args, {
         encoding: 'utf8',
+        env: { ...process.env, VERCEL_AUTOMATION_BYPASS_SECRET: protectionBypass },
         stdio: ['ignore', 'pipe', 'pipe'],
       });
       if (result.status !== 0 || !/^\d{3}$/.test(result.stdout)) {
