@@ -1,4 +1,4 @@
-import { runProductionSmoke } from './production-smoke-lib.mjs';
+import { ProductionSmokeFailure, runProductionSmoke } from './production-smoke-lib.mjs';
 import { createVercelProtectedFetch } from './vercel-protected-fetch.mjs';
 
 try {
@@ -7,7 +7,10 @@ try {
     : fetch;
   await runProductionSmoke(process.env, fetchImplementation);
   process.stdout.write('production-smoke:complete\n');
-} catch {
-  process.stderr.write('production-smoke:failed\n');
+} catch (error) {
+  const message = error instanceof ProductionSmokeFailure
+    ? error.message
+    : 'production-smoke:failed:configuration';
+  process.stderr.write(`${message}\n`);
   process.exitCode = 1;
 }

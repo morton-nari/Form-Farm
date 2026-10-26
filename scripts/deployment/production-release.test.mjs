@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { runProductionSmoke } from './production-smoke-lib.mjs';
+import { ProductionSmokeFailure, runProductionSmoke } from './production-smoke-lib.mjs';
 import { createVercelProtectedFetch } from './vercel-protected-fetch.mjs';
 import { verifyRequiredChecks } from './verify-required-checks.mjs';
 import { fetchAndVerifyVercelDeployment, verifyVercelDeployment } from './verify-vercel-deployment.mjs';
@@ -206,6 +206,64 @@ test('production smoke is read-only and reports fixed names without response bod
   assert.equal(output.includes('production-smoke:pass:runtime-database-read'), true);
   assert.equal(output.join('\n').includes('invalid-session-credential'), false);
   assert.equal(output.join('\n').includes('not-reported'), false);
+});
+
+test('production smoke failures expose only the fixed check and bounded reason', async () => {
+  const secretBody = 'database-url-and-cookie-must-not-appear';
+  await assert.rejects(
+    runProductionSmoke(
+      { PRODUCTION_SMOKE_ORIGIN: 'https://form-farm.vercel.app' },
+      async () => new Response(secretBody, { status: 503 }),
+    ),
+    (error) => {
+      assert.ok(error instanceof ProductionSmokeFailure);
+      assert.equal(error.message, 'production-smoke:failed:health:status-503');
+      assert.equal(error.message.includes(secretBody), false);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    runProductionSmoke(
+      { PRODUCTION_SMOKE_ORIGIN: 'https://form-farm.vercel.app' },
+      async () => { throw new Error(secretBody); },
+    ),
+    (error) => {
+      assert.equal(error.message, 'production-smoke:failed:health:transport');
+      assert.equal(error.message.includes(secretBody), false);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    runProductionSmoke(
+      { PRODUCTION_SMOKE_ORIGIN: 'https://form-farm.vercel.app' },
+      async () => new Response(secretBody, {
+        status: 200,
+        headers: { 'content-type': 'text/plain' },
+      }),
+    ),
+    (error) => {
+      assert.equal(error.message, 'production-smoke:failed:health:content-type');
+      assert.equal(error.message.includes(secretBody), false);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    runProductionSmoke(
+      { PRODUCTION_SMOKE_ORIGIN: 'https://form-farm.vercel.app' },
+      async () => new Response(JSON.stringify({ status: 'failed', secret: secretBody }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    ),
+    (error) => {
+      assert.equal(error.message, 'production-smoke:failed:health:response');
+      assert.equal(error.message.includes(secretBody), false);
+      return true;
+    },
+  );
 });
 
 test('protected staged fetch rejects other origins and redacts CLI failures', async () => {
