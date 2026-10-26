@@ -70,8 +70,9 @@ Before invoking it, the release operator must establish:
 
 After approval, the workflow verifies database/admin identity and an exact committed-ledger prefix, applies the
 explicit migrator, and installs only the reviewed runtime table privileges for `form_farm_app`. It then creates a
-staged Production deployment with `--skip-domain`, runs read-only smoke checks, records the deployment ID, and
-checks that the staged deployment belongs to the authorized Vercel team/project and Production target, then
+staged Production deployment with `--skip-domain` and explicit immutable application-commit metadata, runs
+read-only smoke checks, records the deployment ID, and checks that the staged deployment belongs to the
+authorized Vercel team/project and Production target and carries that exact reviewed commit, then
 promotes that exact build before repeating smoke against the assigned origin. It never seeds or resets data.
 Output contains only fixed results, counts, immutable identifiers, and reviewed non-secret references.
 

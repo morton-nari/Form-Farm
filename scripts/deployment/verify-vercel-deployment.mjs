@@ -5,16 +5,12 @@ export function verifyVercelDeployment(payload, environment) {
   const commit = requireValue(environment.APPLICATION_COMMIT, 'APPLICATION_COMMIT');
   const projectId = requireValue(environment.VERCEL_PROJECT_ID, 'VERCEL_PROJECT_ID');
   const teamId = requireValue(environment.VERCEL_ORG_ID, 'VERCEL_ORG_ID');
-  if (!/^[0-9a-f]{40}$/.test(commit)) throw new Error('Invalid application commit.');
-  if (!/^dpl_[A-Za-z0-9]+$/.test(payload.id)) throw new Error('Invalid deployment identity.');
-  if (
-    payload.meta?.githubCommitSha !== commit ||
-    payload.target !== 'production' ||
-    payload.projectId !== projectId ||
-    payload.teamId !== teamId
-  ) {
-    throw new Error('Deployment does not match the reviewed Production target.');
-  }
+  if (!/^[0-9a-f]{40}$/.test(commit)) fail('invalid-application-commit');
+  if (!/^dpl_[A-Za-z0-9]+$/.test(payload.id)) fail('invalid-deployment-identity');
+  if (payload.projectId !== projectId) fail('project-mismatch');
+  if (payload.teamId !== undefined && payload.teamId !== teamId) fail('team-mismatch');
+  if (payload.target !== 'production') fail('target-mismatch');
+  if (payload.meta?.formFarmApplicationCommit !== commit) fail('commit-mismatch');
   return payload.id;
 }
 
@@ -32,8 +28,12 @@ export async function fetchAndVerifyVercelDeployment(
     `https://api.vercel.com/v13/deployments/${encodeURIComponent(reference)}?teamId=${encodeURIComponent(teamId)}`,
     { headers: { authorization: `Bearer ${token}` } },
   );
-  if (!response.ok) throw new Error('Deployment lookup failed.');
+  if (!response.ok) fail('lookup-failed');
   return verifyVercelDeployment(await response.json(), environment);
+}
+
+function fail(reason) {
+  throw new Error(`deployment-verification:${reason}`);
 }
 
 function requireValue(value, name) {
@@ -44,8 +44,11 @@ function requireValue(value, name) {
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
   try {
     process.stdout.write(await fetchAndVerifyVercelDeployment(process.argv[2] ?? '', process.env));
-  } catch {
-    process.stderr.write('deployment-verification:failed\n');
+  } catch (error) {
+    const message = error instanceof Error && /^deployment-verification:[a-z-]+$/.test(error.message)
+      ? error.message
+      : 'deployment-verification:failed';
+    process.stderr.write(`${message}\n`);
     process.exitCode = 1;
   }
 }

@@ -114,7 +114,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          deployment_url="$(npx --yes vercel@59.1.3 --prod --skip-domain --yes --token="$VERCEL_TOKEN")"
+          deployment_url="$(npx --yes vercel@59.1.3 --prod --skip-domain --yes --meta "formFarmApplicationCommit=$APPLICATION_COMMIT" --token="$VERCEL_TOKEN")"
           [[ "$deployment_url" =~ ^https://[A-Za-z0-9.-]+\.vercel\.app$ ]]
           echo "PRODUCTION_STAGED_URL=$deployment_url" >> "$GITHUB_ENV"
       - name: Verify staged deployment without product-data writes
