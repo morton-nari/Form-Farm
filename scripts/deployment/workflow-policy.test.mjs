@@ -46,6 +46,7 @@ test('production release is staged, approval protected, explicit, and seed-free'
   );
   assert.match(productionReleaseWorkflow, /deployment:production-smoke/g);
   assert.match(productionReleaseWorkflow, /PRODUCTION_SMOKE_VERCEL_CURL: 'true'/);
+  assert.match(productionReleaseWorkflow, /VERCEL_ORG_ID: \$\{\{ vars\.VERCEL_ORG_ID \}\}/);
   assert.match(productionReleaseWorkflow, /PRODUCTION_SMOKE_ORIGIN: \$\{\{ env\.PRODUCTION_STAGED_URL \}\}/);
   assert.match(productionReleaseWorkflow, /vercel@59\.1\.3 promote/);
   assert.match(productionReleaseWorkflow, /verify-vercel-deployment\.mjs/);
@@ -99,6 +100,7 @@ test('Production staged smoke is protected and cannot deploy, promote, or mutate
   assert.match(productionStagedSmokeWorkflow, /vars\.VERCEL_ORG_ID/);
   assert.match(productionStagedSmokeWorkflow, /vars\.VERCEL_PROJECT_ID/);
   assert.match(productionStagedSmokeWorkflow, /PRODUCTION_SMOKE_VERCEL_CURL: 'true'/);
+  assert.match(productionStagedSmokeWorkflow, /VERCEL_ORG_ID: \$\{\{ vars\.VERCEL_ORG_ID \}\}/);
   assert.match(productionStagedSmokeWorkflow, /secrets\.VERCEL_TOKEN/);
   assert.match(productionStagedSmokeWorkflow, /deployment:production-smoke/);
   assert.doesNotMatch(

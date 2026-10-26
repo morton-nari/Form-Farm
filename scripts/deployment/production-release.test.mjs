@@ -321,6 +321,7 @@ test('protected staged fetch rejects other origins and redacts CLI failures', as
   const protectedFetch = createVercelProtectedFetch(
     {
       PRODUCTION_SMOKE_ORIGIN: 'https://staged-form-farm.vercel.app',
+      VERCEL_ORG_ID: 'team_reviewed',
       VERCEL_TOKEN: 'never-print-this-vercel-token',
     },
     (_command, args) => {
@@ -349,6 +350,17 @@ test('protected staged fetch rejects other origins and redacts CLI failures', as
   assert.equal(calls.length, 1);
   const separatorIndex = calls[0].indexOf('--');
   assert.ok(separatorIndex > calls[0].indexOf('--token=never-print-this-vercel-token'));
+  assert.ok(separatorIndex > calls[0].indexOf('--scope=team_reviewed'));
   assert.ok(separatorIndex < calls[0].indexOf('--silent'));
   assert.ok(separatorIndex < calls[0].indexOf('--dump-header'));
+});
+
+test('protected staged fetch fails closed without an authorized Vercel team scope', () => {
+  assert.throws(
+    () => createVercelProtectedFetch({
+      PRODUCTION_SMOKE_ORIGIN: 'https://staged-form-farm.vercel.app',
+      VERCEL_TOKEN: 'never-print-this-vercel-token',
+    }),
+    /requires VERCEL_ORG_ID/,
+  );
 });

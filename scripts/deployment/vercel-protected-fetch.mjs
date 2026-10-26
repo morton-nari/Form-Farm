@@ -8,7 +8,9 @@ const cliVersion = '59.1.3';
 export function createVercelProtectedFetch(environment, run = spawnSync) {
   const origin = requireExactOrigin(environment.PRODUCTION_SMOKE_ORIGIN);
   const token = environment.VERCEL_TOKEN;
+  const scope = environment.VERCEL_ORG_ID;
   if (!token) throw new Error('Protected Production smoke requires VERCEL_TOKEN.');
+  if (!scope) throw new Error('Protected Production smoke requires VERCEL_ORG_ID.');
 
   return async (input, options = {}) => {
     const url = new URL(input);
@@ -27,6 +29,7 @@ export function createVercelProtectedFetch(environment, run = spawnSync) {
         'curl',
         url.href,
         `--token=${token}`,
+        `--scope=${scope}`,
         '--',
         '--silent',
         '--show-error',
