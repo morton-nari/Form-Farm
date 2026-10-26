@@ -1,0 +1,38 @@
+name: Production auth configuration repair
+
+on:
+  workflow_dispatch:
+    inputs:
+      approval:
+        description: Type ROTATE PRODUCTION AUTH SECRETS
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-release
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    name: Rotate approved Production auth secrets
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: Production
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24.15.0
+      - name: Rotate only the approved Production auth variables
+        env:
+          PRODUCTION_AUTH_REPAIR_APPROVAL: ${{ inputs.approval }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: node scripts/deployment/repair-production-auth-config.mjs

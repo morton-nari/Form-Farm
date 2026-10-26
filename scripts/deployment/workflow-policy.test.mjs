@@ -18,6 +18,10 @@ const productionRollbackWorkflow = await readFile(
   new URL('../../.github/workflows/production-rollback.yml', import.meta.url),
   'utf8',
 );
+const productionAuthRepairWorkflow = await readFile(
+  new URL('../../.github/workflows/production-auth-config-repair.yml', import.meta.url),
+  'utf8',
+);
 const rehearsalWorkflow = await readFile(
   new URL('../../.github/workflows/release-control-rehearsal.yml', import.meta.url),
   'utf8',
@@ -96,6 +100,18 @@ test('production rollback requires compatibility review and never reverses SQL',
   assert.match(productionRollbackWorkflow, /PRODUCTION_REQUIRE_CURRENT_MIGRATIONS/);
   assert.match(productionRollbackWorkflow, /vercel@59\.1\.3 rollback/);
   assert.doesNotMatch(productionRollbackWorkflow, /db:migrate|down|PREVIEW_|upload-artifact/);
+});
+
+test('Production auth repair is approval protected and cannot deploy or access the database', () => {
+  assert.match(productionAuthRepairWorkflow, /workflow_dispatch:/);
+  assert.match(productionAuthRepairWorkflow, /environment: Production/);
+  assert.match(productionAuthRepairWorkflow, /ROTATE PRODUCTION AUTH SECRETS/);
+  assert.match(productionAuthRepairWorkflow, /repair-production-auth-config\.mjs/);
+  assert.match(productionAuthRepairWorkflow, /secrets\.VERCEL_TOKEN/);
+  assert.doesNotMatch(
+    productionAuthRepairWorkflow,
+    /vercel\s+(?:deploy|promote|rollback)|DATABASE|db:|migrate|seed|reset|printenv|set -x|upload-artifact/i,
+  );
 });
 
 test('Production staged smoke is protected and cannot deploy, promote, or mutate data', () => {
