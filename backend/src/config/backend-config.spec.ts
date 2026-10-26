@@ -89,6 +89,21 @@ describe('loadBackendConfig', () => {
     },
   );
 
+  it('accepts only the documented direct or single-proxy topology', () => {
+    expect(
+      loadBackendConfig({
+        DATABASE_URL: 'postgresql://localhost/form_farm',
+        TRUSTED_PROXY_HOPS: '1',
+      }).auth.trustedProxyHops,
+    ).toBe(1);
+    expect(() =>
+      loadBackendConfig({
+        DATABASE_URL: 'postgresql://localhost/form_farm',
+        TRUSTED_PROXY_HOPS: '2',
+      }),
+    ).toThrow(BackendConfigurationError);
+  });
+
   it('reports only invalid field names and does not expose configuration values', () => {
     const secretLikeValue = 'not-a-real-secret-value';
 
