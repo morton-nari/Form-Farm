@@ -10,6 +10,10 @@ const productionReleaseWorkflow = await readFile(
   new URL('../../.github/workflows/production-release.yml', import.meta.url),
   'utf8',
 );
+const productionStagedSmokeWorkflow = await readFile(
+  new URL('../../.github/workflows/production-staged-smoke.yml', import.meta.url),
+  'utf8',
+);
 const productionRollbackWorkflow = await readFile(
   new URL('../../.github/workflows/production-rollback.yml', import.meta.url),
   'utf8',
@@ -79,6 +83,20 @@ test('production rollback requires compatibility review and never reverses SQL',
   assert.match(productionRollbackWorkflow, /PRODUCTION_REQUIRE_CURRENT_MIGRATIONS/);
   assert.match(productionRollbackWorkflow, /vercel@59\.1\.3 rollback/);
   assert.doesNotMatch(productionRollbackWorkflow, /db:migrate|down|PREVIEW_|upload-artifact/);
+});
+
+test('Production staged smoke is protected and cannot deploy, promote, or mutate data', () => {
+  assert.match(productionStagedSmokeWorkflow, /workflow_dispatch:/);
+  assert.match(productionStagedSmokeWorkflow, /environment: Production/);
+  assert.match(productionStagedSmokeWorkflow, /ref: \$\{\{ inputs\.application_commit \}\}/);
+  assert.match(productionStagedSmokeWorkflow, /git merge-base --is-ancestor/);
+  assert.match(productionStagedSmokeWorkflow, /PRODUCTION_SMOKE_VERCEL_CURL: 'true'/);
+  assert.match(productionStagedSmokeWorkflow, /secrets\.VERCEL_TOKEN/);
+  assert.match(productionStagedSmokeWorkflow, /deployment:production-smoke/);
+  assert.doesNotMatch(
+    productionStagedSmokeWorkflow,
+    /vercel@[^\s]+ (?:deploy|promote|alias|rollback)|db:migrate|db:seed|reset|DATABASE_ADMIN_URL|upload-artifact/,
+  );
 });
 
 test('release rehearsal is isolated, explicit, and cannot consume Production secrets', () => {
