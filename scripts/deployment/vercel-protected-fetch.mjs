@@ -49,7 +49,7 @@ export function createVercelProtectedFetch(environment, run = spawnSync) {
         stdio: ['ignore', 'pipe', 'pipe'],
       });
       if (result.status !== 0 || !/^\d{3}$/.test(result.stdout)) {
-        throw new Error('Authenticated Vercel request failed.');
+        throw new ProtectedVercelTransportError(classifyCliFailure(result.stderr));
       }
 
       const [rawHeaders, body] = await Promise.all([
@@ -64,6 +64,24 @@ export function createVercelProtectedFetch(environment, run = spawnSync) {
       await rm(directory, { recursive: true, force: true });
     }
   };
+}
+
+class ProtectedVercelTransportError extends Error {
+  constructor(category) {
+    super('Authenticated Vercel request failed.');
+    this.name = 'ProtectedVercelTransportError';
+    this.productionSmokeTransportCategory = category;
+  }
+}
+
+function classifyCliFailure(stderr) {
+  const output = typeof stderr === 'string' ? stderr : '';
+  if (/forbidden|not authorized|permission denied|access denied/i.test(output)) return 'authorization';
+  if (/protection|bypass|trusted.sources/i.test(output)) return 'protection';
+  if (/deployment.{0,40}not found|could not find.{0,40}deployment/i.test(output)) return 'deployment-lookup';
+  if (/curl.{0,20}(?:not found|enoent)/i.test(output)) return 'native-curl';
+  if (/unauthorized|authentication|invalid token|log in/i.test(output)) return 'authentication';
+  return 'unknown';
 }
 
 function requireExactOrigin(value) {
