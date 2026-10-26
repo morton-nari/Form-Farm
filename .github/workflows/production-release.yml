@@ -141,11 +141,23 @@ jobs:
           set -euo pipefail
           deployment_id="$(node scripts/deployment/verify-vercel-deployment.mjs "$PRODUCTION_STAGED_URL")"
           echo "PRODUCTION_DEPLOYMENT_ID=$deployment_id" >> "$GITHUB_ENV"
+      - name: Check out immutable release controls after staging
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          path: .release-control
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Validate immutable release-control checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C .release-control rev-parse HEAD)" = "$GITHUB_SHA"
       - name: Promote the verified staged deployment
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
-          node scripts/deployment/promote-vercel-deployment.mjs
+          node .release-control/scripts/deployment/promote-vercel-deployment.mjs
           echo 'PRODUCTION_PROMOTED=true' >> "$GITHUB_ENV"
       - name: Verify assigned Production origin without product-data writes
         env:
