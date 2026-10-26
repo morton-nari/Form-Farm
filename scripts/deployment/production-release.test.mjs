@@ -82,14 +82,14 @@ test('Vercel deployment verification binds commit, Production target, project, a
     target: 'production',
     projectId: 'prj_expected',
     teamId: 'team_expected',
-    meta: { githubCommitSha: 'b'.repeat(40) },
+    meta: { formFarmApplicationCommit: 'b'.repeat(40) },
   };
   assert.equal(verifyVercelDeployment(deployment, environment), deployment.id);
   for (const changed of [
     { target: 'preview' },
     { projectId: 'prj_other' },
     { teamId: 'team_other' },
-    { meta: { githubCommitSha: 'c'.repeat(40) } },
+    { meta: { formFarmApplicationCommit: 'c'.repeat(40) } },
   ]) {
     assert.throws(() => verifyVercelDeployment({ ...deployment, ...changed }, environment));
   }
@@ -113,13 +113,55 @@ test('Vercel deployment lookup keeps its token in the authorization header', asy
         target: 'production',
         projectId: 'prj_expected',
         teamId: 'team_expected',
-        meta: { githubCommitSha: 'd'.repeat(40) },
+        meta: { formFarmApplicationCommit: 'd'.repeat(40) },
       }), { status: 200 });
     },
   );
   assert.equal(id, 'dpl_Expected123');
   assert.equal(requests[0].url.includes(environment.VERCEL_TOKEN), false);
   assert.equal(requests[0].options.headers.authorization, `Bearer ${environment.VERCEL_TOKEN}`);
+});
+
+test('Vercel deployment lookup accepts omitted response team only after a team-scoped lookup', async () => {
+  const environment = {
+    APPLICATION_COMMIT: 'e'.repeat(40),
+    VERCEL_PROJECT_ID: 'prj_expected',
+    VERCEL_ORG_ID: 'team_expected',
+    VERCEL_TOKEN: 'never-print-this-vercel-token',
+  };
+  const id = await fetchAndVerifyVercelDeployment(
+    'dpl_Expected123',
+    environment,
+    async (url) => {
+      assert.match(url, /[?&]teamId=team_expected(?:&|$)/);
+      return new Response(JSON.stringify({
+        id: 'dpl_Expected123',
+        target: 'production',
+        projectId: 'prj_expected',
+        meta: { formFarmApplicationCommit: 'e'.repeat(40) },
+      }), { status: 200 });
+    },
+  );
+  assert.equal(id, 'dpl_Expected123');
+});
+
+test('Vercel deployment verification reports only safe mismatch categories', () => {
+  const environment = {
+    APPLICATION_COMMIT: 'f'.repeat(40),
+    VERCEL_PROJECT_ID: 'prj_expected',
+    VERCEL_ORG_ID: 'team_expected',
+  };
+  const deployment = {
+    id: 'dpl_Expected123',
+    target: 'production',
+    projectId: 'prj_expected',
+    teamId: 'team_expected',
+    meta: {},
+  };
+  assert.throws(
+    () => verifyVercelDeployment(deployment, environment),
+    { message: 'deployment-verification:commit-mismatch' },
+  );
 });
 
 test('production smoke is read-only and reports fixed names without response bodies', async () => {
