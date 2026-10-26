@@ -86,6 +86,16 @@ test('release rehearsal is isolated, explicit, and cannot consume Production sec
   assert.match(rehearsalWorkflow, /secrets\.PREVIEW_DATABASE_ADMIN_URL/);
   assert.match(rehearsalWorkflow, /npm run db:migrate/);
   assert.match(rehearsalWorkflow, /npm run db:rehearse-release/g);
+  assert.match(rehearsalWorkflow, /RELEASE_REHEARSAL_REQUIRE_CURRENT_MIGRATIONS: 'false'/);
+  assert.match(rehearsalWorkflow, /RELEASE_REHEARSAL_REQUIRE_CURRENT_MIGRATIONS: 'true'/);
+  assert.ok(
+    rehearsalWorkflow.indexOf("RELEASE_REHEARSAL_REQUIRE_CURRENT_MIGRATIONS: 'false'") <
+      rehearsalWorkflow.indexOf('npm run db:migrate'),
+  );
+  assert.ok(
+    rehearsalWorkflow.indexOf('npm run db:migrate') <
+      rehearsalWorkflow.indexOf("RELEASE_REHEARSAL_REQUIRE_CURRENT_MIGRATIONS: 'true'"),
+  );
   assert.doesNotMatch(rehearsalWorkflow, /secrets\.(?:PRODUCTION|DATABASE_URL|DATABASE_ADMIN_URL)/);
   assert.doesNotMatch(rehearsalWorkflow, /vercel (?:deploy|promote|--prod)/);
   assert.doesNotMatch(rehearsalWorkflow, /upload-artifact/);
