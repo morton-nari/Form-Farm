@@ -58,7 +58,7 @@ test('production release is staged, approval protected, explicit, and seed-free'
   assert.match(productionReleaseWorkflow, /PRODUCTION_SMOKE_ORIGIN: \$\{\{ env\.PRODUCTION_STAGED_URL \}\}/);
   assert.match(
     productionReleaseWorkflow,
-    /vercel@59\.1\.3 promote "\$PRODUCTION_STAGED_URL" --yes --scope="\$VERCEL_ORG_ID" --token="\$VERCEL_TOKEN"/,
+    /node scripts\/deployment\/promote-vercel-deployment\.mjs/,
   );
   assert.match(productionReleaseWorkflow, /verify-vercel-deployment\.mjs/);
   assert.match(productionReleaseWorkflow, /extract-startup-diagnostic\.mjs/);
@@ -75,11 +75,11 @@ test('production release is staged, approval protected, explicit, and seed-free'
   );
   assert.ok(
     productionReleaseWorkflow.indexOf('--prod --skip-domain') <
-      productionReleaseWorkflow.indexOf('vercel@59.1.3 promote'),
+      productionReleaseWorkflow.indexOf('promote-vercel-deployment.mjs'),
   );
   assert.ok(
     productionReleaseWorkflow.indexOf('deployment:production-smoke') <
-      productionReleaseWorkflow.indexOf('vercel@59.1.3 promote'),
+      productionReleaseWorkflow.indexOf('promote-vercel-deployment.mjs'),
   );
   assert.equal(
     productionReleaseWorkflow.match(/DATABASE_ADMIN_URL: \$\{\{ secrets\.PRODUCTION_DATABASE_ADMIN_URL \}\}/g)

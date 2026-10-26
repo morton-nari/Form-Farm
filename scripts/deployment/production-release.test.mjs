@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { ProductionSmokeFailure, runProductionSmoke } from './production-smoke-lib.mjs';
+import { promoteVercelDeployment } from './promote-vercel-deployment.mjs';
 import { createVercelProtectedFetch } from './vercel-protected-fetch.mjs';
 import { verifyRequiredChecks } from './verify-required-checks.mjs';
 import { fetchAndVerifyVercelDeployment, verifyVercelDeployment } from './verify-vercel-deployment.mjs';
@@ -26,6 +27,67 @@ const checkEnvironment = {
   APPLICATION_COMMIT: 'a'.repeat(40),
   GITHUB_TOKEN: 'never-print-this-token',
 };
+
+test('Production promotion uses only the team-scoped API and authorization header', async () => {
+  const requests = [];
+  const environment = {
+    VERCEL_PROJECT_ID: 'prj_expected123',
+    VERCEL_ORG_ID: 'team_expected123',
+    PRODUCTION_DEPLOYMENT_ID: 'dpl_Expected123',
+    VERCEL_TOKEN: 'never-print-this-vercel-token',
+  };
+  const id = await promoteVercelDeployment(environment, async (url, options) => {
+    requests.push({ url, options });
+    return new Response(null, { status: 200 });
+  });
+  assert.equal(id, environment.PRODUCTION_DEPLOYMENT_ID);
+  assert.deepEqual(requests, [{
+    url: 'https://api.vercel.com/v10/projects/prj_expected123/promote/dpl_Expected123?teamId=team_expected123',
+    options: {
+      method: 'POST',
+      headers: { authorization: `Bearer ${environment.VERCEL_TOKEN}` },
+    },
+  }]);
+  assert.equal(requests[0].url.includes(environment.VERCEL_TOKEN), false);
+});
+
+test('Production promotion fails closed before network access for invalid identifiers', async () => {
+  const valid = {
+    VERCEL_PROJECT_ID: 'prj_expected123',
+    VERCEL_ORG_ID: 'team_expected123',
+    PRODUCTION_DEPLOYMENT_ID: 'dpl_Expected123',
+    VERCEL_TOKEN: 'never-print-this-vercel-token',
+  };
+  for (const changed of [
+    { VERCEL_PROJECT_ID: 'other' },
+    { VERCEL_ORG_ID: 'other' },
+    { PRODUCTION_DEPLOYMENT_ID: 'other' },
+    { VERCEL_TOKEN: '' },
+  ]) {
+    await assert.rejects(
+      promoteVercelDeployment({ ...valid, ...changed }, async () => {
+        throw new Error('network must not be reached');
+      }),
+      { message: 'production-promotion:invalid-configuration' },
+    );
+  }
+});
+
+test('Production promotion reports a fixed failure without response or secret data', async () => {
+  const environment = {
+    VERCEL_PROJECT_ID: 'prj_expected123',
+    VERCEL_ORG_ID: 'team_expected123',
+    PRODUCTION_DEPLOYMENT_ID: 'dpl_Expected123',
+    VERCEL_TOKEN: 'never-print-this-vercel-token',
+  };
+  await assert.rejects(
+    promoteVercelDeployment(
+      environment,
+      async () => new Response('provider secret details', { status: 403 }),
+    ),
+    { message: 'production-promotion:request-failed' },
+  );
+});
 
 test('required check verification emits no token and requires every stable check', async () => {
   const requests = [];
