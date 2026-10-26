@@ -3,6 +3,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { FastifyInstance } from 'fastify';
 import { describe, expect, it, vi } from 'vitest';
 
+import { BackendConfigurationError } from '../config/backend-config.js';
 import { createVercelHandler, restoreVercelRequestPath } from './vercel-handler.js';
 
 describe('restoreVercelRequestPath', () => {
@@ -141,7 +142,8 @@ describe('createVercelHandler', () => {
       .mockReturnValueOnce({
         app: { ready: vi.fn(async () => undefined), server } as unknown as FastifyInstance,
       });
-    const handler = createVercelHandler(createApplication);
+    const reportStartupDiagnostic = vi.fn();
+    const handler = createVercelHandler(createApplication, reportStartupDiagnostic);
     const failed = requestAndResponse();
     const recovered = requestAndResponse();
     const forwarded = vi.fn();
@@ -159,6 +161,99 @@ describe('createVercelHandler', () => {
     );
     expect(createApplication).toHaveBeenCalledTimes(2);
     expect(close).toHaveBeenCalledTimes(1);
+    expect(reportStartupDiagnostic).toHaveBeenCalledOnce();
+    expect(reportStartupDiagnostic).toHaveBeenCalledWith('form-farm-startup:initialization');
+    expect(JSON.stringify(reportStartupDiagnostic.mock.calls)).not.toContain(
+      'secret connection detail',
+    );
+    expect(forwarded).toHaveBeenCalledWith(recovered.request, recovered.response);
+  });
+
+  it('reports only allowlisted configuration field names for startup diagnosis', async () => {
+    const secretValue = 'postgresql://owner:secret@example.invalid/database';
+    const reportStartupDiagnostic = vi.fn();
+    const handler = createVercelHandler(
+      () => {
+        const error = new BackendConfigurationError([
+          'publicOrigin',
+          secretValue,
+          'auth',
+          'publicOrigin',
+        ]);
+        error.stack = `sensitive stack containing ${secretValue}`;
+        throw error;
+      },
+      reportStartupDiagnostic,
+    );
+    const exchange = requestAndResponse();
+
+    await handler(exchange.request, exchange.response);
+
+    expect(exchange.response.statusCode).toBe(500);
+    expect(reportStartupDiagnostic).toHaveBeenCalledOnce();
+    expect(reportStartupDiagnostic).toHaveBeenCalledWith(
+      'form-farm-startup:configuration:auth,publicOrigin',
+    );
+    expect(JSON.stringify(reportStartupDiagnostic.mock.calls)).not.toContain(secretValue);
+  });
+
+  it('reports a startup diagnostic before application cleanup completes', async () => {
+    const cleanup = deferred<void>();
+    const reportStartupDiagnostic = vi.fn();
+    const handler = createVercelHandler(
+      () => ({
+        app: {
+          ready: vi.fn(async () => Promise.reject(new Error('secret initialization detail'))),
+          close: vi.fn(() => cleanup.promise),
+          server: new EventEmitter(),
+        } as unknown as FastifyInstance,
+      }),
+      reportStartupDiagnostic,
+    );
+    const exchange = requestAndResponse();
+
+    const invocation = handler(exchange.request, exchange.response);
+    await vi.waitFor(() => {
+      expect(reportStartupDiagnostic).toHaveBeenCalledWith('form-farm-startup:initialization');
+    });
+    expect(exchange.end).not.toHaveBeenCalled();
+
+    cleanup.resolve();
+    await invocation;
+
+    expect(exchange.response.statusCode).toBe(500);
+  });
+
+  it('recovers after a startup diagnostic reporter failure', async () => {
+    const server = new EventEmitter();
+    const createApplication = vi
+      .fn()
+      .mockImplementationOnce(() => {
+        throw new Error('secret initialization detail');
+      })
+      .mockReturnValueOnce({
+        app: { ready: vi.fn(async () => undefined), server } as unknown as FastifyInstance,
+      });
+    const handler = createVercelHandler(
+      createApplication,
+      () => {
+        throw new Error('diagnostic transport failed');
+      },
+    );
+    const failed = requestAndResponse();
+    const recovered = requestAndResponse();
+    const forwarded = vi.fn((_: unknown, response: EventEmitter) => response.emit('finish'));
+    server.on('request', forwarded);
+
+    await handler(failed.request, failed.response);
+    await handler(recovered.request, recovered.response);
+
+    expect(failed.response.statusCode).toBe(500);
+    expect(failed.end).toHaveBeenCalledWith(
+      JSON.stringify({ error: { code: 'internal_error', message: 'Internal server error.' } }),
+    );
+    expect(createApplication).toHaveBeenCalledTimes(2);
+    expect(forwarded).toHaveBeenCalledOnce();
     expect(forwarded).toHaveBeenCalledWith(recovered.request, recovered.response);
   });
 
