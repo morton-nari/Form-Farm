@@ -19,8 +19,8 @@ The owned HTTP endpoints are documented in [Backend API](docs/BACKEND_API.md).
 
 | Tool        | Version                     |
 | ----------- | --------------------------- |
-| Angular     | 22.1.x                      |
-| Angular CLI | 22.1.x                      |
+| Angular     | 22.2.x                      |
+| Angular CLI | 22.2.x                      |
 | TypeScript  | 6.0.x                       |
 | RxJS        | 7.8.x                       |
 | Bootstrap   | 5.3.8                       |

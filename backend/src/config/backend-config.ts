@@ -9,7 +9,7 @@ const authConfigSchema = z
   .strictObject({
     publicOrigin: z.url(),
     secureCookies: z.boolean(),
-    trustedProxyHops: z.number().int().min(0).max(10),
+    trustedProxyHops: z.number().int().min(0).max(1),
     sessionIdleTimeoutMilliseconds: z.number().int().positive(),
     sessionAbsoluteTimeoutMilliseconds: z.number().int().positive(),
     sessionActivityWriteCadenceMilliseconds: z.number().int().positive(),

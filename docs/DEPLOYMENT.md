@@ -217,8 +217,10 @@ preview and production.
 `TRUSTED_PROXY_HOPS` is owned by the deployment configuration, not by request headers or schema data. The isolated
 Vercel preview showed that the Node function receives Vercel's request on a loopback socket, with the client chain
 in the forwarded address metadata. Its branch-scoped preview value is therefore `1`: trust the one platform hop,
-then use the first untrusted address as the client identity. Re-verify this boundary before using another runtime
-or proxy topology. `PUBLIC_APP_ORIGIN` is never inferred from `Host`, `Forwarded`, or `X-Forwarded-*`.
+then use the first untrusted address as the client identity. Runtime configuration accepts only `0` or `1` and
+uses an explicit immediate-peer trust function rather than Fastify's removed numeric shorthand. Re-verify this
+boundary before using another runtime or proxy topology. `PUBLIC_APP_ORIGIN` is never inferred from `Host`,
+`Forwarded`, or `X-Forwarded-*`.
 
 ## References
 
