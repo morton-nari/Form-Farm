@@ -118,11 +118,21 @@ jobs:
           [[ "$deployment_url" =~ ^https://[A-Za-z0-9.-]+\.vercel\.app$ ]]
           echo "PRODUCTION_STAGED_URL=$deployment_url" >> "$GITHUB_ENV"
       - name: Verify staged deployment without product-data writes
+        id: staged-smoke
         env:
           PRODUCTION_SMOKE_ORIGIN: ${{ env.PRODUCTION_STAGED_URL }}
           PRODUCTION_SMOKE_VERCEL_CURL: 'true'
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.PRODUCTION_VERCEL_PROTECTION_BYPASS }}
         run: npm run deployment:production-smoke
+      - name: Record strictly redacted startup diagnostic after staged smoke failure
+        if: ${{ failure() && steps.staged-smoke.outcome == 'failure' }}
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          diagnostic="$({ npx --yes vercel@59.1.3 logs "$PRODUCTION_STAGED_URL" --json --since 10m --limit 100 2>/dev/null || true; } | node scripts/deployment/extract-startup-diagnostic.mjs)"
+          printf '%s\n' "- Startup diagnostic: \`$diagnostic\`" >> "$GITHUB_STEP_SUMMARY"
       - name: Resolve staged deployment ID
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}

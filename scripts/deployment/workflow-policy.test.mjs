@@ -54,6 +54,10 @@ test('production release is staged, approval protected, explicit, and seed-free'
   assert.match(productionReleaseWorkflow, /PRODUCTION_SMOKE_ORIGIN: \$\{\{ env\.PRODUCTION_STAGED_URL \}\}/);
   assert.match(productionReleaseWorkflow, /vercel@59\.1\.3 promote/);
   assert.match(productionReleaseWorkflow, /verify-vercel-deployment\.mjs/);
+  assert.match(productionReleaseWorkflow, /extract-startup-diagnostic\.mjs/);
+  assert.match(productionReleaseWorkflow, /steps\.staged-smoke\.outcome == 'failure'/);
+  assert.match(productionReleaseWorkflow, /vercel@59\.1\.3 logs/);
+  assert.doesNotMatch(productionReleaseWorkflow, /cat .*log|tee .*log|upload-artifact/);
   assert.match(productionReleaseWorkflow, /Post-promotion smoke failed/);
   assert.match(productionReleaseWorkflow, /Do not reverse SQL automatically/);
   assert.doesNotMatch(productionReleaseWorkflow, /db:seed|reset|upload-artifact|set -x|printenv/);
@@ -77,7 +81,7 @@ test('production release is staged, approval protected, explicit, and seed-free'
   );
   assert.equal(
     productionReleaseWorkflow.match(/VERCEL_TOKEN: \$\{\{ secrets\.VERCEL_TOKEN \}\}/g)?.length,
-    3,
+    4,
   );
 });
 
