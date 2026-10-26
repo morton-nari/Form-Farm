@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { runProductionSmoke } from './production-smoke-lib.mjs';
+import { createVercelProtectedFetch } from './vercel-protected-fetch.mjs';
 import { verifyRequiredChecks } from './verify-required-checks.mjs';
 import { fetchAndVerifyVercelDeployment, verifyVercelDeployment } from './verify-vercel-deployment.mjs';
 
@@ -163,4 +164,37 @@ test('production smoke is read-only and reports fixed names without response bod
   assert.equal(output.includes('production-smoke:pass:runtime-database-read'), true);
   assert.equal(output.join('\n').includes('invalid-session-credential'), false);
   assert.equal(output.join('\n').includes('not-reported'), false);
+});
+
+test('protected staged fetch rejects other origins and redacts CLI failures', async () => {
+  const calls = [];
+  const protectedFetch = createVercelProtectedFetch(
+    {
+      PRODUCTION_SMOKE_ORIGIN: 'https://staged-form-farm.vercel.app',
+      VERCEL_TOKEN: 'never-print-this-vercel-token',
+    },
+    (_command, args) => {
+      calls.push(args);
+      return {
+        status: 1,
+        stdout: '',
+        stderr: 'provider output containing never-print-this-vercel-token',
+      };
+    },
+  );
+
+  await assert.rejects(
+    protectedFetch('https://other.vercel.app/health'),
+    /escaped its origin/,
+  );
+  assert.equal(calls.length, 0);
+  await assert.rejects(
+    protectedFetch('https://staged-form-farm.vercel.app/health'),
+    (error) => {
+      assert.equal(error.message, 'Authenticated Vercel request failed.');
+      assert.equal(error.message.includes('never-print-this-vercel-token'), false);
+      return true;
+    },
+  );
+  assert.equal(calls.length, 1);
 });
