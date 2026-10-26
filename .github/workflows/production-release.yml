@@ -144,10 +144,8 @@ jobs:
       - name: Promote the verified staged deployment
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        shell: bash
         run: |
-          set -euo pipefail
-          npx --yes vercel@59.1.3 promote "$PRODUCTION_STAGED_URL" --yes --scope="$VERCEL_ORG_ID" --token="$VERCEL_TOKEN"
+          node scripts/deployment/promote-vercel-deployment.mjs
           echo 'PRODUCTION_PROMOTED=true' >> "$GITHUB_ENV"
       - name: Verify assigned Production origin without product-data writes
         env:
