@@ -88,8 +88,12 @@ test('production rollback requires compatibility review and never reverses SQL',
 test('Production staged smoke is protected and cannot deploy, promote, or mutate data', () => {
   assert.match(productionStagedSmokeWorkflow, /workflow_dispatch:/);
   assert.match(productionStagedSmokeWorkflow, /environment: Production/);
-  assert.match(productionStagedSmokeWorkflow, /ref: \$\{\{ inputs\.application_commit \}\}/);
+  assert.match(productionStagedSmokeWorkflow, /ref: \$\{\{ inputs\.smoke_implementation_commit \}\}/);
   assert.match(productionStagedSmokeWorkflow, /git merge-base --is-ancestor/);
+  assert.match(productionStagedSmokeWorkflow, /verify-vercel-deployment\.mjs/);
+  assert.match(productionStagedSmokeWorkflow, /APPLICATION_COMMIT: \$\{\{ inputs\.release_commit \}\}/);
+  assert.match(productionStagedSmokeWorkflow, /vars\.VERCEL_ORG_ID/);
+  assert.match(productionStagedSmokeWorkflow, /vars\.VERCEL_PROJECT_ID/);
   assert.match(productionStagedSmokeWorkflow, /PRODUCTION_SMOKE_VERCEL_CURL: 'true'/);
   assert.match(productionStagedSmokeWorkflow, /secrets\.VERCEL_TOKEN/);
   assert.match(productionStagedSmokeWorkflow, /deployment:production-smoke/);
