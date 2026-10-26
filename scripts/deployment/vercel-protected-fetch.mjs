@@ -26,6 +26,8 @@ export function createVercelProtectedFetch(environment, run = spawnSync) {
         `vercel@${cliVersion}`,
         'curl',
         url.href,
+        `--token=${token}`,
+        '--',
         '--silent',
         '--show-error',
         '--dump-header',
@@ -34,7 +36,6 @@ export function createVercelProtectedFetch(environment, run = spawnSync) {
         bodyPath,
         '--write-out',
         '%{http_code}',
-        `--token=${token}`,
       ];
       const cookie = new Headers(options.headers).get('cookie');
       if (cookie) args.push('--header', `Cookie: ${cookie}`);

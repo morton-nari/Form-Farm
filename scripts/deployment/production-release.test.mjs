@@ -197,4 +197,8 @@ test('protected staged fetch rejects other origins and redacts CLI failures', as
     },
   );
   assert.equal(calls.length, 1);
+  const separatorIndex = calls[0].indexOf('--');
+  assert.ok(separatorIndex > calls[0].indexOf('--token=never-print-this-vercel-token'));
+  assert.ok(separatorIndex < calls[0].indexOf('--silent'));
+  assert.ok(separatorIndex < calls[0].indexOf('--dump-header'));
 });
