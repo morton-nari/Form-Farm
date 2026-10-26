@@ -34,16 +34,39 @@ export async function runProductionSmoke(environment, fetchImplementation = fetc
     ],
   ];
   for (const [name, path, status, contentType, verifyBody, requestOptions = {}] of checks) {
-    const response = await fetchImplementation(new URL(path, origin), {
-      ...requestOptions,
-      redirect: 'manual',
-    });
-    if (response.status !== status) throw new Error('Production smoke status mismatch.');
-    if (contentType && !response.headers.get('content-type')?.startsWith(contentType)) {
-      throw new Error('Production smoke content type mismatch.');
+    let response;
+    try {
+      response = await fetchImplementation(new URL(path, origin), {
+        ...requestOptions,
+        redirect: 'manual',
+      });
+    } catch {
+      throw new ProductionSmokeFailure(name, 'transport');
     }
-    if (verifyBody) await verifyBody(response);
+    if (response.status !== status) {
+      const actualStatus = Number.isInteger(response.status) && response.status >= 100 && response.status <= 599
+        ? response.status
+        : 'invalid';
+      throw new ProductionSmokeFailure(name, `status-${actualStatus}`);
+    }
+    if (contentType && !response.headers.get('content-type')?.startsWith(contentType)) {
+      throw new ProductionSmokeFailure(name, 'content-type');
+    }
+    if (verifyBody) {
+      try {
+        await verifyBody(response);
+      } catch {
+        throw new ProductionSmokeFailure(name, 'response');
+      }
+    }
     write(`production-smoke:pass:${name}`);
+  }
+}
+
+export class ProductionSmokeFailure extends Error {
+  constructor(check, reason) {
+    super(`production-smoke:failed:${check}:${reason}`);
+    this.name = 'ProductionSmokeFailure';
   }
 }
 
