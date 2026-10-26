@@ -7,6 +7,10 @@ import {
   productionRuntimeTableNames,
   verifyMigrationLedger,
 } from './migration-manifest.js';
+import {
+  isProductionRuntimeBoundaryValid,
+  type ProductionRuntimeBoundary,
+} from './production-runtime-boundary.js';
 
 function requireIdentifier(name: string): string {
   const value = process.env[name];
@@ -59,24 +63,12 @@ try {
     throw error;
   }
 
-  const boundary = await pool.query<{
-    superuser: boolean;
-    can_login: boolean;
-    create_database: boolean;
-    create_role: boolean;
-    memberships: string[];
-    schema_create: boolean;
-    migration_ledger: boolean;
-    runtime_table_access: boolean;
-    development_only_table_access: boolean;
-    database_connect: boolean;
-    schema_usage: boolean;
-  }>(
+  const boundary = await pool.query<ProductionRuntimeBoundary>(
     `select r.rolsuper as superuser,
             r.rolcanlogin as can_login,
             r.rolcreatedb as create_database,
             r.rolcreaterole as create_role,
-            array(select pg_get_userbyid(m.roleid) from pg_auth_members m where m.member = r.oid) as memberships,
+            (select count(*)::integer from pg_auth_members m where m.member = r.oid) as membership_count,
             has_schema_privilege(r.rolname, 'public', 'CREATE') as schema_create,
             has_database_privilege(r.rolname, current_database(), 'CONNECT') as database_connect,
             has_schema_privilege(r.rolname, 'public', 'USAGE') as schema_usage,
@@ -96,20 +88,7 @@ try {
     [appRole, productionRuntimeTableNames, developmentOnlyTableNames],
   );
   const result = boundary.rows[0];
-  if (
-    !result ||
-    !result.can_login ||
-    result.superuser ||
-    result.create_database ||
-    result.create_role ||
-    result.memberships.length > 0 ||
-    result.schema_create ||
-    result.migration_ledger ||
-    !result.database_connect ||
-    !result.schema_usage ||
-    !result.runtime_table_access ||
-    result.development_only_table_access
-  ) {
+  if (!isProductionRuntimeBoundaryValid(result)) {
     throw new Error('Production application role exceeded the reviewed runtime boundary.');
   }
   console.log(`Production runtime grants passed: tables=${productionRuntimeTableNames.length}.`);
