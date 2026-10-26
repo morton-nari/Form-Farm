@@ -348,6 +348,9 @@ test('protected staged fetch rejects other origins and redacts CLI failures', as
     },
   );
   assert.equal(calls.length, 1);
+  assert.ok(calls[0].includes('/health'));
+  assert.ok(calls[0].includes('--deployment=https://staged-form-farm.vercel.app'));
+  assert.equal(calls[0].includes('https://staged-form-farm.vercel.app/health'), false);
   const separatorIndex = calls[0].indexOf('--');
   assert.ok(separatorIndex > calls[0].indexOf('--token=never-print-this-vercel-token'));
   assert.ok(separatorIndex > calls[0].indexOf('--scope=team_reviewed'));
