@@ -303,7 +303,7 @@ errors. Preview and Production fail closed before parsing or persistence access.
 transport only: an owner ID or client metadata can never establish identity.
 
 The first MCP adapter is a separate local stdio process pinned to the reviewed official TypeScript server SDK
-`@modelcontextprotocol/server` 2.0.0 and MCP protocol revision `2025-11-25`.
+`@modelcontextprotocol/server` 2.4.0 and MCP protocol revision `2025-11-25`.
 It exposes only `inspect_form`, `compare_form_versions`, and `impact_analysis`. Every handler authenticates again,
 then calls an application-owned Form Intelligence use case through an owner-scoped persistence port. The MCP
 module owns protocol schemas, discovery, annotations, safe error translation, and bounded output shaping; it

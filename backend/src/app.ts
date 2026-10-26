@@ -89,7 +89,10 @@ export function createApplication(options: CreateApplicationOptions): FastifyIns
               'res.headers.set-cookie',
             ],
           },
-    trustProxy: options.config.auth.trustedProxyHops || false,
+    trustProxy:
+      options.config.auth.trustedProxyHops === 0
+        ? false
+        : (_address: string, hop: number) => hop < options.config.auth.trustedProxyHops,
   });
 
   registerErrorHandler(app);
