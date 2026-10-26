@@ -1,0 +1,86 @@
+name: Production staged smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      smoke_implementation_commit:
+        description: Full commit SHA containing the reviewed smoke implementation
+        required: true
+        type: string
+      release_commit:
+        description: Full intended release commit SHA attached to the staged deployment
+        required: true
+        type: string
+      staged_origin:
+        description: Exact unpromoted Vercel deployment origin
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-staged-smoke
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    name: Verify existing protected Production stage
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: Production
+    steps:
+      - name: Check out immutable smoke implementation
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.smoke_implementation_commit }}
+          fetch-depth: 0
+      - name: Validate immutable commit and staged origin
+        env:
+          SMOKE_IMPLEMENTATION_COMMIT: ${{ inputs.smoke_implementation_commit }}
+          RELEASE_COMMIT: ${{ inputs.release_commit }}
+          STAGED_ORIGIN: ${{ inputs.staged_origin }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$SMOKE_IMPLEMENTATION_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$RELEASE_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$SMOKE_IMPLEMENTATION_COMMIT"
+          git merge-base --is-ancestor "$SMOKE_IMPLEMENTATION_COMMIT" refs/remotes/origin/dev
+          git merge-base --is-ancestor "$RELEASE_COMMIT" refs/remotes/origin/dev
+          [[ "$STAGED_ORIGIN" =~ ^https://[A-Za-z0-9-]+\.vercel\.app$ ]]
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24.15.0
+          cache: npm
+      - run: npm install --global npm@12.0.2
+      - run: npm ci
+      - name: Bind staged deployment to reviewed project and release commit
+        env:
+          APPLICATION_COMMIT: ${{ inputs.release_commit }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          STAGED_ORIGIN: ${{ inputs.staged_origin }}
+        run: node scripts/deployment/verify-vercel-deployment.mjs "$STAGED_ORIGIN" > /dev/null
+      - name: Verify staged deployment without product-data writes
+        env:
+          PRODUCTION_SMOKE_ORIGIN: ${{ inputs.staged_origin }}
+          PRODUCTION_SMOKE_VERCEL_CURL: 'true'
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: npm run deployment:production-smoke
+      - name: Record non-secret smoke evidence
+        env:
+          SMOKE_IMPLEMENTATION_COMMIT: ${{ inputs.smoke_implementation_commit }}
+          RELEASE_COMMIT: ${{ inputs.release_commit }}
+          STAGED_ORIGIN: ${{ inputs.staged_origin }}
+        shell: bash
+        run: |
+          {
+            echo '## Protected Production staged smoke'
+            printf '%s\n' "- Smoke implementation commit: \`$SMOKE_IMPLEMENTATION_COMMIT\`"
+            printf '%s\n' "- Intended release commit: \`$RELEASE_COMMIT\`"
+            printf '%s\n' "- Staged origin: \`$STAGED_ORIGIN\`"
+            echo '- Result: read-only staged smoke passed'
+            echo '- No deployment, promotion, alias, migration, or product-data write was performed'
+          } >> "$GITHUB_STEP_SUMMARY"
