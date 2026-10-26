@@ -96,8 +96,8 @@ export function createVercelHandler(
           readyApplication = app;
           return app;
         } catch (error) {
-          await app?.close().catch(() => undefined);
           safelyReportStartupDiagnostic(reportStartupDiagnostic, error);
+          await app?.close().catch(() => undefined);
           throw error;
         }
       })();
