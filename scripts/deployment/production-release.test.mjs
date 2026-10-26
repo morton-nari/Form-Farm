@@ -122,6 +122,56 @@ test('Vercel deployment lookup keeps its token in the authorization header', asy
   assert.equal(requests[0].options.headers.authorization, `Bearer ${environment.VERCEL_TOKEN}`);
 });
 
+test('Vercel deployment lookup converts an exact HTTPS origin to its hostname', async () => {
+  const requests = [];
+  const environment = {
+    APPLICATION_COMMIT: 'd'.repeat(40),
+    VERCEL_PROJECT_ID: 'prj_expected',
+    VERCEL_ORG_ID: 'team_expected',
+    VERCEL_TOKEN: 'never-print-this-vercel-token',
+  };
+  await fetchAndVerifyVercelDeployment(
+    'https://form-farm-stage.vercel.app',
+    environment,
+    async (url) => {
+      requests.push(url);
+      return new Response(JSON.stringify({
+        id: 'dpl_Expected123',
+        target: 'production',
+        projectId: 'prj_expected',
+        teamId: 'team_expected',
+        meta: { formFarmApplicationCommit: 'd'.repeat(40) },
+      }), { status: 200 });
+    },
+  );
+  assert.equal(
+    requests[0],
+    'https://api.vercel.com/v13/deployments/form-farm-stage.vercel.app?teamId=team_expected',
+  );
+});
+
+test('Vercel deployment lookup rejects non-exact origins before network access', async () => {
+  const environment = {
+    APPLICATION_COMMIT: 'd'.repeat(40),
+    VERCEL_PROJECT_ID: 'prj_expected',
+    VERCEL_ORG_ID: 'team_expected',
+    VERCEL_TOKEN: 'never-print-this-vercel-token',
+  };
+  for (const reference of [
+    'http://form-farm-stage.vercel.app',
+    'https://form-farm-stage.vercel.app/path',
+    'https://form-farm-stage.vercel.app?query=value',
+    'https://vercel.app',
+  ]) {
+    await assert.rejects(
+      fetchAndVerifyVercelDeployment(reference, environment, async () => {
+        throw new Error('network must not be reached');
+      }),
+      /Invalid deployment reference/,
+    );
+  }
+});
+
 test('Vercel deployment lookup accepts omitted response team only after a team-scoped lookup', async () => {
   const environment = {
     APPLICATION_COMMIT: 'e'.repeat(40),

@@ -22,10 +22,13 @@ export async function fetchAndVerifyVercelDeployment(
   if (!/^(dpl_[A-Za-z0-9]+|https:\/\/[A-Za-z0-9.-]+\.vercel\.app)$/.test(reference)) {
     throw new Error('Invalid deployment reference.');
   }
+  const lookupReference = reference.startsWith('https://')
+    ? new URL(reference).hostname
+    : reference;
   const token = requireValue(environment.VERCEL_TOKEN, 'VERCEL_TOKEN');
   const teamId = requireValue(environment.VERCEL_ORG_ID, 'VERCEL_ORG_ID');
   const response = await fetchImplementation(
-    `https://api.vercel.com/v13/deployments/${encodeURIComponent(reference)}?teamId=${encodeURIComponent(teamId)}`,
+    `https://api.vercel.com/v13/deployments/${encodeURIComponent(lookupReference)}?teamId=${encodeURIComponent(teamId)}`,
     { headers: { authorization: `Bearer ${token}` } },
   );
   if (!response.ok) fail('lookup-failed');
