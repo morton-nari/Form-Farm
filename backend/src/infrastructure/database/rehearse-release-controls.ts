@@ -1,7 +1,11 @@
 import { Pool } from 'pg';
 
 import { requireDirectDatabaseAdminUrl } from './database-url-policy.js';
-import { migrationNames, verifyMigrationLedger } from './migration-manifest.js';
+import {
+  migrationNames,
+  verifyMigrationLedger,
+  verifyMigrationLedgerPrefix,
+} from './migration-manifest.js';
 
 function requireSafeValue(environment: NodeJS.ProcessEnv, name: string, pattern: RegExp): string {
   const value = environment[name];
@@ -21,6 +25,12 @@ try {
     /^[A-Za-z0-9_]{1,63}$/,
   );
   const runId = requireSafeValue(process.env, 'RELEASE_REHEARSAL_RUN_ID', /^[0-9]{1,20}$/);
+  const requireCurrentMigrations =
+    requireSafeValue(
+      process.env,
+      'RELEASE_REHEARSAL_REQUIRE_CURRENT_MIGRATIONS',
+      /^(?:true|false)$/,
+    ) === 'true';
   const url = new URL(databaseUrl);
   const expectedRole = decodeURIComponent(url.username);
   const rollbackObject = `release_rehearsal_${runId}`;
@@ -39,10 +49,15 @@ try {
     );
   }
 
-  const ledger = await pool.query<{ name: string }>(
-    'select name from form_farm_migrations order by name asc',
+  const ledgerExists = await pool.query<{ ledger: string | null }>(
+    "select to_regclass('public.form_farm_migrations') as ledger",
   );
-  verifyMigrationLedger(ledger.rows.map(({ name }) => name));
+  const ledger = ledgerExists.rows[0]?.ledger
+    ? await pool.query<{ name: string }>('select name from form_farm_migrations order by name asc')
+    : { rows: [] };
+  const ledgerNames = ledger.rows.map(({ name }) => name);
+  if (requireCurrentMigrations) verifyMigrationLedger(ledgerNames);
+  else verifyMigrationLedgerPrefix(ledgerNames);
 
   await pool.query('begin');
   let rollbackObjectCreated = false;
@@ -71,7 +86,7 @@ try {
   }
 
   console.log(
-    `Release rehearsal checks passed: migrations=${migrationNames.length}, rollback_objects=0.`,
+    `Release rehearsal checks passed: current_migrations=${ledgerNames.length}, target_migrations=${migrationNames.length}, rollback_objects=0.`,
   );
 } catch {
   console.error(

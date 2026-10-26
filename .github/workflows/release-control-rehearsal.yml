@@ -61,19 +61,21 @@ jobs:
           npm run backend:build
           npm run deployment:check
 
-      - name: Verify target, migration ledger, and failed-transaction rollback
+      - name: Verify target, migration prefix, and failed-transaction rollback
         env:
           DATABASE_ADMIN_URL: ${{ secrets.PREVIEW_DATABASE_ADMIN_URL }}
+          RELEASE_REHEARSAL_REQUIRE_CURRENT_MIGRATIONS: 'false'
         run: npm run db:rehearse-release
 
-      - name: Reapply explicit migrations as an idempotent no-op
+      - name: Apply pending migrations explicitly
         env:
           DATABASE_ADMIN_URL: ${{ secrets.PREVIEW_DATABASE_ADMIN_URL }}
         run: npm run db:migrate
 
-      - name: Verify unchanged migration ledger after migration command
+      - name: Verify exact migration ledger after migration command
         env:
           DATABASE_ADMIN_URL: ${{ secrets.PREVIEW_DATABASE_ADMIN_URL }}
+          RELEASE_REHEARSAL_REQUIRE_CURRENT_MIGRATIONS: 'true'
         run: npm run db:rehearse-release
 
       - name: Record non-secret rehearsal evidence
@@ -85,7 +87,7 @@ jobs:
             echo '## Isolated release-control rehearsal'
             printf '%s\n' "- Application commit: \`$APPLICATION_COMMIT\`"
             echo '- Environment: retained non-production preview'
-            echo '- Migration result: explicit idempotent no-op'
+            echo '- Migration result: exact committed prefix advanced explicitly to the manifest tip'
             echo '- Failure-stop result: transaction rollback left zero objects'
             echo '- Production action: none'
           } >> "$GITHUB_STEP_SUMMARY"

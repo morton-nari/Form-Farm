@@ -59,11 +59,14 @@ command.
 `Release control rehearsal` is manual and bound only to the protected `preview-smoke` Environment. It checks out
 an immutable full commit SHA, runs backend and deployment compatibility checks, validates the protected preview
 database name and administrative role without printing either credential, verifies the exact ordered migration
-ledger, and runs the explicit migrator as an idempotent no-op.
+ledger is a committed prefix, runs the explicit migrator, and then requires the ledger to equal the committed
+manifest tip exactly.
 
-This proves migration-command idempotence for a database whose ledger is already current: the migrator recognizes
-every recorded entry and does not reapply it. It does not prove that arbitrary migration SQL is intrinsically
-safe to execute twice. Every new migration still requires its own ordering, compatibility, and failure review.
+This proves the reviewed pending migration sequence can advance an isolated database from an exact committed
+prefix to the current manifest tip. When the prefix is already current, it also proves migration-command
+idempotence: the migrator recognizes every recorded entry and does not reapply it. It does not prove that
+arbitrary migration SQL is intrinsically safe to execute twice. Every new migration still requires its own
+ordering, compatibility, and failure review.
 
 The rehearsal deliberately creates a uniquely named table inside a transaction, forces the failure path, rolls
 the transaction back, and proves that no object remains. This tests failure-stop behavior without deleting or
