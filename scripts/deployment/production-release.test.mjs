@@ -316,26 +316,17 @@ test('production smoke failures expose only the fixed check and bounded reason',
   );
 });
 
-test('protected staged fetch rejects other origins and redacts CLI failures', async () => {
+test('protected staged fetch confines requests and sends the bypass header only', async () => {
   const calls = [];
+  const bypass = 'never-print-this-production-bypass';
   const protectedFetch = createVercelProtectedFetch(
     {
       PRODUCTION_SMOKE_ORIGIN: 'https://staged-form-farm.vercel.app',
-      VERCEL_ORG_ID: 'team_reviewed',
-      VERCEL_AUTOMATION_BYPASS_SECRET: 'never-print-this-production-bypass',
-      VERCEL_TOKEN: 'never-print-this-vercel-token',
+      VERCEL_AUTOMATION_BYPASS_SECRET: bypass,
     },
-    (_command, args, options) => {
-      calls.push(args);
-      assert.equal(
-        options.env.VERCEL_AUTOMATION_BYPASS_SECRET,
-        'never-print-this-production-bypass',
-      );
-      return {
-        status: 1,
-        stdout: '',
-        stderr: 'provider output containing never-print-this-vercel-token',
-      };
+    async (url, options) => {
+      calls.push({ url: url.href, options });
+      return new Response(null, { status: 204 });
     },
   );
 
@@ -344,55 +335,17 @@ test('protected staged fetch rejects other origins and redacts CLI failures', as
     /escaped its origin/,
   );
   assert.equal(calls.length, 0);
-  await assert.rejects(
-    protectedFetch('https://staged-form-farm.vercel.app/health'),
-    (error) => {
-      assert.equal(error.message, 'Authenticated Vercel request failed.');
-      assert.equal(error.message.includes('never-print-this-vercel-token'), false);
-      return true;
-    },
-  );
+  await protectedFetch('https://staged-form-farm.vercel.app/health', {
+    redirect: 'manual',
+    headers: { cookie: '__Host-ff_session=synthetic' },
+  });
   assert.equal(calls.length, 1);
-  assert.ok(calls[0].includes('/health'));
-  assert.ok(calls[0].includes('--deployment=https://staged-form-farm.vercel.app'));
-  assert.equal(calls[0].includes('https://staged-form-farm.vercel.app/health'), false);
-  const separatorIndex = calls[0].indexOf('--');
-  assert.ok(separatorIndex > calls[0].indexOf('--token=never-print-this-vercel-token'));
-  assert.ok(separatorIndex > calls[0].indexOf('--scope=team_reviewed'));
-  assert.ok(separatorIndex < calls[0].indexOf('--silent'));
-  assert.ok(separatorIndex < calls[0].indexOf('--dump-header'));
-  assert.equal(calls[0].join(' ').includes('never-print-this-production-bypass'), false);
-});
-
-test('protected staged fetch reports bounded transport categories without provider output', async () => {
-  const secret = 'never-print-this-provider-secret';
-  for (const [stderr, category] of [
-    [`Error: forbidden ${secret}`, 'authorization'],
-    [`Deployment protection bypass rejected ${secret}`, 'protection'],
-    [`Could not find deployment ${secret}`, 'deployment-lookup'],
-    [`spawn curl ENOENT ${secret}`, 'native-curl'],
-    [`Invalid token; log in ${secret}`, 'authentication'],
-    [`unexpected provider failure ${secret}`, 'unknown'],
-  ]) {
-    const protectedFetch = createVercelProtectedFetch(
-      {
-        PRODUCTION_SMOKE_ORIGIN: 'https://staged-form-farm.vercel.app',
-        VERCEL_ORG_ID: 'team_reviewed',
-        VERCEL_AUTOMATION_BYPASS_SECRET: secret,
-        VERCEL_TOKEN: secret,
-      },
-      () => ({ status: 1, stdout: '', stderr }),
-    );
-    await assert.rejects(
-      protectedFetch('https://staged-form-farm.vercel.app/health'),
-      (error) => {
-        assert.equal(error.productionSmokeTransportCategory, category);
-        assert.equal(error.message.includes(secret), false);
-        assert.equal(error.message.includes(stderr), false);
-        return true;
-      },
-    );
-  }
+  assert.equal(calls[0].url, 'https://staged-form-farm.vercel.app/health');
+  assert.equal(calls[0].url.includes(bypass), false);
+  assert.equal(calls[0].options.redirect, 'manual');
+  assert.equal(calls[0].options.headers.get('cookie'), '__Host-ff_session=synthetic');
+  assert.equal(calls[0].options.headers.get('x-vercel-protection-bypass'), bypass);
+  assert.equal(calls[0].options.headers.has('x-vercel-set-bypass-cookie'), false);
 });
 
 test('production smoke exposes only allowlisted transport categories', async () => {
@@ -419,22 +372,10 @@ test('production smoke exposes only allowlisted transport categories', async () 
   }
 });
 
-test('protected staged fetch fails closed without an authorized Vercel team scope', () => {
-  assert.throws(
-    () => createVercelProtectedFetch({
-      PRODUCTION_SMOKE_ORIGIN: 'https://staged-form-farm.vercel.app',
-      VERCEL_TOKEN: 'never-print-this-vercel-token',
-    }),
-    /requires VERCEL_ORG_ID/,
-  );
-});
-
 test('protected staged fetch fails closed without a Production protection bypass', () => {
   assert.throws(
     () => createVercelProtectedFetch({
       PRODUCTION_SMOKE_ORIGIN: 'https://staged-form-farm.vercel.app',
-      VERCEL_ORG_ID: 'team_reviewed',
-      VERCEL_TOKEN: 'never-print-this-vercel-token',
     }),
     /requires VERCEL_AUTOMATION_BYPASS_SECRET/,
   );

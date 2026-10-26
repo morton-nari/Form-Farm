@@ -67,9 +67,7 @@ jobs:
         env:
           PRODUCTION_SMOKE_ORIGIN: ${{ inputs.staged_origin }}
           PRODUCTION_SMOKE_VERCEL_CURL: 'true'
-          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.PRODUCTION_VERCEL_PROTECTION_BYPASS }}
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: npm run deployment:production-smoke
       - name: Record non-secret smoke evidence
         env:
