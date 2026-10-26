@@ -75,6 +75,12 @@ test('production release is staged, approval protected, explicit, and seed-free'
   assert.doesNotMatch(productionReleaseWorkflow, /cat .*log|tee .*log|upload-artifact/);
   assert.match(productionReleaseWorkflow, /Post-promotion smoke failed/);
   assert.match(productionReleaseWorkflow, /Do not reverse SQL automatically/);
+  assert.match(productionReleaseWorkflow, /for attempt in 1 2 3 4 5 6; do/);
+  assert.match(productionReleaseWorkflow, /if test "\$attempt" -lt 6; then\s+sleep 10/);
+  assert.match(
+    productionReleaseWorkflow,
+    /for attempt in 1 2 3 4 5 6; do[\s\S]*npm run deployment:production-smoke[\s\S]*done\s+exit 1/,
+  );
   assert.doesNotMatch(productionReleaseWorkflow, /db:seed|reset|upload-artifact|set -x|printenv/);
   assert.doesNotMatch(productionReleaseWorkflow, /PREVIEW_/);
   assert.ok(
