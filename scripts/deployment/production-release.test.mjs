@@ -234,6 +234,36 @@ test('production smoke failures expose only the fixed check and bounded reason',
       return true;
     },
   );
+
+  await assert.rejects(
+    runProductionSmoke(
+      { PRODUCTION_SMOKE_ORIGIN: 'https://form-farm.vercel.app' },
+      async () => new Response(secretBody, {
+        status: 200,
+        headers: { 'content-type': 'text/plain' },
+      }),
+    ),
+    (error) => {
+      assert.equal(error.message, 'production-smoke:failed:health:content-type');
+      assert.equal(error.message.includes(secretBody), false);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    runProductionSmoke(
+      { PRODUCTION_SMOKE_ORIGIN: 'https://form-farm.vercel.app' },
+      async () => new Response(JSON.stringify({ status: 'failed', secret: secretBody }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    ),
+    (error) => {
+      assert.equal(error.message, 'production-smoke:failed:health:response');
+      assert.equal(error.message.includes(secretBody), false);
+      return true;
+    },
+  );
 });
 
 test('protected staged fetch rejects other origins and redacts CLI failures', async () => {
