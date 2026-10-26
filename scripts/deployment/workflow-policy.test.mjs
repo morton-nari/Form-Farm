@@ -56,7 +56,10 @@ test('production release is staged, approval protected, explicit, and seed-free'
     /VERCEL_AUTOMATION_BYPASS_SECRET: \$\{\{ secrets\.PRODUCTION_VERCEL_PROTECTION_BYPASS \}\}/,
   );
   assert.match(productionReleaseWorkflow, /PRODUCTION_SMOKE_ORIGIN: \$\{\{ env\.PRODUCTION_STAGED_URL \}\}/);
-  assert.match(productionReleaseWorkflow, /vercel@59\.1\.3 promote/);
+  assert.match(
+    productionReleaseWorkflow,
+    /vercel@59\.1\.3 promote "\$PRODUCTION_STAGED_URL" --yes --scope="\$VERCEL_ORG_ID" --token="\$VERCEL_TOKEN"/,
+  );
   assert.match(productionReleaseWorkflow, /verify-vercel-deployment\.mjs/);
   assert.match(productionReleaseWorkflow, /extract-startup-diagnostic\.mjs/);
   assert.match(productionReleaseWorkflow, /steps\.staged-smoke\.outcome == 'failure'/);
